@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"go.mod/internal/services"
 )
@@ -16,19 +18,67 @@ func NewPublicHandler(userService *services.PublicService) *PublicHandler {
 }
 
 func (h *PublicHandler) RegisterRoute(publicRoute *gin.RouterGroup) {
-	publicRoute.GET("/getpub", h.PublicHandlerFunc)
+	// get the login static page, direct
+	publicRoute.GET("/login", h.LoginStatic)
+	// get the login static page, direct
+	publicRoute.GET("/signup", h.SignupStatic)
+	// post the data from login page, indirect
+	publicRoute.POST("/postlogindata", h.LoginPost)
+	// post the data from signup page, indirect
+	publicRoute.POST("/postsignupdata", h.SignupPost)
 }
 
-func (h *PublicHandler) PublicHandlerFunc(c *gin.Context) {
+func (h *PublicHandler) LoginStatic(c *gin.Context) {
+	c.File("./template/loginstatic.html")
+}
 
-	ctx := c.Request.Context()
+func (h *PublicHandler) SignupStatic(c *gin.Context) {
+	c.File("./template/signupstatic.html")
+}
 
-	data, err := h.UserService.PublicS(ctx)
-	if err != nil {
-		data = "error"
+func (h *PublicHandler) LoginPost(c *gin.Context){
+
+	var loginData struct {
+		Email string
+		Password string
 	}
-	c.JSON(200, gin.H{
-		"handler": "PublicHandlerFunc",
-		"service": data,
+
+	err := c.Bind(&loginData)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": loginData,
 	})
 }
+
+
+type SignupData struct {
+	Email string
+	Password string
+	Role string
+}
+
+
+func (h *PublicHandler) SignupPost(c *gin.Context){
+
+	var signupData SignupData
+
+	err := c.Bind(&signupData)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+	}
+	ctx := c.Request.Context()
+
+	userData, err := h.UserService.PublicS(ctx, &signupData)
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": signupData,
+	})
+}
+

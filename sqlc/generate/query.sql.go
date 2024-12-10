@@ -41,3 +41,30 @@ func (q *Queries) GetAll(ctx context.Context) ([]User, error) {
 	}
 	return items, nil
 }
+
+const signupUser = `-- name: SignupUser :one
+INSERT INTO users (email, password, role) VALUES ($1, $2, $3)
+RETURNING user_id, first_name, last_name, email, password, role, user_uuid, created_at
+`
+
+type SignupUserParams struct {
+	Email    string
+	Password string
+	Role     int64
+}
+
+func (q *Queries) SignupUser(ctx context.Context, arg SignupUserParams) (User, error) {
+	row := q.db.QueryRow(ctx, signupUser, arg.Email, arg.Password, arg.Role)
+	var i User
+	err := row.Scan(
+		&i.UserID,
+		&i.FirstName,
+		&i.LastName,
+		&i.Email,
+		&i.Password,
+		&i.Role,
+		&i.UserUuid,
+		&i.CreatedAt,
+	)
+	return i, err
+}

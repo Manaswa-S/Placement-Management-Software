@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Signup Page</title>
+    <style>
+        /* General Reset */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Arial', sans-serif;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #5951f5, #abafea);
+            color: #333;
+        }
+
+        .signup-container {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            width: 360px;
+            padding: 30px;
+        }
+
+        .signup-container h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            font-weight: bold;
+            color: #532ff3;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            font-size: 14px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            border-color: #6C63FF;
+            box-shadow: 0 0 5px rgba(108, 99, 255, 0.3);
+        }
+
+        .signup-btn {
+            background: #6C63FF;
+            color: #fff;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 5px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+        }
+
+        .signup-btn:hover {
+            background: #8E94F2;
+        }
+
+        .role-selection {
+            margin-bottom: 15px;
+        }
+
+        .role-selection label {
+            margin-right: 10px;
+        }
+
+        .extra-links {
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        .extra-links a {
+            color: #6C63FF;
+            font-size: 14px;
+            text-decoration: none;
+        }
+
+        .extra-links a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="signup-container">
+        <h2>Sign Up</h2>
+        <form action="/public/postsignupdata" method="post">
+
+
+            <div class="form-group">
+                <label for="fname">FName</label>
+                <input type="text" id="FName" name="FName" placeholder="Enter your first/company name" required>
+            </div>
+            <div class="form-group">
+                <label for="lname">LName</label>
+                <input type="text" id="LName" name="LName" placeholder="Enter your last/company name" required>
+            </div>
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="Email" name="Email" placeholder="Enter your email" required>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="Password" name="Password" placeholder="Enter your password" required>
+            </div>
+
+            <div class="role-selection">
+                <label>Select Role:</label>
+                <label for="student">
+                    <input type="radio" id="student" name="Role" value="student" checked> Student
+                </label>
+                <label for="company">
+                    <input type="radio" id="company" name="Role" value="company"> Company
+                </label>
+                <label for="admin">
+                    <input type="radio" id="admin" name="Role" value="admin"> Admin
+                </label>
+            </div>
+
+            <button type="submit" class="signup-btn">Sign Up</button>
+        </form>
+
+        <div class="extra-links">
+            <a href="#">Forgot Password?</a> | <a href="/public/login">Already have an account? Login</a>
+        </div>
+    </div>
+</body>
+
+</html>

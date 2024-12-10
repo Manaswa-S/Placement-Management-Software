@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"fmt"
 
 	sqlc "go.mod/sqlc/generate"
 )
@@ -12,8 +11,8 @@ type PublicService struct {
 	Queries *sqlc.Queries
 }
 
-func (s *PublicService) PublicS(ctx context.Context) (string, error) {
+func (s *PublicService) SignupPost(ctx context.Context, signupData ) (string, error) {
 
-		fmt.Println("after PublicS service")
-		return "PublicS", nil
+	userData, err := s.Queries.SignupUser(ctx, )
+		
 }
