@@ -6,12 +6,12 @@ import (
 )
 
 type AdminHandler struct {
-	UserService *services.AdminService
+	AdminService *services.AdminService
 }
 
-func NewAdminHandler(userService *services.AdminService) *AdminHandler {
+func NewAdminHandler(adminService *services.AdminService) *AdminHandler {
 	return &AdminHandler{
-		UserService: userService,
+		AdminService: adminService,
 	}
 }
 
@@ -21,14 +21,9 @@ func (h *AdminHandler) RegisterRoute(adminRoute *gin.RouterGroup) {
 
 func (h *AdminHandler) AdminHandlerFunc(c *gin.Context) {
 
-	ctx := c.Request.Context()
+	h.AdminService.AdminFunc()
 
-	data, err := h.UserService.AdminS(ctx)
-	if err != nil {
-		data = "error"
-	}
 	c.JSON(200, gin.H{
 		"handler": "AdminHandlerFunc",
-		"service": data,
 	})
 }

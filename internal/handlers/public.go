@@ -5,15 +5,16 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.mod/internal/services"
+	sqlc "go.mod/internal/sqlc/generate"
 )
 
 type PublicHandler struct {
-	UserService *services.PublicService
+	PublicService *services.PublicService
 }
 
-func NewPublicHandler(userService *services.PublicService) *PublicHandler {
+func NewPublicHandler(publicService *services.PublicService) *PublicHandler {
 	return &PublicHandler{
-		UserService: userService,
+		PublicService: publicService,
 	}
 }
 
@@ -55,17 +56,9 @@ func (h *PublicHandler) LoginPost(c *gin.Context){
 	})
 }
 
-
-type SignupData struct {
-	Email string
-	Password string
-	Role string
-}
-
-
 func (h *PublicHandler) SignupPost(c *gin.Context){
 
-	var signupData SignupData
+	var signupData sqlc.SignupUserParams
 
 	err := c.Bind(&signupData)
 	if err != nil {
@@ -73,12 +66,11 @@ func (h *PublicHandler) SignupPost(c *gin.Context){
 			"error": err.Error(),
 		})
 	}
-	ctx := c.Request.Context()
 
-	userData, err := h.UserService.PublicS(ctx, &signupData)
-
+	userData, err := h.PublicService.SignupPost(c, signupData)
+	
 	c.JSON(http.StatusOK, gin.H{
-		"data": signupData,
+		"data": userData,
 	})
 }
 

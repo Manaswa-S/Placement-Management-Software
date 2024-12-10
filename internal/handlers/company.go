@@ -6,12 +6,12 @@ import (
 )
 
 type CompanyHandler struct {
-	UserService *services.CompanyService
+	CompanyService *services.CompanyService
 }
 
-func NewCompanyHandler(userService *services.CompanyService) *CompanyHandler {
+func NewCompanyHandler(companyService *services.CompanyService) *CompanyHandler {
 	return &CompanyHandler{
-		UserService: userService,
+		CompanyService: companyService,
 	}
 }
 
@@ -21,14 +21,8 @@ func (h *CompanyHandler) RegisterRoute(companyRoute *gin.RouterGroup) {
 
 func (h *CompanyHandler) CompanyHandlerFunc(c *gin.Context) {
 
-	ctx := c.Request.Context()
-
-	data, err := h.UserService.CompanyS(ctx)
-	if err != nil {
-		data = "error"
-	}
+	h.CompanyService.CompanyFunc()
 	c.JSON(200, gin.H{
 		"handler": "CompanyHandlerFunc",
-		"service": data,
 	})
 }

@@ -1,19 +1,18 @@
 package services
 
 import (
-	"context"
 	"fmt"
 
-	sqlc "go.mod/sqlc/generate"
+	sqlc "go.mod/internal/sqlc/generate"
 )
 
-
 type AdminService struct {
-	Queries *sqlc.Queries
+	queries *sqlc.Queries
+}
+func NewAdminService(queriespool *sqlc.Queries) *AdminService {
+	return &AdminService{queries: queriespool}
 }
 
-func (s *AdminService) AdminS(ctx context.Context) (string, error) {
-
-		fmt.Println("after AdminS service")
-		return "AdminS", nil
+func (a *AdminService) AdminFunc() {
+	fmt.Println("admin func")
 }

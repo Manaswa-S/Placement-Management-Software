@@ -1,4 +1,4 @@
-package db
+package config
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
-	sqlc "go.mod/sqlc/generate"
+	sqlc "go.mod/internal/sqlc/generate"
 )
 
 

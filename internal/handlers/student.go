@@ -6,12 +6,12 @@ import (
 )
 
 type StudentHandler struct {
-	UserService *services.StudentService
+	StudentService *services.StudentService
 }
 
-func NewStudentHandler(userService *services.StudentService) *StudentHandler {
+func NewStudentHandler(studentService *services.StudentService) *StudentHandler {
 	return &StudentHandler{
-		UserService: userService,
+		StudentService: studentService,
 	}
 }
 
@@ -21,14 +21,9 @@ func (h *StudentHandler) RegisterRoute(studentRoute *gin.RouterGroup) {
 
 func (h *StudentHandler) StudentHandlerFunc(c *gin.Context) {
 
-	ctx := c.Request.Context()
+	h.StudentService.StudentFunc()
 
-	data, err := h.UserService.StudentS(ctx)
-	if err != nil {
-		data = "error"
-	}
 	c.JSON(200, gin.H{
 		"handler": "StudentHandlerFunc",
-		"service": data,
 	})
 }

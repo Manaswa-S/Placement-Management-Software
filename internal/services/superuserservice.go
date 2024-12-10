@@ -1,19 +1,18 @@
 package services
 
 import (
-	"context"
 	"fmt"
 
-	sqlc "go.mod/sqlc/generate"
+	sqlc "go.mod/internal/sqlc/generate"
 )
 
-
-type SuperUserService struct {
-	Queries *sqlc.Queries
+type SuperService struct {
+	queries *sqlc.Queries
+}
+func NewSuperService(queriespool *sqlc.Queries) *SuperService {
+	return &SuperService{queries: queriespool}
 }
 
-func (s *SuperUserService) SuperUserS(ctx context.Context) (string, error) {
-
-		fmt.Println("after SuperUserS service")
-		return "SuperUserS", nil
+func (su *SuperService) SuperFunc() {
+	fmt.Println("super func")
 }

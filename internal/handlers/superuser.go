@@ -6,12 +6,12 @@ import (
 )
 
 type SuperUserHandler struct {
-	UserService *services.SuperUserService
+	SuperService *services.SuperService
 }
 
-func NewSuperUserHandler(userService *services.SuperUserService) *SuperUserHandler {
+func NewSuperUserHandler(superService *services.SuperService) *SuperUserHandler {
 	return &SuperUserHandler{
-		UserService: userService,
+		SuperService: superService,
 	}
 }
 
@@ -21,14 +21,9 @@ func (h *SuperUserHandler) RegisterRoute(superuserRoute *gin.RouterGroup) {
 
 func (h *SuperUserHandler) SuperUserHandlerFunc(c *gin.Context) {
 
-	ctx := c.Request.Context()
+	h.SuperService.SuperFunc()
 
-	data, err := h.UserService.SuperUserS(ctx)
-	if err != nil {
-		data = "error"
-	}
 	c.JSON(200, gin.H{
 		"handler": "SuperUserHandlerFunc",
-		"service": data,
 	})
 }

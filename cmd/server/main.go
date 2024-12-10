@@ -6,7 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	"go.mod/internal/db"
+	"go.mod/internal/config"
 	"go.mod/internal/handlers"
 	"go.mod/internal/middlewares"
 	"go.mod/internal/services"
@@ -14,17 +14,15 @@ import (
 
 func main() {
 	
-
-
 	errenv := godotenv.Load()
 	if errenv != nil {
 		fmt.Println("Error loading environment variables: ", errenv)
 		return
 	}
 
-	db.InitDB()
+	config.InitDB()
 
-	defer db.Close()
+	defer config.Close()
 
 	router := gin.Default()
 	router.Use(middlewares.Logger())
@@ -34,34 +32,35 @@ func main() {
 	womid := router.Group("")
 	womid.Use()
 
+	queries := config.QueriesPool
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-	publicService := services.PublicService{Queries: db.QueriesPool}
-	publicHandler := handlers.NewPublicHandler(&publicService)
+	publicService := services.NewPublicService(queries)
+	publicHandler := handlers.NewPublicHandler(publicService)
 	publicRoute := womid.Group("/public")
 	publicHandler.RegisterRoute(publicRoute)
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-	adminService := services.AdminService{Queries: db.QueriesPool}
-	adminHandler := handlers.NewAdminHandler(&adminService)
+	adminService := services.NewAdminService(queries)
+	adminHandler := handlers.NewAdminHandler(adminService)
 	adminRoute := wmid.Group("/admin")
 	adminHandler.RegisterRoute(adminRoute)
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-	companyService := services.CompanyService{Queries: db.QueriesPool}
-	companyHandler := handlers.NewCompanyHandler(&companyService)
+	companyService := services.NewCompanyService(queries)
+	companyHandler := handlers.NewCompanyHandler(companyService)
 	companyRoute := wmid.Group("/company")
 	companyHandler.RegisterRoute(companyRoute)
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-	studentService := services.StudentService{Queries: db.QueriesPool}
-	studentHandler := handlers.NewStudentHandler(&studentService)
+	studentService := services.NewStudentService(queries)
+	studentHandler := handlers.NewStudentHandler(studentService)
 	studentRoute := wmid.Group("/student")
 	studentHandler.RegisterRoute(studentRoute)
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-	superuserService := services.SuperUserService{Queries: db.QueriesPool}
-	superuserHandler := handlers.NewSuperUserHandler(&superuserService)
+	superuserService := services.NewSuperService(queries)
+	superuserHandler := handlers.NewSuperUserHandler(superuserService)
 	superuserRoute := wmid.Group("/superuser")
 	superuserHandler.RegisterRoute(superuserRoute)
 

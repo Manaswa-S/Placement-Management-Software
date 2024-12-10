@@ -1,19 +1,20 @@
 package services
 
 import (
-	"context"
 	"fmt"
 
-	sqlc "go.mod/sqlc/generate"
+	sqlc "go.mod/internal/sqlc/generate"
 )
 
 
 type CompanyService struct {
-	Queries *sqlc.Queries
+	queries *sqlc.Queries
 }
 
-func (s *CompanyService) CompanyS(ctx context.Context) (string, error) {
+func NewCompanyService(queriespool *sqlc.Queries) *CompanyService {
+	return &CompanyService{queries: queriespool}
+}
 
-		fmt.Println("after CompanyS service")
-		return "CompanyS", nil
+func (c *CompanyService) CompanyFunc() {
+	fmt.Println("company func")
 }

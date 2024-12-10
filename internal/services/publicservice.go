@@ -1,18 +1,20 @@
 package services
 
 import (
-	"context"
-
-	sqlc "go.mod/sqlc/generate"
+	"github.com/gin-gonic/gin"
+	sqlc "go.mod/internal/sqlc/generate"
 )
 
 
 type PublicService struct {
-	Queries *sqlc.Queries
+	queries *sqlc.Queries
 }
 
-func (s *PublicService) SignupPost(ctx context.Context, signupData ) (string, error) {
+func NewPublicService(queriespool *sqlc.Queries) *PublicService {
+	return &PublicService{queries: queriespool}
+}
 
-	userData, err := s.Queries.SignupUser(ctx, )
-		
+func (s *PublicService) SignupPost(ctx *gin.Context, params sqlc.SignupUserParams) (sqlc.User, error) {
+	
+	return s.queries.SignupUser(ctx, params)	
 }

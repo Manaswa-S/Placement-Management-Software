@@ -1,19 +1,18 @@
 package services
 
 import (
-	"context"
 	"fmt"
 
-	sqlc "go.mod/sqlc/generate"
+	sqlc "go.mod/internal/sqlc/generate"
 )
 
-
 type StudentService struct {
-	Queries *sqlc.Queries
+	queries *sqlc.Queries
+}
+func NewStudentService(queriespool *sqlc.Queries) *StudentService {
+	return &StudentService{queries: queriespool}
 }
 
-func (s *StudentService) StudentS(ctx context.Context) (string, error) {
-
-		fmt.Println("after StudentS service")
-		return "StudentS", nil
+func (s *StudentService) StudentFunc() {
+	fmt.Println("student func")
 }
