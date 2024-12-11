@@ -16,14 +16,10 @@ func NewAdminHandler(adminService *services.AdminService) *AdminHandler {
 }
 
 func (h *AdminHandler) RegisterRoute(adminRoute *gin.RouterGroup) {
-	adminRoute.GET("/getall", h.AdminHandlerFunc)
+	adminRoute.GET("/dashboard", h.AdminDashboard)
 }
 
-func (h *AdminHandler) AdminHandlerFunc(c *gin.Context) {
+func (h *AdminHandler) AdminDashboard(ctx *gin.Context) {
+	ctx.File("./template/dashboard/admindashboard.html")
 
-	h.AdminService.AdminFunc()
-
-	c.JSON(200, gin.H{
-		"handler": "AdminHandlerFunc",
-	})
 }

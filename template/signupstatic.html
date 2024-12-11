@@ -114,14 +114,14 @@
         <form action="/public/postsignupdata" method="post">
 
 
-            <div class="form-group">
+            <!-- <div class="form-group">
                 <label for="fname">FName</label>
                 <input type="text" id="FName" name="FName" placeholder="Enter your first/company name" required>
             </div>
             <div class="form-group">
                 <label for="lname">LName</label>
                 <input type="text" id="LName" name="LName" placeholder="Enter your last/company name" required>
-            </div>
+            </div> -->
             <div class="form-group">
                 <label for="email">Email</label>
                 <input type="email" id="Email" name="Email" placeholder="Enter your email" required>
@@ -135,13 +135,16 @@
             <div class="role-selection">
                 <label>Select Role:</label>
                 <label for="student">
-                    <input type="radio" id="student" name="Role" value="student" checked> Student
+                    <input type="radio" id="student" name="Role" value=1 checked > Student
                 </label>
                 <label for="company">
-                    <input type="radio" id="company" name="Role" value="company"> Company
+                    <input type="radio" id="company" name="Role" value=2 > Company
                 </label>
                 <label for="admin">
-                    <input type="radio" id="admin" name="Role" value="admin"> Admin
+                    <input type="radio" id="admin" name="Role" value=3 > Admin
+                </label>
+                <label for="superuser">
+                    <input type="radio" id="superuser" name="Role" value=4 > SuperUser
                 </label>
             </div>
 

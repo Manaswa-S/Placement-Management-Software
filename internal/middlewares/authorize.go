@@ -9,7 +9,8 @@ import (
 
 func Authorizer() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		fmt.Println("this is the authorizer...")
+		fmt.Println("in authorizer...")
+
 		c.Next()
 	}
 }

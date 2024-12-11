@@ -16,14 +16,9 @@ func NewSuperUserHandler(superService *services.SuperService) *SuperUserHandler 
 }
 
 func (h *SuperUserHandler) RegisterRoute(superuserRoute *gin.RouterGroup) {
-	superuserRoute.GET("/getsup", h.SuperUserHandlerFunc)
+	superuserRoute.GET("/dashboard", h.SuperDashboard)
 }
 
-func (h *SuperUserHandler) SuperUserHandlerFunc(c *gin.Context) {
-
-	h.SuperService.SuperFunc()
-
-	c.JSON(200, gin.H{
-		"handler": "SuperUserHandlerFunc",
-	})
+func (h *SuperUserHandler) SuperDashboard(ctx *gin.Context) {
+	ctx.File("./template/dashboard/superdashboard.html")	
 }

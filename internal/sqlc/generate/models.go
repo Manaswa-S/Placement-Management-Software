@@ -10,11 +10,9 @@ import (
 
 type User struct {
 	UserID    int64
-	FirstName string
-	LastName  pgtype.Text
 	Email     string
 	Password  string
 	Role      int64
 	UserUuid  pgtype.UUID
-	CreatedAt pgtype.Timestamptz
+	CreatedAt pgtype.Timestamp
 }

@@ -16,14 +16,9 @@ func NewStudentHandler(studentService *services.StudentService) *StudentHandler 
 }
 
 func (h *StudentHandler) RegisterRoute(studentRoute *gin.RouterGroup) {
-	studentRoute.GET("/getstu", h.StudentHandlerFunc)
+	studentRoute.GET("/dashboard", h.StudentDashboard)
 }
 
-func (h *StudentHandler) StudentHandlerFunc(c *gin.Context) {
-
-	h.StudentService.StudentFunc()
-
-	c.JSON(200, gin.H{
-		"handler": "StudentHandlerFunc",
-	})
+func (h *StudentHandler) StudentDashboard(ctx *gin.Context) {
+	ctx.File("./template/dashboard/studentdashboard.html")
 }

@@ -10,7 +10,7 @@ import (
 )
 
 const getAll = `-- name: GetAll :many
-SELECT user_id, first_name, last_name, email, password, role, user_uuid, created_at FROM users
+SELECT user_id, email, password, role, user_uuid, created_at FROM users
 `
 
 func (q *Queries) GetAll(ctx context.Context) ([]User, error) {
@@ -24,8 +24,6 @@ func (q *Queries) GetAll(ctx context.Context) ([]User, error) {
 		var i User
 		if err := rows.Scan(
 			&i.UserID,
-			&i.FirstName,
-			&i.LastName,
 			&i.Email,
 			&i.Password,
 			&i.Role,
@@ -42,9 +40,27 @@ func (q *Queries) GetAll(ctx context.Context) ([]User, error) {
 	return items, nil
 }
 
+const loginUser = `-- name: LoginUser :one
+SELECT user_id, email, password, role, user_uuid, created_at FROM users WHERE email = $1
+`
+
+func (q *Queries) LoginUser(ctx context.Context, email string) (User, error) {
+	row := q.db.QueryRow(ctx, loginUser, email)
+	var i User
+	err := row.Scan(
+		&i.UserID,
+		&i.Email,
+		&i.Password,
+		&i.Role,
+		&i.UserUuid,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const signupUser = `-- name: SignupUser :one
 INSERT INTO users (email, password, role) VALUES ($1, $2, $3)
-RETURNING user_id, first_name, last_name, email, password, role, user_uuid, created_at
+RETURNING user_id, email, password, role, user_uuid, created_at
 `
 
 type SignupUserParams struct {
@@ -58,8 +74,6 @@ func (q *Queries) SignupUser(ctx context.Context, arg SignupUserParams) (User, e
 	var i User
 	err := row.Scan(
 		&i.UserID,
-		&i.FirstName,
-		&i.LastName,
 		&i.Email,
 		&i.Password,
 		&i.Role,

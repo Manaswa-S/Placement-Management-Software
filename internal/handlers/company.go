@@ -16,13 +16,9 @@ func NewCompanyHandler(companyService *services.CompanyService) *CompanyHandler 
 }
 
 func (h *CompanyHandler) RegisterRoute(companyRoute *gin.RouterGroup) {
-	companyRoute.GET("/getcom", h.CompanyHandlerFunc)
+	companyRoute.GET("/dashboard", h.CompanyDashboard)
 }
 
-func (h *CompanyHandler) CompanyHandlerFunc(c *gin.Context) {
-
-	h.CompanyService.CompanyFunc()
-	c.JSON(200, gin.H{
-		"handler": "CompanyHandlerFunc",
-	})
+func (h *CompanyHandler) CompanyDashboard(ctx *gin.Context) {
+	ctx.File("./template/dashboard/companydashboard.html")
 }
