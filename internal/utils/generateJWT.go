@@ -13,7 +13,8 @@ type Token struct {
 	ExpiresAt int64
 	IssuedAt int64
 	Role int64
-	ID int64	
+	ID int64
+	Email string	
 }
 
 
@@ -32,6 +33,7 @@ func GenerateJWT(tokenData Token) (string, error) {
 			"iat": tokenData.IssuedAt,
 			"role": tokenData.Role,
 			"id": tokenData.ID,
+			"email": tokenData.Email,
 	})
 
 	token, err := _t_unsigned.SignedString([]byte(os.Getenv("SigningKey")))

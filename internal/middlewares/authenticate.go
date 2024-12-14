@@ -18,6 +18,7 @@ func Authenticator() gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"error": "invalid access_token. log in again",
 			})
+			return
 		}
 
 		// call the parse method to parse the token
@@ -27,6 +28,7 @@ func Authenticator() gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"error": "invalid access_token. log in again",
 			})
+			return
 		}
 
 		// if valid token

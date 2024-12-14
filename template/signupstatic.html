@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Modern Signup Page</title>
+    <title>PMS Signup Page</title>
     <style>
         /* General Reset */
         * {
@@ -45,7 +45,7 @@
         .form-group label {
             display: block;
             margin-bottom: 8px;
-            font-size: 14px;
+            font-size: small;
             font-weight: 600;
         }
 
@@ -53,7 +53,7 @@
         .form-group select {
             width: 100%;
             padding: 10px;
-            font-size: 14px;
+            font-size: small;
             border: 1px solid #ccc;
             border-radius: 5px;
             outline: none;
@@ -69,7 +69,7 @@
         .signup-btn {
             background: #6C63FF;
             color: #fff;
-            font-size: 16px;
+            font-size: small;
             font-weight: bold;
             border: none;
             border-radius: 5px;
@@ -85,10 +85,13 @@
 
         .role-selection {
             margin-bottom: 15px;
+            text-align:left;
         }
 
         .role-selection label {
+            display: block;
             margin-right: 10px;
+            font-size: small;
         }
 
         .extra-links {
@@ -97,8 +100,9 @@
         }
 
         .extra-links a {
+            display: block;
             color: #6C63FF;
-            font-size: 14px;
+            font-size: small;
             text-decoration: none;
         }
 
@@ -112,16 +116,6 @@
     <div class="signup-container">
         <h2>Sign Up</h2>
         <form action="/public/postsignupdata" method="post">
-
-
-            <!-- <div class="form-group">
-                <label for="fname">FName</label>
-                <input type="text" id="FName" name="FName" placeholder="Enter your first/company name" required>
-            </div>
-            <div class="form-group">
-                <label for="lname">LName</label>
-                <input type="text" id="LName" name="LName" placeholder="Enter your last/company name" required>
-            </div> -->
             <div class="form-group">
                 <label for="email">Email</label>
                 <input type="email" id="Email" name="Email" placeholder="Enter your email" required>
@@ -152,7 +146,8 @@
         </form>
 
         <div class="extra-links">
-            <a href="#">Forgot Password?</a> | <a href="/public/login">Already have an account? Login</a>
+            <a href="/public/resetpassgetemail">Forgot Password?</a>
+            <a href="/public/login">Already have an account? Login</a>
         </div>
     </div>
 </body>

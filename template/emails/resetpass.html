@@ -15,15 +15,12 @@
         </tr>
         <tr>
             <td style="padding: 20px;">
-                <h1>Welcome to Our Service!</h1>
-                <p>Dear user, 
-                </p>{{.Name}},</p>
-                <p>Thank you for signing up with us. Please click the button below to confirm your email address and complete the registration process:</p>
-                <p>The link will expire in 15 minutes from time of sending.</p>
-                <a href="{{.Signup_Confirmation_Link}}" class="button">Confirm Email</a>
-                <a href="{{.Resend_Email_Link}}" class="button">Resend Email</a>
-                <p>If you did not sign up for this account, you can ignore this email.</p>
-                <p>Best regards,<br>Team Example</p>
+                <p>Hi {{.Name}},</p>
+                <p>We received a request to reset the password for your account associated with the email <strong>{{.Email}}</strong>.</p>
+                <p>If you made this request, please click the link below to reset your password:</p>
+                <p><a href="{{.Password_Reset_Link}}" style="color: #007bff; text-decoration: none; font-weight: bold;">Reset Password</a></p>
+                <p>If you didn't request this, you can safely ignore this email. Your password will not be changed.</p>
+                <p>Thanks, <br> The Support Team</p>
             </td>
         </tr>
         <tr>

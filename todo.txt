@@ -1,4 +1,0 @@
-expiry checking for token
-add expiry time in ctx.SetCookie 
-
-update routesDoc file

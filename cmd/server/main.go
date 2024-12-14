@@ -27,15 +27,30 @@ func main() {
 	router := gin.Default()
 	router.Use(middlewares.Logger())
 
+	routes(router)
+
+	router.Run(os.Getenv("PORT"))
+}
+
+
+func routes(router *gin.Engine) {
+
 	wmid := router.Group("/laa")
 	wmid.Use(middlewares.Authenticator(), middlewares.Authorizer())
 	womid := router.Group("")
 	womid.Use()
 
 	queries := config.QueriesPool
+	redis := config.RedisClient
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-	publicService := services.NewPublicService(queries)
+	openService := services.NewOpenService(queries)
+	openHandler := handlers.NewOpenHandler(openService)
+	openRoute := womid.Group("/open")
+	openHandler.RegisterRoute(openRoute)
+
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	publicService := services.NewPublicService(queries, redis)
 	publicHandler := handlers.NewPublicHandler(publicService)
 	publicRoute := womid.Group("/public")
 	publicHandler.RegisterRoute(publicRoute)
@@ -67,5 +82,4 @@ func main() {
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 
-	router.Run(os.Getenv("PORT"))
 }

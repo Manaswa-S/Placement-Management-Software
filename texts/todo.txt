@@ -1,0 +1,25 @@
+authorize 
+
+expiry checking for token
+add expiry time in ctx.SetCookie 
+
+update routesDoc file
+
+get other details from user such as IP address to implement rate limiting and better security
+
+
+Enable Go's pprof HTTP server for runtime profiling:
+
+
+enable redis caching for static pages too
+
+ran into too many open file descriptors problem, fix it
+
+introduce concurrency
+
+implement graceful shutdown 
+
+
+~~~~~add email verfication after signup
+
+~~~~~add password reset

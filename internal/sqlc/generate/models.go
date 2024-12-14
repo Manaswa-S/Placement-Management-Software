@@ -15,4 +15,5 @@ type User struct {
 	Role      int64
 	UserUuid  pgtype.UUID
 	CreatedAt pgtype.Timestamp
+	Confirmed bool
 }

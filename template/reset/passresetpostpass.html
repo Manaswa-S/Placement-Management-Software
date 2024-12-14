@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PMS Login Page</title>
+    <title>PMS Password Reset Page</title>
     <style>
         /* General Reset */
         * {
@@ -96,23 +96,26 @@
         }
     </style>
 </head>
+
 <body>
     <div class="login-container">
-        <h2>Login</h2>
-        <form action="/public/postlogindata" method="post">
+        <h2>Reset Password</h2>
+        <form action="/public/resetpasspostpass" method="post">
+            <input type="hidden" name="Token" value="{{.Token}}">
             <div class="form-group">
-                <label for="email">Email</label>
-                <input type="email" id="Email" name="Email" placeholder="Enter your email" required>
+                <label for="password">New Password</label>
+                <input type="password" id="NewPass" name="NewPass" placeholder="Enter your new password" required>
             </div>
             <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" id="Password" name="Password" placeholder="Enter your password" required>
+                <label for="password">Confirm Password</label>
+                <input type="password" id="ConfirmPass" name="ConfirmPass" placeholder="Confirm your new password" required>
             </div>
-            <button type="submit" class="login-btn">Login</button>
+            <button type="submit" class="login-btn">Reset Password</button>
         </form>
-        <div class="extra-links">
-            <a href="/public/resetpassgetemail">Forgot Password?</a> | <a href="/public/signup">Sign Up</a>
-        </div>
     </div>
 </body>
 </html>
+
+
+
+

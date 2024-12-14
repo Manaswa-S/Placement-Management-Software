@@ -33,11 +33,15 @@ func InitDB()  {
 	
 	// Connect to redis client
 	RedisClient = redis.NewClient(&redis.Options{
-		Addr: "localhost:5676",
+		Addr: "localhost:6379",
 		Password: "",
 		DB: 0,
 		Protocol: 2,
 	})
+	_, err = RedisClient.Ping(ctx).Result()
+	if err != nil {
+		fmt.Printf("Failed to connect to Redis: %v", err)
+	}
 }
 
 // Close DB and Redis connections

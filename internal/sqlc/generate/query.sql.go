@@ -10,7 +10,7 @@ import (
 )
 
 const getAll = `-- name: GetAll :many
-SELECT user_id, email, password, role, user_uuid, created_at FROM users
+SELECT user_id, email, password, role, user_uuid, created_at, confirmed FROM users
 `
 
 func (q *Queries) GetAll(ctx context.Context) ([]User, error) {
@@ -29,6 +29,7 @@ func (q *Queries) GetAll(ctx context.Context) ([]User, error) {
 			&i.Role,
 			&i.UserUuid,
 			&i.CreatedAt,
+			&i.Confirmed,
 		); err != nil {
 			return nil, err
 		}
@@ -40,12 +41,12 @@ func (q *Queries) GetAll(ctx context.Context) ([]User, error) {
 	return items, nil
 }
 
-const loginUser = `-- name: LoginUser :one
-SELECT user_id, email, password, role, user_uuid, created_at FROM users WHERE email = $1
+const getUserData = `-- name: GetUserData :one
+SELECT user_id, email, password, role, user_uuid, created_at, confirmed FROM users WHERE email = $1
 `
 
-func (q *Queries) LoginUser(ctx context.Context, email string) (User, error) {
-	row := q.db.QueryRow(ctx, loginUser, email)
+func (q *Queries) GetUserData(ctx context.Context, email string) (User, error) {
+	row := q.db.QueryRow(ctx, getUserData, email)
 	var i User
 	err := row.Scan(
 		&i.UserID,
@@ -54,13 +55,14 @@ func (q *Queries) LoginUser(ctx context.Context, email string) (User, error) {
 		&i.Role,
 		&i.UserUuid,
 		&i.CreatedAt,
+		&i.Confirmed,
 	)
 	return i, err
 }
 
 const signupUser = `-- name: SignupUser :one
 INSERT INTO users (email, password, role) VALUES ($1, $2, $3)
-RETURNING user_id, email, password, role, user_uuid, created_at
+RETURNING user_id, email, password, role, user_uuid, created_at, confirmed
 `
 
 type SignupUserParams struct {
@@ -79,6 +81,34 @@ func (q *Queries) SignupUser(ctx context.Context, arg SignupUserParams) (User, e
 		&i.Role,
 		&i.UserUuid,
 		&i.CreatedAt,
+		&i.Confirmed,
 	)
 	return i, err
+}
+
+const updateEmailConfirmation = `-- name: UpdateEmailConfirmation :exec
+UPDATE users
+SET confirmed = true
+WHERE email = $1
+`
+
+func (q *Queries) UpdateEmailConfirmation(ctx context.Context, email string) error {
+	_, err := q.db.Exec(ctx, updateEmailConfirmation, email)
+	return err
+}
+
+const updatePassword = `-- name: UpdatePassword :exec
+UPDATE users
+SET password = $2
+WHERE email = $1
+`
+
+type UpdatePasswordParams struct {
+	Email    string
+	Password string
+}
+
+func (q *Queries) UpdatePassword(ctx context.Context, arg UpdatePasswordParams) error {
+	_, err := q.db.Exec(ctx, updatePassword, arg.Email, arg.Password)
+	return err
 }

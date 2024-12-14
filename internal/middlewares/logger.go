@@ -1,6 +1,7 @@
 package middlewares
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"time"
@@ -38,16 +39,17 @@ func Logger() gin.HandlerFunc {
 			Latency: time.Duration(time.Since(before.StartTime).Microseconds()),
 		}
 
-		logString := fmt.Sprintf(" >>> %s     %s     %s     %d     %s     %s\n",
-					before.ClientIP,
-					before.Method,
-					before.Path,
-					after.StatusCode,
-					after.ErrorMsg,
-					after.Latency,
-				)
+		logData := map[string]interface{}{
+			"client_ip": before.ClientIP,
+			"method":    before.Method,
+			"path":      before.Path,
+			"status":    after.StatusCode,
+			"error":     after.ErrorMsg,
+			"latency":   after.Latency.String(),
+		}
+		jsonLog, _ := json.Marshal(logData)
 		
-		f, err := os.OpenFile("logger.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		f, err := os.OpenFile("./texts/logger.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			fmt.Println("error opening logger file: ", err.Error())
 			return
@@ -55,7 +57,7 @@ func Logger() gin.HandlerFunc {
 
 		defer f.Close()
 
-		_, err = f.WriteString(logString)
+		_, err = f.WriteString(string(jsonLog) + "\n")
 		if err != nil {
 			fmt.Println("Error writing log: ", err.Error())
 			return
