@@ -104,7 +104,6 @@ func (h *PublicHandler) ResetPassPostPass(ctx *gin.Context) {
 	
 	var data services.ResetPass
 
-	// data.Token = ctx.Query("token")
 	// bind data
 	err := ctx.Bind(&data)
 	if err != nil {
