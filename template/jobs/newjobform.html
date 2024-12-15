@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Job Posting Form</title>
+    <style>
+        /* General Reset */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Arial', sans-serif;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #5951f5, #abafea);
+            color: #333;
+            padding: 0;
+        }
+
+        .form-container {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 800px;
+            padding: 30px;
+        }
+
+        .form-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .form-header h1 {
+            color: #532ff3;
+            font-weight: bold;
+        }
+
+        .form-section {
+            margin-bottom: 20px;
+        }
+
+        .form-section label {
+            display: block;
+            font-size: 16px;
+            margin-bottom: 10px;
+            color: #6C63FF;
+        }
+
+        .form-section input,
+        .form-section textarea,
+        .form-section select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            margin-top: 8px;
+            background-color: #f7f7f7;
+        }
+
+        .form-section textarea {
+            height: 150px;
+        }
+
+        .form-section select {
+            height: 40px;
+        }
+
+        .form-btn {
+            display: inline-block;
+            background: #6C63FF;
+            color: #fff;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 5px;
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            width: 100%;
+        }
+
+        .form-btn:hover {
+            background: #8E94F2;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="form-container">
+        <div class="form-header">
+            <h1>Post a New Job</h1>
+        </div>
+
+        <form action="/laa/company/newjobpost" method="POST">
+            <!-- Company Details Section -->
+            <div class="form-section">
+                <label for="CompanyName">Company Name</label>
+                <input type="text" id="CompanyName" name="CompanyName" required placeholder="Enter company name">
+            </div>
+
+            <div class="form-section">
+                <label for="CompanyEmail">Company Email</label>
+                <input type="email" id="CompanyEmail" name="CompanyEmail" required placeholder="Enter company email">
+            </div>
+
+            <div class="form-section">
+                <label for="CompanyLocation">Company Location</label>
+                <input type="text" id="CompanyLocation" name="CompanyLocation" required placeholder="Enter company location">
+            </div>
+
+            <!-- Job Details Section -->
+            <div class="form-section">
+                <label for="JobTitle">Job Title</label>
+                <input type="text" id="JobTitle" name="JobTitle" required placeholder="Enter job title">
+            </div>
+
+            <div class="form-section">
+                <label for="JobDescription">Job Description</label>
+                <textarea id="JobDescription" name="JobDescription" required placeholder="Enter job description"></textarea>
+            </div>
+
+            <div class="form-section">
+                <label for="JobType">Job Type</label>
+                <select id="JobType" name="JobType" required>
+                    <option value="">Select job type</option>
+                    <option value="Full-time">Full-time</option>
+                    <option value="Part-time">Part-time</option>
+                    <option value="Internship">Internship</option>
+                    <option value="Contract">Contract</option>
+                </select>
+            </div>
+
+            <div class="form-section">
+                <label for="JobSalary">Salary Range</label>
+                <input type="text" id="JobSalary" name="JobSalary" required placeholder="Enter salary range">
+            </div>
+
+            <div class="form-section">
+                <label for="SkillsRequired">Skills Required</label>
+                <input type="text" id="SkillsRequired" name="SkillsRequired" required placeholder="Enter required skills. Separate each skill by a comma.">
+            </div>
+
+            <div class="form-section">
+                <label for="JobPosition">Job Position</label>
+                <input type="text" id="JobPosition" name="JobPosition" required placeholder="Enter job position">
+            </div>
+
+            <div class="form-section">
+                <label for="ExperienceLevel">Experience Level</label>
+                <select id="ExperienceLevel" name="ExperienceLevel" required>
+                    <option value="">Select experience level</option>
+                    <option value="Fresher">Fresher</option>
+                    <option value="Junior">Junior</option>
+                    <option value="Mid-Level">Mid-Level</option>
+                    <option value="Senior">Senior</option>
+                </select>
+            </div>
+
+            <div class="form-section">
+                <label for="RemoteAvailability">Remote Availability</label>
+                <select id="RemoteAvailability" name="RemoteAvailability" required>
+                    <option value="">Select remote availability</option>
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                </select>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="form-section">
+                <button type="submit" class="form-btn">Submit Job Posting</button>
+            </div>
+        </form>
+    </div>
+
+</body>
+</html>

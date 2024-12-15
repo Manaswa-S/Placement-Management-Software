@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Company Signup Form</title>
+    <style>
+        /* General Reset */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Arial', sans-serif;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #5951f5, #abafea);
+            color: #333;
+            padding: 0;
+        }
+
+        .form-container {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 800px;
+            padding: 30px;
+        }
+
+        .form-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .form-header h1 {
+            color: #532ff3;
+            font-weight: bold;
+        }
+
+        .form-section {
+            margin-bottom: 20px;
+        }
+
+        .form-section label {
+            display: block;
+            font-size: 16px;
+            margin-bottom: 10px;
+            color: #6C63FF;
+        }
+
+        .form-section input,
+        .form-section textarea,
+        .form-section select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            margin-top: 8px;
+            background-color: #f7f7f7;
+        }
+
+        .form-section textarea {
+            height: 150px;
+        }
+
+        .form-section select {
+            height: 40px;
+        }
+
+        .form-btn {
+            display: inline-block;
+            background: #6C63FF;
+            color: #fff;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 5px;
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            width: 100%;
+        }
+
+        .form-btn:hover {
+            background: #8E94F2;
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <div class="form-header">
+            <h1>Company Signup Form</h1>
+        </div>
+        <form action="/signup" method="POST">
+            <div class="form-section">
+                <label for="StudentName">Student Name</label>
+                <input type="text" id="StudentName" name="StudentName" required>
+            </div>
+
+            <div class="form-section">
+                <label for="DateOfBirth">Date Of Birth</label>
+                <input type="text" id="DateOfBirth" name="DateOfBirth" required>
+            </div>
+
+            <div class="form-section">
+                <label for="Gender">Gender</label>
+                <input type="text" id="Gender" name="Gender" required>
+            </div>
+
+            <div class="form-section">
+                <label for="CollegeRollNumber">College Roll Number</label>
+                <input type="text" id="CollegeRollNumber" name="CollegeRollNumber" required>
+            </div>
+
+            <div class="form-section">
+                <label for="Department">Department</label>
+                <input type="text" id="Department" name="CollegDepartmenteRollNumber" required>
+            </div>
+
+            <div class="form-section">
+                <label for="YearOfStudy">Year Of Study</label>
+                <input type="url" id="YearOfStudy" name="YearOfStudy">
+            </div>
+            <div class="form-section">
+                <label for="CGPA">CGPA</label>
+                <input type="url" id="CGPA" name="CGPA">
+            </div>
+            <button type="submit" class="form-btn">Proceed to Confirm Email</button>
+        </form>
+    </div>
+</body>
+</html>

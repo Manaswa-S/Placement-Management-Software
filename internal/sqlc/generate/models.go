@@ -8,6 +8,31 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Company struct {
+	CompanyID             int64
+	CompanyName           string
+	CompanyEmail          string
+	RepresentativeContact string
+	RepresentativeName    string
+	DataUrl               pgtype.Text
+	UserID                int64
+	IsVerified            pgtype.Bool
+}
+
+type Job struct {
+	JobID     int64
+	DataUrl   pgtype.Text
+	CreatedAt pgtype.Timestamp
+	CompanyID int64
+	Title     string
+	Location  string
+	Type      string
+	Salary    string
+	Skills    []string
+	Position  string
+	Extras    []byte
+}
+
 type User struct {
 	UserID    int64
 	Email     string

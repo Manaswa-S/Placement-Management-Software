@@ -20,6 +20,25 @@ introduce concurrency
 implement graceful shutdown 
 
 
-~~~~~add email verfication after signup
 
-~~~~~add password reset
+~~~~~new job posting 
+~~~~~authorize reqs, any one with a valid JWT can access any endpoint
+~~~~~prompt new users to complete their profile
+
+
+
+
+
+
+
+update the dashboard dynamically using db data
+
+refresh token is useless as of now
+
+need to focus on user specific features
+
+better the extra info forms
+
+create students and applications table
+
+extra info form remaining for students, recheck once again

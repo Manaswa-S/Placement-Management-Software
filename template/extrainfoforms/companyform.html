@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Company Signup Form</title>
+    <style>
+        /* General Reset */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Arial', sans-serif;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #5951f5, #abafea);
+            color: #333;
+            padding: 0;
+        }
+
+        .form-container {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 800px;
+            padding: 30px;
+        }
+
+        .form-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .form-header h1 {
+            color: #532ff3;
+            font-weight: bold;
+        }
+
+        .form-section {
+            margin-bottom: 20px;
+        }
+
+        .form-section label {
+            display: block;
+            font-size: 16px;
+            margin-bottom: 10px;
+            color: #6C63FF;
+        }
+
+        .form-section input,
+        .form-section textarea,
+        .form-section select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            margin-top: 8px;
+            background-color: #f7f7f7;
+        }
+
+        .form-section textarea {
+            height: 150px;
+        }
+
+        .form-section select {
+            height: 40px;
+        }
+
+        .form-btn {
+            display: inline-block;
+            background: #6C63FF;
+            color: #fff;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 5px;
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            width: 100%;
+        }
+
+        .form-btn:hover {
+            background: #8E94F2;
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <div class="form-header">
+            <h1>Company Signup Form</h1>
+        </div>
+        <form action="/public/extrainfopost" method="POST">
+            <input type="hidden" name="Token" value="{{.Token}}">
+            <div class="form-section">
+                <label for="CompanyName">Company Name</label>
+                <input type="text" id="CompanyName" name="CompanyName" required>
+            </div>
+
+            <div class="form-section">
+                <label for="RepresentativeName">Representative Name</label>
+                <input type="text" id="RepresentativeName" name="RepresentativeName" required>
+            </div>
+
+            <div class="form-section">
+                <label for="RepresentativeContact">Representative Contact Number</label>
+                <input type="text" id="RepresentativeContact" name="RepresentativeContact" required>
+            </div>
+
+            <div class="form-section">
+                <label for="CompanyLocation">Company Location</label>
+                <input type="text" id="CompanyLocation" name="CompanyLocation" required>
+            </div>
+
+            <div class="form-section">
+                <label for="CompanyDescription">Company Description</label>
+                <textarea id="CompanyDescription" name="CompanyDescription" placeholder="Brief about the company"></textarea>
+            </div>
+
+            <div class="form-section">
+                <label for="CompanyWebsite">Company Website</label>
+                <input type="url" id="CompanyWebsite" name="CompanyWebsite">
+            </div>
+
+            <div class="form-section">
+                <label for="Industry">Industry Type</label>
+                <select id="Industry" name="Industry" required>
+                    <option value="">Select an Industry</option>
+                    <option value="technology">Technology</option>
+                    <option value="finance">Finance</option>
+                    <option value="healthcare">Healthcare</option>
+                    <option value="education">Education</option>
+                    <option value="manufacturing">Manufacturing</option>
+                </select>
+            </div>
+
+            <button type="submit" class="form-btn">Proceed to Confirm Email</button>
+        </form>
+    </div>
+</body>
+</html>

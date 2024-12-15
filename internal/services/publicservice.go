@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/redis/go-redis/v9"
+	"go.mod/internal/dto"
 	sqlc "go.mod/internal/sqlc/generate"
 	"go.mod/internal/utils"
 	"golang.org/x/crypto/bcrypt"
@@ -85,6 +87,7 @@ func (s *PublicService) SendConfirmEmail(ctx *gin.Context, email string) (error)
 		ExpiresAt: time.Now().Add(15 * time.Minute).Unix(),
 		IssuedAt: time.Now().Unix(),
 		Email: userData.Email,
+		Role: userData.Role,
 	}
 	confirm_token, err := utils.GenerateJWT(confirmtokenData)
 	if err != nil {
@@ -109,12 +112,12 @@ func (s *PublicService) SendConfirmEmail(ctx *gin.Context, email string) (error)
 	return nil
 }
 
-func (s *PublicService) ConfirmEmail(ctx *gin.Context, confirmToken string) (error) {
+func (s *PublicService) ConfirmEmail(ctx *gin.Context, confirmToken string) (bytes.Buffer, error) {
 	
 	// parse token
 	claims, err := utils.ParseJWT(confirmToken)
 	if err != nil {
-		return errors.New("error parsing confirm token. please request a new link")
+		return bytes.Buffer{}, errors.New("error parsing confirm token. please request a new link")
 	}
 
 	// get email from claims
@@ -123,10 +126,22 @@ func (s *PublicService) ConfirmEmail(ctx *gin.Context, confirmToken string) (err
 	// update confirmed in the db
 	err = s.queries.UpdateEmailConfirmation(ctx, userEmail)
 	if err != nil {
-		return errors.New("error updating email validity")
+		return bytes.Buffer{}, errors.New("error updating email validity")
 	}
 
-	return nil
+	// embed token in email
+	pathtoHTML := "./template/extrainfoforms/companyform.html"
+	if int64(claims["role"].(float64)) == 1 {
+		pathtoHTML = "./template/extrainfoforms/studentform.html"
+	}
+
+	body, err := utils.DynamicHTML(pathtoHTML, ResetPass{Token: confirmToken})
+	if err != nil {
+		return bytes.Buffer{}, errors.New("failed to generate dynamic html")
+	}
+
+
+	return body, nil
 }
 
 func (s *PublicService) SendResetPassEmail(ctx *gin.Context, email string) (error) {
@@ -249,6 +264,16 @@ func (s *PublicService) LoginPost(ctx *gin.Context, loginData UserInputData) (in
 		return 0, JWTTokens{}, errors.New("please verify email first")
 	}
 
+	// make sure user is validated by admin
+	verified, err := s.queries.GetVerificationCompany(ctx, userData.Email)
+	if err != nil {
+		return 0, JWTTokens{}, err
+	} else if !verified.Valid {
+		return 0, JWTTokens{}, errors.New("user has not initialized verification")
+	} else if !verified.Bool {
+		return 0, JWTTokens{}, errors.New("user verification pending")
+	}
+
 	// compare passwords
 	err = bcrypt.CompareHashAndPassword([]byte(userData.Password), []byte(loginData.Password))
 	if err != nil {
@@ -288,3 +313,50 @@ func (s *PublicService) LoginPost(ctx *gin.Context, loginData UserInputData) (in
 	// return the jwt tokens and any errors
 	return userData.Role, JWTTokens{JWTAccess: access_token, JWTRefresh: refresh_token}, nil
 }
+
+func (s *PublicService) ExtraInfoPost(ctx *gin.Context) (sqlc.Company, error) {
+
+	var token ResetPass
+	err := ctx.Bind(&token)
+	if err != nil {
+		return sqlc.Company{}, errors.New("error binding token")
+	}
+
+	claims, err := utils.ParseJWT(token.Token)
+	if err != nil {
+		return sqlc.Company{}, errors.New("error parsing token")
+	}
+	
+
+	switch int64(claims["role"].(float64)) {
+	case 1:
+		var data dto.ExtraInfoStudent
+		err := ctx.Bind(&data)
+		if err != nil {
+			return sqlc.Company{}, errors.New("error binding data")
+		}
+		// TODO: complete
+
+	case 2:
+		var data dto.ExtraInfoCompany
+		err := ctx.Bind(&data)
+		if err != nil {
+			return sqlc.Company{}, errors.New("error binding data")
+		}
+		companyEmail := claims["email"].(string)
+		companyData, err := s.queries.ExtraInfoCompany(ctx, sqlc.ExtraInfoCompanyParams{
+			CompanyName: data.CompanyName,
+			CompanyEmail: companyEmail,
+			RepresentativeContact: data.RepresentativeContact,
+			RepresentativeName: data.RepresentativeName,
+			DataUrl: pgtype.Text{String: "", Valid: true},
+			Email: companyEmail,
+		})
+		if err != nil {
+			return sqlc.Company{}, errors.New("failed to update company data in db")
+		}
+		return companyData, nil
+	}
+	return sqlc.Company{}, errors.New("something went wrong")
+}
+

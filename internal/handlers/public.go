@@ -41,6 +41,8 @@ func (h *PublicHandler) RegisterRoute(publicRoute *gin.RouterGroup) {
 	publicRoute.GET("/sendconfirmemail", h.SendConfirmationEmail)
 	// confirm email id, validate
 	publicRoute.GET("/confirmsignup", h.ConfirmSignup)
+	// post the data from extra info page, indirect
+	publicRoute.POST("/extrainfopost", h.ExtraInfoPost)
 }
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -152,7 +154,23 @@ func (h *PublicHandler) SignupPost(ctx *gin.Context){
 	// respond with data
 	// redirect to respective dashboard
 	ctx.JSON(http.StatusOK, gin.H{
-		"status": "signup successful! confirm email and then log in.",
+		"status": "signup successful! check email for further instructions.",
+	})
+}
+
+func (h *PublicHandler) ExtraInfoPost(ctx *gin.Context){
+
+	
+	companyData, err := h.PublicService.ExtraInfoPost(ctx)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	ctx.JSON(200, gin.H{
+		"status": companyData,
 	})
 }
 
@@ -192,18 +210,15 @@ func(h *PublicHandler) ConfirmSignup(ctx *gin.Context) {
 	}
 
 	// call service
-	err := h.PublicService.ConfirmEmail(ctx, confirmToken)
+	body, err := h.PublicService.ConfirmEmail(ctx, confirmToken)
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})	
 		return
 	}
-	
 	// respond
-	ctx.JSON(200, gin.H{
-		"status": "email confirmed. proceed to login.",
-	})
+	ctx.Data(http.StatusOK, "text/html; charset=utf-8", body.Bytes())
 }
 
 func (h *PublicHandler) LoginPost(ctx *gin.Context){
