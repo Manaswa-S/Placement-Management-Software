@@ -6,3 +6,10 @@ Roles >>>
     4 : superuser
     5 : public access
 
+application status >>>
+    0 = Pending
+    1 = Applied
+    2 = Interview Scheduled
+    3 = Offer Extended
+    4 = Hired
+    5 = Rejected

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/redis/go-redis/v9"
 	"go.mod/internal/dto"
@@ -15,7 +16,6 @@ import (
 	"go.mod/internal/utils"
 	"golang.org/x/crypto/bcrypt"
 )
-
 
 type PublicService struct {
 	queries *sqlc.Queries
@@ -25,7 +25,6 @@ type PublicService struct {
 func NewPublicService(queriespool *sqlc.Queries, redisclient *redis.Client) *PublicService {
 	return &PublicService{queries: queriespool, redis: redisclient}
 }
-
 
 // defined structs
 type UserInputData struct {
@@ -264,14 +263,8 @@ func (s *PublicService) LoginPost(ctx *gin.Context, loginData UserInputData) (in
 		return 0, JWTTokens{}, errors.New("please verify email first")
 	}
 
-	// make sure user is validated by admin
-	verified, err := s.queries.GetVerificationCompany(ctx, userData.Email)
-	if err != nil {
-		return 0, JWTTokens{}, err
-	} else if !verified.Valid {
-		return 0, JWTTokens{}, errors.New("user has not initialized verification")
-	} else if !verified.Bool {
-		return 0, JWTTokens{}, errors.New("user verification pending")
+	if !userData.IsVerified {
+		return 0, JWTTokens{}, errors.New("user verification is pending")
 	}
 
 	// compare passwords
@@ -314,49 +307,84 @@ func (s *PublicService) LoginPost(ctx *gin.Context, loginData UserInputData) (in
 	return userData.Role, JWTTokens{JWTAccess: access_token, JWTRefresh: refresh_token}, nil
 }
 
-func (s *PublicService) ExtraInfoPost(ctx *gin.Context) (sqlc.Company, error) {
-
-	var token ResetPass
-	err := ctx.Bind(&token)
+func (s *PublicService) ExtraInfoPostStudent(ctx *gin.Context, claims jwt.MapClaims) (sqlc.Student, error) {
+	// bind data
+	var data dto.ExtraInfoStudent
+	err := ctx.Bind(&data)
 	if err != nil {
-		return sqlc.Company{}, errors.New("error binding token")
+		return sqlc.Student{}, err
 	}
-
-	claims, err := utils.ParseJWT(token.Token)
+	// get resume file
+	resumeFile, err := ctx.FormFile("Resume")
 	if err != nil {
-		return sqlc.Company{}, errors.New("error parsing token")
+		return sqlc.Student{}, err
 	}
-	
-
-	switch int64(claims["role"].(float64)) {
-	case 1:
-		var data dto.ExtraInfoStudent
-		err := ctx.Bind(&data)
-		if err != nil {
-			return sqlc.Company{}, errors.New("error binding data")
-		}
-		// TODO: complete
-
-	case 2:
-		var data dto.ExtraInfoCompany
-		err := ctx.Bind(&data)
-		if err != nil {
-			return sqlc.Company{}, errors.New("error binding data")
-		}
-		companyEmail := claims["email"].(string)
-		companyData, err := s.queries.ExtraInfoCompany(ctx, sqlc.ExtraInfoCompanyParams{
-			CompanyName: data.CompanyName,
-			CompanyEmail: companyEmail,
-			RepresentativeContact: data.RepresentativeContact,
-			RepresentativeName: data.RepresentativeName,
-			DataUrl: pgtype.Text{String: "", Valid: true},
-			Email: companyEmail,
-		})
-		if err != nil {
-			return sqlc.Company{}, errors.New("failed to update company data in db")
-		}
-		return companyData, nil
+	// save resume file
+	resumeStoragePath := os.Getenv("ResumeStorageDir")
+	resumeSavePath, err := utils.SaveFile(ctx, resumeStoragePath, resumeFile)
+	if err != nil {
+		return sqlc.Student{}, errors.New("unable to save resume file. try again")
 	}
-	return sqlc.Company{}, errors.New("something went wrong")
+	// get result file
+	resultFile, err := ctx.FormFile("Result")
+	if err != nil {
+		return sqlc.Student{}, errors.New("unable to get result file. try again")
+	}
+	// save result file
+	resultStoragePath := os.Getenv("ResultStorageDir")
+	resultSavePath, err := utils.SaveFile(ctx, resultStoragePath, resultFile)
+	if err != nil {
+		return sqlc.Student{}, errors.New("unable to save result file. try again")
+	}
+	// update data in db
+	data.StudentEmail = claims["email"].(string)
+	studentData, err := s.queries.ExtraInfoStudent(ctx, sqlc.ExtraInfoStudentParams{
+		StudentName: data.StudentName,
+		RollNumber: data.CollegeRollNumber,
+		StudentDob: pgtype.Date{Time: data.DateOfBirth, Valid: true},
+		Gender: data.Gender,
+		Course: data.Course,
+		Department: data.Department,
+		YearOfStudy: data.YearOfStudy,
+		ResumeUrl: pgtype.Text{String: resumeSavePath, Valid: true},
+		ResultUrl: resultSavePath,
+		Cgpa: pgtype.Float8{Float64: data.CGPA, Valid: true},
+		ContactNo: data.ContactNumber,
+		StudentEmail: data.StudentEmail,
+		Address: pgtype.Text{String: data.Address, Valid: true},
+		Skills: pgtype.Text{String: data.Skills, Valid: true},
+		Email: data.StudentEmail,
+	})
+	if err != nil {
+		return sqlc.Student{}, err
+	}
+	// return
+	return studentData, nil
 }
+
+func (s *PublicService) ExtraInfoPostCompany(ctx *gin.Context, claims jwt.MapClaims) (sqlc.Company, error) {
+	// bind incoming data
+	var data dto.ExtraInfoCompany
+	err := ctx.Bind(&data)
+	if err != nil {
+		return sqlc.Company{}, errors.New("unable to bind company data. try again")
+	}
+	// update db
+	data.RepresentativeEmail = claims["email"].(string)
+	companyData, err := s.queries.ExtraInfoCompany(ctx, sqlc.ExtraInfoCompanyParams{
+		CompanyName: data.CompanyName,
+		RepresentativeEmail: data.RepresentativeEmail,
+		RepresentativeContact: data.RepresentativeContact,
+		RepresentativeName: data.RepresentativeName,
+		DataUrl: pgtype.Text{String: ""},
+		Email: data.RepresentativeEmail,
+	})
+	if err != nil {
+		return sqlc.Company{}, errors.New("unable to update company data in database")
+	}
+	// return
+	return companyData, nil
+}
+
+
 

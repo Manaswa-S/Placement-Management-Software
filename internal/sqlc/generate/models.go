@@ -8,15 +8,25 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Application struct {
+	ApplicationID int64
+	JobID         int64
+	StudentID     int64
+	Status        int64
+	DataUrl       pgtype.Text
+	CreatedAt     pgtype.Timestamptz
+	StudentID1    pgtype.Int8
+	JobID1        pgtype.Int8
+}
+
 type Company struct {
 	CompanyID             int64
 	CompanyName           string
-	CompanyEmail          string
+	RepresentativeEmail   string
 	RepresentativeContact string
 	RepresentativeName    string
 	DataUrl               pgtype.Text
 	UserID                int64
-	IsVerified            pgtype.Bool
 }
 
 type Job struct {
@@ -33,12 +43,33 @@ type Job struct {
 	Extras    []byte
 }
 
+type Student struct {
+	StudentID    int64
+	StudentName  string
+	RollNumber   string
+	StudentDob   pgtype.Date
+	Gender       string
+	Course       string
+	Department   string
+	YearOfStudy  string
+	ResumeUrl    pgtype.Text
+	ResultUrl    string
+	Cgpa         pgtype.Float8
+	ContactNo    string
+	StudentEmail string
+	Address      pgtype.Text
+	Skills       pgtype.Text
+	UserID       int64
+	Extras       []byte
+}
+
 type User struct {
-	UserID    int64
-	Email     string
-	Password  string
-	Role      int64
-	UserUuid  pgtype.UUID
-	CreatedAt pgtype.Timestamp
-	Confirmed bool
+	UserID     int64
+	Email      string
+	Password   string
+	Role       int64
+	UserUuid   pgtype.UUID
+	CreatedAt  pgtype.Timestamp
+	Confirmed  bool
+	IsVerified bool
 }

@@ -21,15 +21,12 @@ implement graceful shutdown
 
 
 
-~~~~~new job posting 
-~~~~~authorize reqs, any one with a valid JWT can access any endpoint
-~~~~~prompt new users to complete their profile
+~~~~~ extra info needed
+~~~~~ create students and applications table
 
 
 
-
-
-
+the company form and table and updation is still fked up
 
 update the dashboard dynamically using db data
 
@@ -37,8 +34,14 @@ refresh token is useless as of now
 
 need to focus on user specific features
 
-better the extra info forms
 
-create students and applications table
 
-extra info form remaining for students, recheck once again
+extra info form remaining for company
+
+table references are mixed up, cascade on fall
+
+handler functions are structed wrong, need to use gin.HandlerFunc
+
+let the admin verify users
+
+use const() 

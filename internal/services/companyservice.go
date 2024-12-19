@@ -57,7 +57,7 @@ func (c *CompanyService) NewJobPost(ctx *gin.Context, jobdata dto.NewJobData) (s
 	// add job data to db
 	jobData, err := c.queries.InsertNewJob(ctx, sqlc.InsertNewJobParams{
 		DataUrl: pgtype.Text{String: "", Valid: true},
-		CompanyEmail: jobdata.CompanyEmail,
+		RepresentativeEmail: jobdata.CompanyEmail,
 		Title: jobdata.JobTitle,
 		Location: jobdata.CompanyLocation,
 		Type: jobdata.JobType,

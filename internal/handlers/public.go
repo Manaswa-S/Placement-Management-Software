@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.mod/internal/services"
 	sqlc "go.mod/internal/sqlc/generate"
+	"go.mod/internal/utils"
 )
 
 type PublicHandler struct {
@@ -158,19 +159,56 @@ func (h *PublicHandler) SignupPost(ctx *gin.Context){
 	})
 }
 
-func (h *PublicHandler) ExtraInfoPost(ctx *gin.Context){
+const (
+	RoleStudent = 1
+	RoleCompany = 2	
+)
 
-	
-	companyData, err := h.PublicService.ExtraInfoPost(ctx)
+func (h *PublicHandler) ExtraInfoPost(ctx *gin.Context) {
+
+	token := ctx.Request.FormValue("Token")
+	if token == "" {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"errors": "empty token received",
+		})
+		return
+	}
+	claims, err := utils.ParseJWT(token)
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
+			"errors": err.Error(),
+		})
+	}
+
+	var userData interface{}
+
+	switch int64(claims["role"].(float64)) {
+	case RoleStudent:
+		userData, err = h.PublicService.ExtraInfoPostStudent(ctx, claims)
+		if err != nil {
+			ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+	case RoleCompany:
+		userData, err = h.PublicService.ExtraInfoPostCompany(ctx, claims)
+		if err != nil {
+			ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+	default:
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": "invalid role",
 		})
 		return
 	}
 
 	ctx.JSON(200, gin.H{
-		"status": companyData,
+		"data": userData,
+		"status": "sign up complete. proceed with further instructions in the email",
 	})
 }
 
