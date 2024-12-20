@@ -21,22 +21,34 @@ implement graceful shutdown
 
 
 
-~~~~~ extra info needed
-~~~~~ create students and applications table
 
 
+let students apply to jobs
+students should see applied and their status
+companies should see the applications to their listings
+
+
+
+better the filtering process
+
+add a all details button in the my applications page
+
+do something about having to scan the users table everytime to get the subid like student_id
+either include the subid in the JWT
+
+
+filters for job list
+
+when student applies to a job, get his resume, cover letter , etc ...
 
 the company form and table and updation is still fked up
+extra info form remaining for company
 
 update the dashboard dynamically using db data
 
 refresh token is useless as of now
 
 need to focus on user specific features
-
-
-
-extra info form remaining for company
 
 table references are mixed up, cascade on fall
 

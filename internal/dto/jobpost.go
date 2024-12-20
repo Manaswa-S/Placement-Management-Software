@@ -7,7 +7,7 @@ import (
 type NewJobData struct {
 	CompanyName string
 	CompanyEmail string
-	CompanyLocation string
+	JobLocation string
 	JobTitle string
 	JobDescription string
 	JobType string
@@ -15,6 +15,18 @@ type NewJobData struct {
 	SkillsRequired string
 	JobPosition string
 	Extras map[string]interface{}
+}
+
+type AllJobs struct {
+    ID         int    		`json:"id"`
+	Title       string		`json:"title"`
+    Location    string	`json:"location"`
+    Type        string	`json:"type"`
+    Salary      string	`json:"salary"`
+    Position    string	`json:"position"`
+    Skills      []string	`json:"skills"`
+    Extras      []byte	`json:"extras"`
+    CompanyName string	`json:"company_name"`
 }
 
 type ExtraInfoCompany struct {

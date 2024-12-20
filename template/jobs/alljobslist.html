@@ -41,24 +41,30 @@
         }
 
         .job-title {
-            font-size: 1.5em;
+            font-size: 1.2em;
             color: #6C63FF;
-            margin-bottom: 10px;
+            margin-bottom: 4px;
         }
 
         .job-company {
-            font-size: 1.2em;
+            font-size: 1.0em;
             color: #333;
-            margin-bottom: 10px;
+            margin-bottom: 4px;
         }
 
         .job-details {
-            font-size: 0.9em;
+            display:grid; 
+            grid-template-columns: repeat(2, 1fr); 
+            font-size: 0.8em;
             color: #555;
-            margin-bottom: 15px;
         }
 
+        .job-details p {
+            margin: 3px 0; 
+            line-height: 1.4;
+        }
         .apply-btn {
+            margin: auto;
             background: #6C63FF;
             color: #fff;
             font-size: 14px;
@@ -156,20 +162,38 @@
                     data.forEach(job => {
                         const jobCard = `
                             <div class="job-card">
-                                <div class="job-title">${job.title}</div>
-                                <div class="job-company">${job.company}</div>
+                                <div class="job-title">${job.JobID} : ${job.Title}</div>
+                                <div class="job-company">${job.CompanyName}</div>
                                 <div class="job-details">
-                                    <p><strong>Location:</strong> ${job.location}</p>
-                                    <p><strong>CTC:</strong> ${job.ctc}</p>
-                                    <p><strong>Eligibility:</strong> ${job.eligibility}</p>
+                                    <p><strong>Location:</strong> ${job.Location}</p>
+                                    <p><strong>Type:</strong> ${job.Type}</p>
+                                    <p><strong>CTC:</strong> ${job.Salary}</p>
+                                    <p><strong>Position:</strong> ${job.Position}</p>
+                                    <p><strong>Skills:</strong> ${job.Skills.join(', ')}</p>
                                 </div>
-                                <a href="#" class="apply-btn">Apply Now</a>
+                                <button class="apply-btn" onclick="applyToJob(${job.JobID}, this)">Apply Now</button>
                             </div>
                         `;
                         jobList.innerHTML += jobCard;
                     });
                 })
                 .catch(error => console.error('Error fetching jobs:', error));
+        }
+
+        // Function to apply to a job
+        function applyToJob(jobID, button) {
+            const url = `/laa/student/applytojob?jobid=${jobID}`;
+            fetch(url, { method: 'POST' })
+                .then(response => {
+                    if (response.ok) {
+                        button.textContent = 'Applied';
+                        button.disabled = true;
+                        button.style.backgroundColor = '#6c757d';
+                    } else {
+                        alert('Failed to apply. Please try again later.');
+                    }
+                })
+                .catch(error => console.error('Error applying to job:', error));
         }
 
         // Function to apply filters

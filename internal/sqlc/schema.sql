@@ -64,22 +64,21 @@ CREATE TABLE students (
     skills TEXT,
     user_id BIGINT NOT NULL,
     extras JSON,
-    CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(user_id),
     CONSTRAINT uni_result_url UNIQUE (result_url),
     CONSTRAINT uni_roll_no UNIQUE (roll_number),
-    CONSTRAINT students_pkey PRIMARY KEY (student_id)
+    CONSTRAINT students_pkey PRIMARY KEY (student_id),
+    CONSTRAINT students_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(user_id)
+        ON DELETE CASCADE
 );
 
 CREATE TABLE applications (
     application_id BIGINT PRIMARY KEY DEFAULT nextval('applications_application_id_seq'::regclass),
     job_id BIGINT NOT NULL,
     student_id BIGINT NOT NULL,
-    status INT8 NOT NULL,
     data_url TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    student_id_1 BIGINT,
-    job_id_1 BIGINT,
-    CONSTRAINT fk_student FOREIGN KEY (student_id_1) REFERENCES students(student_id),
-    CONSTRAINT fk_job FOREIGN KEY (job_id_1) REFERENCES jobs(job_id)
+    status application_status NOT NULL DEFAULT 'applied'::application_status,
+    CONSTRAINT students_app_pkey FOREIGN KEY (student_id) REFERENCES students(student_id),
+    CONSTRAINT jobs_pkey FOREIGN KEY (job_id) REFERENCES jobs(job_id) ON DELETE CASCADE
 );
 

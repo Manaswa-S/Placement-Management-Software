@@ -12,11 +12,9 @@ type Application struct {
 	ApplicationID int64
 	JobID         int64
 	StudentID     int64
-	Status        int64
 	DataUrl       pgtype.Text
 	CreatedAt     pgtype.Timestamptz
-	StudentID1    pgtype.Int8
-	JobID1        pgtype.Int8
+	Status        interface{}
 }
 
 type Company struct {

@@ -11,6 +11,22 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const cancelApplication = `-- name: CancelApplication :exec
+DELETE FROM applications 
+WHERE student_id = (SELECT student_id FROM students WHERE students.user_id = $1) 
+AND job_id = $2
+`
+
+type CancelApplicationParams struct {
+	UserID int64
+	JobID  int64
+}
+
+func (q *Queries) CancelApplication(ctx context.Context, arg CancelApplicationParams) error {
+	_, err := q.db.Exec(ctx, cancelApplication, arg.UserID, arg.JobID)
+	return err
+}
+
 const extraInfoCompany = `-- name: ExtraInfoCompany :one
 INSERT INTO companies (company_name, representative_email, representative_contact, representative_name, data_url, user_id)
 VALUES ($1, $2, $3, $4, $5, (SELECT user_id FROM users WHERE email = $6))
@@ -148,6 +164,137 @@ func (q *Queries) GetAll(ctx context.Context) ([]User, error) {
 	return items, nil
 }
 
+const getApplicableJobs = `-- name: GetApplicableJobs :many
+SELECT 
+    jobs.job_id,
+    jobs.title, 
+    jobs.location,
+    jobs.type,
+    jobs.salary,
+    jobs.position,
+    jobs.skills,
+    jobs.company_id,
+    companies.company_name
+FROM 
+    jobs
+JOIN companies ON jobs.company_id = companies.company_id
+LEFT JOIN applications ON jobs.job_id = applications.job_id 
+    AND applications.student_id = (SELECT student_id FROM students WHERE students.user_id = $1)
+WHERE 
+    applications.job_id IS NULL
+`
+
+type GetApplicableJobsRow struct {
+	JobID       int64
+	Title       string
+	Location    string
+	Type        string
+	Salary      string
+	Position    string
+	Skills      []string
+	CompanyID   int64
+	CompanyName string
+}
+
+func (q *Queries) GetApplicableJobs(ctx context.Context, userID int64) ([]GetApplicableJobsRow, error) {
+	rows, err := q.db.Query(ctx, getApplicableJobs, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetApplicableJobsRow
+	for rows.Next() {
+		var i GetApplicableJobsRow
+		if err := rows.Scan(
+			&i.JobID,
+			&i.Title,
+			&i.Location,
+			&i.Type,
+			&i.Salary,
+			&i.Position,
+			&i.Skills,
+			&i.CompanyID,
+			&i.CompanyName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getMyApplications = `-- name: GetMyApplications :many
+SELECT 
+    jobs.job_id,
+    jobs.title, 
+    jobs.location,
+    jobs.type,
+    jobs.salary,
+    jobs.position,
+    jobs.skills,
+    jobs.company_id,
+    companies.company_name,
+    companies.representative_email,
+    companies.representative_name,
+    t.status::TEXT AS status
+FROM jobs
+JOIN (SELECT applications.job_id, applications.status FROM applications WHERE student_id = (
+    SELECT student_id FROM students WHERE students.user_id = $1)) AS t 
+ON jobs.job_id = t.job_id
+JOIN companies ON jobs.company_id = companies.company_id
+`
+
+type GetMyApplicationsRow struct {
+	JobID               int64
+	Title               string
+	Location            string
+	Type                string
+	Salary              string
+	Position            string
+	Skills              []string
+	CompanyID           int64
+	CompanyName         string
+	RepresentativeEmail string
+	RepresentativeName  string
+	Status              string
+}
+
+func (q *Queries) GetMyApplications(ctx context.Context, userID int64) ([]GetMyApplicationsRow, error) {
+	rows, err := q.db.Query(ctx, getMyApplications, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetMyApplicationsRow
+	for rows.Next() {
+		var i GetMyApplicationsRow
+		if err := rows.Scan(
+			&i.JobID,
+			&i.Title,
+			&i.Location,
+			&i.Type,
+			&i.Salary,
+			&i.Position,
+			&i.Skills,
+			&i.CompanyID,
+			&i.CompanyName,
+			&i.RepresentativeEmail,
+			&i.RepresentativeName,
+			&i.Status,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getUserData = `-- name: GetUserData :one
 SELECT user_id, email, password, role, user_uuid, created_at, confirmed, is_verified FROM users WHERE email = $1
 `
@@ -166,6 +313,22 @@ func (q *Queries) GetUserData(ctx context.Context, email string) (User, error) {
 		&i.IsVerified,
 	)
 	return i, err
+}
+
+const insertNewApplication = `-- name: InsertNewApplication :exec
+INSERT INTO applications (job_id, student_id, data_url) 
+VALUES ($1, (SELECT student_id FROM students WHERE user_id = $2), $3)
+`
+
+type InsertNewApplicationParams struct {
+	JobID   int64
+	UserID  int64
+	DataUrl pgtype.Text
+}
+
+func (q *Queries) InsertNewApplication(ctx context.Context, arg InsertNewApplicationParams) error {
+	_, err := q.db.Exec(ctx, insertNewApplication, arg.JobID, arg.UserID, arg.DataUrl)
+	return err
 }
 
 const insertNewJob = `-- name: InsertNewJob :one

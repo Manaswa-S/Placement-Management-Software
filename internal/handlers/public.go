@@ -208,7 +208,7 @@ func (h *PublicHandler) ExtraInfoPost(ctx *gin.Context) {
 
 	ctx.JSON(200, gin.H{
 		"data": userData,
-		"status": "sign up complete. proceed with further instructions in the email",
+		"status": "sign up complete. proceed with further instructions as given in the email",
 	})
 }
 

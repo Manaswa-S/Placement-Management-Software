@@ -59,7 +59,7 @@ func (c *CompanyService) NewJobPost(ctx *gin.Context, jobdata dto.NewJobData) (s
 		DataUrl: pgtype.Text{String: "", Valid: true},
 		RepresentativeEmail: jobdata.CompanyEmail,
 		Title: jobdata.JobTitle,
-		Location: jobdata.CompanyLocation,
+		Location: jobdata.JobLocation,
 		Type: jobdata.JobType,
 		Salary: jobdata.JobSalary,
 		Skills: skills,
