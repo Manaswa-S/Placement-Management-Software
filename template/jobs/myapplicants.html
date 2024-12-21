@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Available Jobs</title>
+    <title>Applicants</title>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -125,7 +125,7 @@
 
 <body>
     <div class="container">
-        <h1>My Job Applications</h1>
+        <h1>Job Applicants</h1>
 
         <!-- Filters Section -->
         <div class="filters">
@@ -150,7 +150,7 @@
     <script>
         // Function to fetch job listings from the backend
         function fetchJobs(status = 'all') {
-            const url = `/laa/student/myapplications?status=${status}`;
+            const url = `/laa/company/myapplicants?status=${status}`;
             fetch(url)
                 .then(response => response.json())
                 .then(data => {
@@ -160,18 +160,20 @@
                         const jobCard = `
                             <div class="job-card">
                                 <div class="job-title">${job.JobID} : ${job.Title}</div>
-                                <div class="job-company">${job.CompanyName}</div>
                                 <div class="job-details">
-                                    <p><strong>Location:</strong> ${job.Location}</p>
-                                    <p><strong>Type:</strong> ${job.Type}</p>
-                                    <p><strong>CTC:</strong> ${job.Salary}</p>
-                                    <p><strong>Position:</strong> ${job.Position}</p>
-                                    <p><strong>Skills:</strong> ${job.Skills.join(', ')}</p>
+                                    <p><strong>Applicant Name:</strong> ${job.StudentName}</p>
+                                    <p><strong>Roll Number:</strong> ${job.RollNumber}</p>
+                                    <p><strong>Gender:</strong> ${job.Gender}</p>
+                                    <p><strong>Department:</strong> ${job.Department}</p>
+                                    <p><strong>Email:</strong> ${job.StudentEmail}</p>
+                                    <p><strong>Contact No.:</strong> ${job.ContactNo}</p>
+                                    <p><strong>CGPA:</strong> ${job.Cgpa}</p>
+                                    <p><strong>Skills:</strong> ${job.Skills}</p>
                                     <p><strong>Status:</strong> ${job.Status}</p>
-                                    <p><strong>Representative Name:</strong> ${job.RepresentativeName}</p>
-                                    <p><strong>Representative Email:</strong> ${job.RepresentativeEmail}</p>
                                 </div>
-                                <button class="apply-btn" onclick="cancelApplication(${job.JobID}, this)">Cancel Application</button>
+                                <button class="apply-btn" onclick="details(${job.StudentID}, this)">Details</button>
+                                <button class="apply-btn" onclick="getFile(${job.StudentID}, 'resume', this)">Get Resume</button>
+                                <button class="apply-btn" onclick="getFile(${job.StudentID}, 'result', this)">Get Result</button>
                             </div>
                         `;
                         appList.innerHTML += jobCard;
@@ -180,21 +182,31 @@
                 .catch(error => console.error('Error fetching jobs:', error));
         }
 
-        // Function to cancel application
-        function cancelApplication(jobID, button) {
-            const url = `/laa/student/cancelapplication?jobid=${jobID}`;
+        function getFile(id, type) {
+            const url = `/laa/company/getfile?id=${id}&type=${type}`;
+
             fetch(url, { method: 'GET' })
                 .then(response => {
-                    if (response.ok) {
-                        button.textContent = 'Cancelled';
-                        button.disabled = true;
-                        button.style.backgroundColor = '#6c757d';
-                    } else {
-                        alert('Failed to apply. Please try again later.');
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch the file.');
                     }
+
+                    // Create a blob from the response
+                    return response.blob();
                 })
-                .catch(error => console.error('Error applying to job:', error));
+                .then(blob => {
+                    // Create a URL for the blob
+                    const fileURL = window.URL.createObjectURL(blob);
+
+                    // Open the file in a new tab
+                    window.open(fileURL, '_blank');
+                })
+                .catch(error => {
+                    console.error('Error fetching the file:', error);
+                    alert('Failed to fetch the file. Please try again later.');
+                });
         }
+
 
         // Function to apply filters
         function filterJobs() {

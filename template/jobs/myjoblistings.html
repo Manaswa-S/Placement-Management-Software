@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Available Jobs</title>
+    <title>My Job Listins</title>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -125,68 +125,88 @@
 
 <body>
     <div class="container">
-        <h1>My Job Applications</h1>
+        <h1>My Job Listings</h1>
 
         <!-- Filters Section -->
         <div class="filters">
-            <select name="status" id="status">
-                <option value="">Application Status</option>
-                <option value="all">All</option>
-                <option value="applied">Applied</option>
-                <option value="under_review">Under Review</option>
-                <option value="shortlisted">Shortlisted</option>
-                <option value="rejected">Rejected</option>
-                <option value="offered">Offered</option>
-                <option value="hired">Hired</option>
+            <select name="jobType" id="jobType">
+                <option value="">All Job Types</option>
+                <option value="full-time">Full-Time</option>
+                <option value="internship">Internship</option>
+                <option value="part-time">Part-Time</option>
             </select>
+
+            <select name="location" id="location">
+                <option value="">All Locations</option>
+                <option value="remote">Remote</option>
+                <option value="onsite">On-Site</option>
+                <option value="hybrid">Hybrid</option>
+            </select>
+
             <button onclick="filterJobs()">Apply Filters</button>
         </div>
 
-
         <!-- Job Listings -->
-        <div id="appList"></div>
+        <div id="jobList"></div>
     </div>
 
     <script>
         // Function to fetch job listings from the backend
-        function fetchJobs(status = 'all') {
-            const url = `/laa/student/myapplications?status=${status}`;
+        function fetchJobs(jobType = '', location = '') {
+            const url = `/laa/company/myjoblistings?jobType=${jobType}&location=${location}`;
             fetch(url)
                 .then(response => response.json())
                 .then(data => {
-                    const appList = document.getElementById('appList');
-                    appList.innerHTML = ''; // Clear existing jobs
+                    const jobList = document.getElementById('jobList');
+                    jobList.innerHTML = ''; // Clear existing jobs
                     data.forEach(job => {
                         const jobCard = `
                             <div class="job-card">
                                 <div class="job-title">${job.JobID} : ${job.Title}</div>
-                                <div class="job-company">${job.CompanyName}</div>
                                 <div class="job-details">
+                                    <p><strong>Created On:</strong> ${job.CreatedAt}</p>
                                     <p><strong>Location:</strong> ${job.Location}</p>
                                     <p><strong>Type:</strong> ${job.Type}</p>
                                     <p><strong>CTC:</strong> ${job.Salary}</p>
                                     <p><strong>Position:</strong> ${job.Position}</p>
                                     <p><strong>Skills:</strong> ${job.Skills.join(', ')}</p>
-                                    <p><strong>Status:</strong> ${job.Status}</p>
-                                    <p><strong>Representative Name:</strong> ${job.RepresentativeName}</p>
-                                    <p><strong>Representative Email:</strong> ${job.RepresentativeEmail}</p>
+                                    <p><strong>No of Applications:</strong> ${job.NoOfApplications}</p>
+                                    <p><strong>Status:</strong> ${job.ActiveStatus ? 'Active' : 'Closed'}</p>
                                 </div>
-                                <button class="apply-btn" onclick="cancelApplication(${job.JobID}, this)">Cancel Application</button>
+                                <button class="apply-btn" 
+                                    onclick="closePosting(${job.JobID}, this)" 
+                                    ${job.ActiveStatus ? '' : 'disabled'} 
+                                    style="background-color: ${job.ActiveStatus ? '#6C63FF' : '#d3d3d3'}; color: ${job.ActiveStatus ? '#fff' : '#000'};">
+                                    ${job.ActiveStatus ? 'Close Posting' : 'Closed'}
+                                </button>
+                                <button class="apply-btn" 
+                                    onclick="abcdfunctionname(${job.JobID}, this)" 
+                                    ${job.ActiveStatus ? '' : 'disabled'} 
+                                    style="background-color: ${job.ActiveStatus ? '#6C63FF' : '#d3d3d3'}; color: ${job.ActiveStatus ? '#fff' : '#000'};">
+                                    ${job.ActiveStatus ? 'Edit Posting' : 'Edit Posting'}
+                                </button>
+                                <button class="apply-btn" onclick="deletePosting(${job.JobID}, this)">Delete Posting</button>
+                                <button class="apply-btn" onclick="redirectTo(${job.JobID}, this)">Applicants</button>
                             </div>
                         `;
-                        appList.innerHTML += jobCard;
+                        jobList.innerHTML += jobCard;
                     });
                 })
                 .catch(error => console.error('Error fetching jobs:', error));
         }
 
-        // Function to cancel application
-        function cancelApplication(jobID, button) {
-            const url = `/laa/student/cancelapplication?jobid=${jobID}`;
+
+        function redirectTo(jobID) {
+            window.location.href = "/laa/company/myappsstatic";
+        }
+
+        // Function to close posting
+        function closePosting(jobID, button) {
+            const url = `/laa/company/closejob?jobid=${jobID}`;
             fetch(url, { method: 'GET' })
                 .then(response => {
                     if (response.ok) {
-                        button.textContent = 'Cancelled';
+                        button.textContent = 'Closed';
                         button.disabled = true;
                         button.style.backgroundColor = '#6c757d';
                     } else {
@@ -195,11 +215,34 @@
                 })
                 .catch(error => console.error('Error applying to job:', error));
         }
+        
+        // Function to delete posting with confirmation
+        function deletePosting(jobID, button) {
+            if (confirm("Are you sure you want to delete this job posting? This action cannot be undone.")) {
+                const url = `/laa/company/deletejob?jobid=${jobID}`;
+                fetch(url, { method: 'GET' })
+                    .then(response => {
+                        if (response.ok) {
+                            button.textContent = 'Deleted';
+                            button.disabled = true;
+                            button.style.backgroundColor = '#6c757d';
+                            alert('Job posting successfully deleted.');
+                        } else {
+                            alert('Failed to delete. Please try again later.');
+                        }
+                    })
+                    .catch(error => console.error('Error deleting job:', error));
+            } else {
+                alert("Job deletion canceled.");
+            }
+        }
+
 
         // Function to apply filters
         function filterJobs() {
-            const status = document.getElementById('status').value;
-            fetchJobs(status);
+            const jobType = document.getElementById('jobType').value;
+            const location = document.getElementById('location').value;
+            fetchJobs(jobType, location);
         }
 
         // Initial load

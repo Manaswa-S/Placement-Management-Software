@@ -17,7 +17,6 @@ func NewStudentHandler(studentService *services.StudentService) *StudentHandler 
 		StudentService: studentService,
 	}
 }
-
 func (h *StudentHandler) RegisterRoute(studentRoute *gin.RouterGroup) {
 	// get the dashboard
 	studentRoute.GET("/dashboard", h.StudentDashboard)
@@ -34,17 +33,16 @@ func (h *StudentHandler) RegisterRoute(studentRoute *gin.RouterGroup) {
 	studentRoute.GET("/myapplications", h.MyApplications)
 }
 
+
 func (h *StudentHandler) StudentDashboard(ctx *gin.Context) {
 	ctx.File("./template/dashboard/studentdashboard.html")
 }
-
 func (h *StudentHandler) JobsList(ctx *gin.Context) {
 	ctx.File("./template/jobs/alljobslist.html")
 }
 func (h *StudentHandler) MyAppsStatic(ctx *gin.Context) {
 	ctx.File("./template/jobs/myapplications.html")
 }
-
 func (h *StudentHandler) ApplicableJobs(ctx *gin.Context) {
 	// TODO: get the filters of the request body  
 
@@ -124,6 +122,7 @@ func (h *StudentHandler) CancelApplication(ctx *gin.Context) {
 func (h *StudentHandler) MyApplications(ctx *gin.Context) {
 	// pre-defined filters map
 	filters := map[string]bool{
+		"all":true,
 		"applied": true,
 		"under_review": true,
 		"shortlisted": true,
@@ -149,12 +148,15 @@ func (h *StudentHandler) MyApplications(ctx *gin.Context) {
 		return
 	}
 	// filter data
-	var filteredData []sqlc.GetMyApplicationsRow
-	for _, app := range applicationsData {
-		if app.Status == status {
-			filteredData = append(filteredData, app)
+	if status != "all" {
+		var filteredData []sqlc.GetMyApplicationsRow
+		for _, app := range applicationsData {
+			if app.Status == status {
+				filteredData = append(filteredData, app)
+			}
 		}
+		ctx.JSON(http.StatusOK, filteredData)
+	} else {
+		ctx.JSON(http.StatusOK, applicationsData)
 	}
-	// respond
-	ctx.JSON(http.StatusOK, filteredData)
 }

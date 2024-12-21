@@ -62,5 +62,6 @@ func Logger() gin.HandlerFunc {
 			fmt.Println("Error writing log: ", err.Error())
 			return
 		}
+		fmt.Println("end of logger")
 	}
 }

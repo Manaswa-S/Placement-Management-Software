@@ -58,15 +58,13 @@ SELECT
     jobs.position,
     jobs.skills,
     jobs.company_id,
-    companies.company_name
-FROM 
-    jobs
-JOIN companies ON jobs.company_id = companies.company_id
-LEFT JOIN applications ON jobs.job_id = applications.job_id 
-    AND applications.student_id = (SELECT student_id FROM students WHERE students.user_id = $1)
-WHERE 
-    applications.job_id IS NULL;
-
+    jobs.active_status,
+    companies.company_name 
+FROM jobs
+JOIN companies ON jobs.company_id = companies.company_id 
+LEFT JOIN (SELECT applications.job_id FROM applications WHERE applications.student_id = (SELECT student_id FROM students WHERE students.user_id = $1)) AS t 
+ON jobs.job_id = t.job_id
+WHERE t.job_id IS NULL;
 
 -- name: GetMyApplications :many
 SELECT 
@@ -94,3 +92,58 @@ JOIN companies ON jobs.company_id = companies.company_id;
 DELETE FROM applications 
 WHERE student_id = (SELECT student_id FROM students WHERE students.user_id = $1) 
 AND job_id = $2;
+
+
+
+-- name: GetApplicants :many
+SELECT
+    students.student_id,
+    students.student_name,
+    students.roll_number,
+    students.gender,
+    students.department,
+    students.student_email,
+    students.contact_no,
+    students.cgpa,
+    students.skills,
+    jobs.job_id, 
+    jobs.title, 
+    applications.status::TEXT AS status 
+FROM applications
+JOIN jobs ON applications.job_id = jobs.job_id
+JOIN students ON applications.student_id = students.student_id
+WHERE jobs.company_id = (SELECT companies.company_id FROM companies WHERE companies.user_id = $1);
+
+
+-- name: GetResumePath :one
+SELECT resume_url, result_url FROM students WHERE student_id = $1;
+
+
+-- name: GetJobListings :many
+SELECT 
+    jobs.job_id,
+    jobs.created_at::DATE as created_at,
+    jobs.title,
+    jobs.location,
+    jobs.type,
+    jobs.salary,
+    jobs.skills,
+    jobs.position,
+    jobs.active_status,
+    COALESCE(t.no_of_applications, 0)    
+FROM jobs
+LEFT JOIN (SELECT job_id, COUNT(job_id) AS no_of_applications FROM applications GROUP BY job_id) AS t
+ON jobs.job_id = t.job_id
+WHERE jobs.company_id = (SELECT companies.company_id FROM companies WHERE companies.user_id = $1);
+
+
+-- name: CloseJob :exec
+UPDATE jobs
+SET active_status = false
+WHERE jobs.job_id = $1 
+AND jobs.company_id = (SELECT companies.company_id FROM companies WHERE user_id = $2);
+
+-- name: DeleteJob :exec
+DELETE FROM jobs 
+WHERE jobs.job_id = $1
+AND jobs.company_id = (SELECT companies.company_id FROM companies WHERE user_id = $2);

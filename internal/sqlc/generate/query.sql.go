@@ -27,6 +27,39 @@ func (q *Queries) CancelApplication(ctx context.Context, arg CancelApplicationPa
 	return err
 }
 
+const closeJob = `-- name: CloseJob :exec
+UPDATE jobs
+SET active_status = false
+WHERE jobs.job_id = $1 
+AND jobs.company_id = (SELECT companies.company_id FROM companies WHERE user_id = $2)
+`
+
+type CloseJobParams struct {
+	JobID  int64
+	UserID int64
+}
+
+func (q *Queries) CloseJob(ctx context.Context, arg CloseJobParams) error {
+	_, err := q.db.Exec(ctx, closeJob, arg.JobID, arg.UserID)
+	return err
+}
+
+const deleteJob = `-- name: DeleteJob :exec
+DELETE FROM jobs 
+WHERE jobs.job_id = $1
+AND jobs.company_id = (SELECT companies.company_id FROM companies WHERE user_id = $2)
+`
+
+type DeleteJobParams struct {
+	JobID  int64
+	UserID int64
+}
+
+func (q *Queries) DeleteJob(ctx context.Context, arg DeleteJobParams) error {
+	_, err := q.db.Exec(ctx, deleteJob, arg.JobID, arg.UserID)
+	return err
+}
+
 const extraInfoCompany = `-- name: ExtraInfoCompany :one
 INSERT INTO companies (company_name, representative_email, representative_contact, representative_name, data_url, user_id)
 VALUES ($1, $2, $3, $4, $5, (SELECT user_id FROM users WHERE email = $6))
@@ -174,26 +207,26 @@ SELECT
     jobs.position,
     jobs.skills,
     jobs.company_id,
-    companies.company_name
-FROM 
-    jobs
-JOIN companies ON jobs.company_id = companies.company_id
-LEFT JOIN applications ON jobs.job_id = applications.job_id 
-    AND applications.student_id = (SELECT student_id FROM students WHERE students.user_id = $1)
-WHERE 
-    applications.job_id IS NULL
+    jobs.active_status,
+    companies.company_name 
+FROM jobs
+JOIN companies ON jobs.company_id = companies.company_id 
+LEFT JOIN (SELECT applications.job_id FROM applications WHERE applications.student_id = (SELECT student_id FROM students WHERE students.user_id = $1)) AS t 
+ON jobs.job_id = t.job_id
+WHERE t.job_id IS NULL
 `
 
 type GetApplicableJobsRow struct {
-	JobID       int64
-	Title       string
-	Location    string
-	Type        string
-	Salary      string
-	Position    string
-	Skills      []string
-	CompanyID   int64
-	CompanyName string
+	JobID        int64
+	Title        string
+	Location     string
+	Type         string
+	Salary       string
+	Position     string
+	Skills       []string
+	CompanyID    int64
+	ActiveStatus bool
+	CompanyName  string
 }
 
 func (q *Queries) GetApplicableJobs(ctx context.Context, userID int64) ([]GetApplicableJobsRow, error) {
@@ -214,7 +247,138 @@ func (q *Queries) GetApplicableJobs(ctx context.Context, userID int64) ([]GetApp
 			&i.Position,
 			&i.Skills,
 			&i.CompanyID,
+			&i.ActiveStatus,
 			&i.CompanyName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getApplicants = `-- name: GetApplicants :many
+SELECT
+    students.student_id,
+    students.student_name,
+    students.roll_number,
+    students.gender,
+    students.department,
+    students.student_email,
+    students.contact_no,
+    students.cgpa,
+    students.skills,
+    jobs.job_id, 
+    jobs.title, 
+    applications.status::TEXT AS status 
+FROM applications
+JOIN jobs ON applications.job_id = jobs.job_id
+JOIN students ON applications.student_id = students.student_id
+WHERE jobs.company_id = (SELECT companies.company_id FROM companies WHERE companies.user_id = $1)
+`
+
+type GetApplicantsRow struct {
+	StudentID    int64
+	StudentName  string
+	RollNumber   string
+	Gender       string
+	Department   string
+	StudentEmail string
+	ContactNo    string
+	Cgpa         pgtype.Float8
+	Skills       pgtype.Text
+	JobID        int64
+	Title        string
+	Status       string
+}
+
+func (q *Queries) GetApplicants(ctx context.Context, userID int64) ([]GetApplicantsRow, error) {
+	rows, err := q.db.Query(ctx, getApplicants, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetApplicantsRow
+	for rows.Next() {
+		var i GetApplicantsRow
+		if err := rows.Scan(
+			&i.StudentID,
+			&i.StudentName,
+			&i.RollNumber,
+			&i.Gender,
+			&i.Department,
+			&i.StudentEmail,
+			&i.ContactNo,
+			&i.Cgpa,
+			&i.Skills,
+			&i.JobID,
+			&i.Title,
+			&i.Status,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getJobListings = `-- name: GetJobListings :many
+SELECT 
+    jobs.job_id,
+    jobs.created_at::DATE as created_at,
+    jobs.title,
+    jobs.location,
+    jobs.type,
+    jobs.salary,
+    jobs.skills,
+    jobs.position,
+    jobs.active_status,
+    COALESCE(t.no_of_applications, 0)    
+FROM jobs
+LEFT JOIN (SELECT job_id, COUNT(job_id) AS no_of_applications FROM applications GROUP BY job_id) AS t
+ON jobs.job_id = t.job_id
+WHERE jobs.company_id = (SELECT companies.company_id FROM companies WHERE companies.user_id = $1)
+`
+
+type GetJobListingsRow struct {
+	JobID            int64
+	CreatedAt        pgtype.Date
+	Title            string
+	Location         string
+	Type             string
+	Salary           string
+	Skills           []string
+	Position         string
+	ActiveStatus     bool
+	NoOfApplications int64
+}
+
+func (q *Queries) GetJobListings(ctx context.Context, userID int64) ([]GetJobListingsRow, error) {
+	rows, err := q.db.Query(ctx, getJobListings, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetJobListingsRow
+	for rows.Next() {
+		var i GetJobListingsRow
+		if err := rows.Scan(
+			&i.JobID,
+			&i.CreatedAt,
+			&i.Title,
+			&i.Location,
+			&i.Type,
+			&i.Salary,
+			&i.Skills,
+			&i.Position,
+			&i.ActiveStatus,
+			&i.NoOfApplications,
 		); err != nil {
 			return nil, err
 		}
@@ -295,6 +459,22 @@ func (q *Queries) GetMyApplications(ctx context.Context, userID int64) ([]GetMyA
 	return items, nil
 }
 
+const getResumePath = `-- name: GetResumePath :one
+SELECT resume_url, result_url FROM students WHERE student_id = $1
+`
+
+type GetResumePathRow struct {
+	ResumeUrl pgtype.Text
+	ResultUrl string
+}
+
+func (q *Queries) GetResumePath(ctx context.Context, studentID int64) (GetResumePathRow, error) {
+	row := q.db.QueryRow(ctx, getResumePath, studentID)
+	var i GetResumePathRow
+	err := row.Scan(&i.ResumeUrl, &i.ResultUrl)
+	return i, err
+}
+
 const getUserData = `-- name: GetUserData :one
 SELECT user_id, email, password, role, user_uuid, created_at, confirmed, is_verified FROM users WHERE email = $1
 `
@@ -335,7 +515,7 @@ const insertNewJob = `-- name: InsertNewJob :one
 
 INSERT INTO jobs (data_url, company_id, title, location, type, salary, skills, position, extras)
 VALUES ($1, (SELECT company_id FROM companies WHERE representative_email = $2), $3, $4, $5, $6, $7, $8, $9)
-RETURNING job_id, data_url, created_at, company_id, title, location, type, salary, skills, position, extras
+RETURNING job_id, data_url, created_at, company_id, title, location, type, salary, skills, position, extras, active_status
 `
 
 type InsertNewJobParams struct {
@@ -377,6 +557,7 @@ func (q *Queries) InsertNewJob(ctx context.Context, arg InsertNewJobParams) (Job
 		&i.Skills,
 		&i.Position,
 		&i.Extras,
+		&i.ActiveStatus,
 	)
 	return i, err
 }

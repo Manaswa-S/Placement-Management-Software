@@ -1,9 +1,7 @@
 package utils
 
 import (
-	"errors"
 	"mime/multipart"
-	"path/filepath"
 
 	"github.com/gin-gonic/gin"
 )
@@ -12,10 +10,9 @@ import (
 // can be updated later on if needed
 func SaveFile(ctx *gin.Context, path string, file *multipart.FileHeader) (string, error) {
 
-	savePath := filepath.Join(path, file.Filename)
-	err := ctx.SaveUploadedFile(file, savePath)
+	err := ctx.SaveUploadedFile(file, path)
 	if err != nil {
-		return "", errors.New("failed to save file in storage. try again")
+		return "", err
 	}
-	return savePath, nil
+	return path, nil
 }

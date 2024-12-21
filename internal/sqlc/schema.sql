@@ -40,6 +40,7 @@ CREATE TABLE jobs (
     skills text[] NOT NULL,
     position text NOT NULL,
     extras JSON,
+    active_status boolean NOT NULL DEFAULT true,
     CONSTRAINT jobs_pkey PRIMARY KEY (job_id),
     CONSTRAINT jobs_company_id_fkey FOREIGN KEY (company_id)
         REFERENCES companies(company_id)
@@ -77,7 +78,7 @@ CREATE TABLE applications (
     student_id BIGINT NOT NULL,
     data_url TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    status application_status NOT NULL DEFAULT 'applied'::application_status,
+    status application_status NOT NULL DEFAULT 'applied'::application_status_test,
     CONSTRAINT students_app_pkey FOREIGN KEY (student_id) REFERENCES students(student_id),
     CONSTRAINT jobs_pkey FOREIGN KEY (job_id) REFERENCES jobs(job_id) ON DELETE CASCADE
 );

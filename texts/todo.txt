@@ -1,59 +1,44 @@
-authorize 
-
-expiry checking for token
-add expiry time in ctx.SetCookie 
-
 update routesDoc file
 
 get other details from user such as IP address to implement rate limiting and better security
 
-
 Enable Go's pprof HTTP server for runtime profiling:
-
-
-enable redis caching for static pages too
-
-ran into too many open file descriptors problem, fix it
 
 introduce concurrency
 
 implement graceful shutdown 
 
+refresh token is useless as of now
+
+handler functions are structed wrong, need to use gin.HandlerFunc
 
 
 
 
-let students apply to jobs
-students should see applied and their status
-companies should see the applications to their listings
+
+~~~~~companies should see the applications to their listings
+~~~~~do something about file saving 
+~~~~~my applicants
 
 
+have a applicants button in the job listings menu instead of having a seperate menu with actions like shortlist, reject, etc
 
-better the filtering process
 
-add a all details button in the my applications page
+the students can apply to jobs only if they are active, the closed jobs will be removed from view 7 days after closing them
+
+*there is no security to job posting related methods, anyone with a valid token can add or delete them
+
+add search box wherever needed
+
+add detailed view pages for myapplications and myapplicants
+
+add filters every where, or have a utils func
 
 do something about having to scan the users table everytime to get the subid like student_id
 either include the subid in the JWT
 
-
-filters for job list
-
 when student applies to a job, get his resume, cover letter , etc ...
-
-the company form and table and updation is still fked up
-extra info form remaining for company
-
-update the dashboard dynamically using db data
-
-refresh token is useless as of now
-
-need to focus on user specific features
-
-table references are mixed up, cascade on fall
-
-handler functions are structed wrong, need to use gin.HandlerFunc
 
 let the admin verify users
 
-use const() 
+later on add edit functions in job listings and applications

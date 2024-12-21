@@ -170,8 +170,14 @@
                                     <p><strong>CTC:</strong> ${job.Salary}</p>
                                     <p><strong>Position:</strong> ${job.Position}</p>
                                     <p><strong>Skills:</strong> ${job.Skills.join(', ')}</p>
+                                    <p><strong>Status:</strong> ${job.ActiveStatus ? 'Active' : 'Closed'}</p>
                                 </div>
-                                <button class="apply-btn" onclick="applyToJob(${job.JobID}, this)">Apply Now</button>
+                                <button class="apply-btn" 
+                                    onclick="applyToJob(${job.JobID}, this)" 
+                                    ${job.ActiveStatus ? '' : 'disabled'} 
+                                    style="background-color: ${job.ActiveStatus ? '#6C63FF' : '#d3d3d3'}; color: ${job.ActiveStatus ? '#fff' : '#000'};">
+                                    ${job.ActiveStatus ? 'Apply Now' : 'Closed'}
+                                </button>
                             </div>
                         `;
                         jobList.innerHTML += jobCard;

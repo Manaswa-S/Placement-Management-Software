@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -320,10 +321,10 @@ func (s *PublicService) ExtraInfoPostStudent(ctx *gin.Context, claims jwt.MapCla
 		return sqlc.Student{}, err
 	}
 	// save resume file
-	resumeStoragePath := os.Getenv("ResumeStorageDir")
+	resumeStoragePath := fmt.Sprintf("%s%s&%d%s", os.Getenv("ResumeStorageDir"), data.CollegeRollNumber, time.Now().Unix(), filepath.Ext(resumeFile.Filename))
 	resumeSavePath, err := utils.SaveFile(ctx, resumeStoragePath, resumeFile)
 	if err != nil {
-		return sqlc.Student{}, errors.New("unable to save resume file. try again")
+		return sqlc.Student{}, err
 	}
 	// get result file
 	resultFile, err := ctx.FormFile("Result")
@@ -331,7 +332,7 @@ func (s *PublicService) ExtraInfoPostStudent(ctx *gin.Context, claims jwt.MapCla
 		return sqlc.Student{}, errors.New("unable to get result file. try again")
 	}
 	// save result file
-	resultStoragePath := os.Getenv("ResultStorageDir")
+	resultStoragePath := fmt.Sprintf("%s%s&%d%s", os.Getenv("ResultStorageDir"), data.CollegeRollNumber, time.Now().Unix(), filepath.Ext(resultFile.Filename))
 	resultSavePath, err := utils.SaveFile(ctx, resultStoragePath, resultFile)
 	if err != nil {
 		return sqlc.Student{}, errors.New("unable to save result file. try again")
@@ -358,6 +359,7 @@ func (s *PublicService) ExtraInfoPostStudent(ctx *gin.Context, claims jwt.MapCla
 	if err != nil {
 		return sqlc.Student{}, err
 	}
+
 	// return
 	return studentData, nil
 }

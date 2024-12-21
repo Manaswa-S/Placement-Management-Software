@@ -3,6 +3,8 @@ package services
 import (
 	"encoding/json"
 	"errors"
+	"os"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -71,4 +73,82 @@ func (c *CompanyService) NewJobPost(ctx *gin.Context, jobdata dto.NewJobData) (s
 	}
 
 	return jobData, nil
+}
+
+func (c * CompanyService) MyApplicants(ctx *gin.Context, userID int64) ([]sqlc.GetApplicantsRow, error){
+
+	applicantsData, err := c.queries.GetApplicants(ctx, userID)
+	if err != nil {
+		return []sqlc.GetApplicantsRow{}, err
+	}
+
+	return applicantsData, nil
+}
+
+func (c * CompanyService) GetFilePath(ctx *gin.Context, studentID int64, filetype string) (string, error){
+
+	filePaths, err := c.queries.GetResumePath(ctx, studentID)
+	if err != nil {
+		return "", err
+	}
+
+	filepath := filePaths.ResultUrl
+	if filetype == "resume" {
+		filepath = filePaths.ResumeUrl.String
+	}
+
+	// Open the file using os.Open
+	file, err := os.Open(filepath)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	return filepath, nil
+}
+
+func (c * CompanyService) MyJobListings(ctx *gin.Context, userID int64) ([]sqlc.GetJobListingsRow, error){
+
+	joblistings, err := c.queries.GetJobListings(ctx, userID)
+	if err != nil {
+		return []sqlc.GetJobListingsRow{}, err
+	}
+
+	return joblistings, nil
+}
+
+func (c * CompanyService) CloseJob(ctx *gin.Context, jobid string, userID int64) (error){
+
+	jobID, err := strconv.ParseInt(jobid, 10, 64)
+	if err != nil {
+		return err
+	}
+
+	err = c.queries.CloseJob(ctx, sqlc.CloseJobParams{
+		JobID: jobID,
+		UserID: userID,
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c * CompanyService) DeleteJob(ctx *gin.Context, jobid string, userID int64) (error){
+
+	jobID, err := strconv.ParseInt(jobid, 10, 64)
+	if err != nil {
+		return err
+	}
+
+	err = c.queries.DeleteJob(ctx, sqlc.DeleteJobParams{
+		JobID: jobID,
+		UserID: userID,
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

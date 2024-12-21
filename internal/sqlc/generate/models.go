@@ -28,17 +28,18 @@ type Company struct {
 }
 
 type Job struct {
-	JobID     int64
-	DataUrl   pgtype.Text
-	CreatedAt pgtype.Timestamp
-	CompanyID int64
-	Title     string
-	Location  string
-	Type      string
-	Salary    string
-	Skills    []string
-	Position  string
-	Extras    []byte
+	JobID        int64
+	DataUrl      pgtype.Text
+	CreatedAt    pgtype.Timestamp
+	CompanyID    int64
+	Title        string
+	Location     string
+	Type         string
+	Salary       string
+	Skills       []string
+	Position     string
+	Extras       []byte
+	ActiveStatus bool
 }
 
 type Student struct {
