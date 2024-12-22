@@ -131,13 +131,13 @@
         <div class="filters">
             <select name="status" id="status">
                 <option value="">Application Status</option>
-                <option value="all">All</option>
-                <option value="applied">Applied</option>
-                <option value="under_review">Under Review</option>
-                <option value="shortlisted">Shortlisted</option>
-                <option value="rejected">Rejected</option>
-                <option value="offered">Offered</option>
-                <option value="hired">Hired</option>
+                <option value="All">All</option>
+                <option value="Applied">Applied</option>
+                <option value="UnderReview">UnderReview</option>
+                <option value="ShortListed">ShortListed</option>
+                <option value="Rejected">Rejected</option>
+                <option value="Offered">Offered</option>
+                <option value="Hired">Hired</option>
             </select>
             <button onclick="filterJobs()">Apply Filters</button>
         </div>
@@ -149,7 +149,7 @@
 
     <script>
         // Function to fetch job listings from the backend
-        function fetchJobs(status = 'all') {
+        function fetchJobs(status = 'All') {
             const url = `/laa/student/myapplications?status=${status}`;
             fetch(url)
                 .then(response => response.json())

@@ -108,11 +108,14 @@ SELECT
     students.skills,
     jobs.job_id, 
     jobs.title, 
-    applications.status::TEXT AS status 
+    applications.status::TEXT AS status,
+    COALESCE(interviews.status::TEXT, '') AS interview_status
 FROM applications
 JOIN jobs ON applications.job_id = jobs.job_id
 JOIN students ON applications.student_id = students.student_id
-WHERE jobs.company_id = (SELECT companies.company_id FROM companies WHERE companies.user_id = $1);
+LEFT JOIN interviews ON applications.student_id = interviews.student_id AND applications.job_id = interviews.job_id
+WHERE jobs.company_id = (SELECT companies.company_id FROM companies WHERE companies.user_id = $1)
+AND (jobs.job_id = $2 OR $2 = 0);
 
 
 -- name: GetResumePath :one
@@ -147,3 +150,29 @@ AND jobs.company_id = (SELECT companies.company_id FROM companies WHERE user_id 
 DELETE FROM jobs 
 WHERE jobs.job_id = $1
 AND jobs.company_id = (SELECT companies.company_id FROM companies WHERE user_id = $2);
+
+
+
+
+
+-- name: ApplicationStatusTo :exec
+UPDATE applications
+SET status = $1
+WHERE job_id = $2 AND student_id = $3 AND status = $4;
+
+
+-- name: ApplicationStatusToRejected :exec
+UPDATE applications
+SET status = $1
+WHERE job_id = $2 AND student_id = $3;
+
+-- name: InterviewStatusTo :exec
+UPDATE interviews
+SET status = $1
+WHERE job_id = $2 AND student_id = $3;
+
+
+-- name: ScheduleInterview :one
+INSERT INTO interviews (job_id, student_id, company_id, date, time, type, notes)
+VALUES ($1, $2, (SELECT company_id FROM companies WHERE user_id = $3), $4, $5, $6, $7)
+RETURNING job_id, student_id, company_id, date, TO_CHAR(time, 'hh:mi AM'), type::TEXT AS type, notes;

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"go.mod/internal/dto"
@@ -42,6 +41,14 @@ func (h *CompanyHandler) RegisterRoute(companyRoute *gin.RouterGroup) {
 	companyRoute.GET("/closejob", h.CloseJob)
 	// delete job listing
 	companyRoute.GET("/deletejob", h.DeleteJob)
+
+
+	companyRoute.POST("/shortlist", h.ShortList)
+	companyRoute.POST("/reject", h.Reject)
+	companyRoute.POST("/offer", h.Offer)
+	companyRoute.POST("/hire", h.Hire)
+	companyRoute.POST("/scheduleinterview", h.ScheduleInterview)
+
 }
 
 func (h *CompanyHandler) CompanyDashboard(ctx *gin.Context) {
@@ -94,18 +101,22 @@ func (h *CompanyHandler) MyApplicantsStatic(ctx *gin.Context) {
 
 func (h *CompanyHandler) MyApplicants(ctx *gin.Context) {
 
+	jobid := ctx.Query("jobid")
 	userID, exists := ctx.Get("ID")
 	if !exists { 
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 			"error": "user ID not found in token",
 		})
+		return
 	}
 
-	applicantsData, err := h.CompanyService.MyApplicants(ctx, userID.(int64))
+	applicantsData, err := h.CompanyService.MyApplicants(ctx, userID.(int64), jobid)
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
+		fmt.Println(err.Error())
+		return
 	}
 
 	ctx.JSON(http.StatusOK, applicantsData)
@@ -113,30 +124,24 @@ func (h *CompanyHandler) MyApplicants(ctx *gin.Context) {
 
 func (h *CompanyHandler) GetFile(ctx *gin.Context) {
 
-	studentid := ctx.Query("id")
+	studentid := ctx.Query("studentid")
+	jobid := ctx.Query("jobid")
 	filetype := ctx.Query("type")
-	if studentid == "" || filetype == "" {
+	if studentid == "" || jobid == "" || filetype == "" {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 			"error": "path or type not specified",
 		})
 		return
 	}
 
-	studentID, err := strconv.ParseInt(studentid, 10, 64)
-	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
-		return
-	}
-
-	filePath, err := h.CompanyService.GetFilePath(ctx, studentID, filetype)
+	filePath, err := h.CompanyService.GetFilePath(ctx, studentid, jobid, filetype)
 	if err != nil {
 		ctx. AbortWithStatusJSON(http.StatusNotFound, gin.H{
 			"error": err.Error(),
 		})
 		return
 	}
+
 	// browser heavily caches these files
 	// prevent it from doing that by setting this header
 	ctx.Header("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0")
@@ -217,4 +222,82 @@ func (h *CompanyHandler) DeleteJob(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{
 		"status": "delete job successfully",
 	})
+}
+
+
+func (h *CompanyHandler) ShortList(ctx *gin.Context) {
+	
+	studentid := ctx.Query("studentid")
+	jobid := ctx.Query("jobid")
+	if jobid == "" || studentid == "" {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": "missing jobid or studentid",
+		})
+		return
+	}
+
+	err := h.CompanyService.ShortList(ctx, studentid, jobid)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	ctx.Status(http.StatusOK)
+}
+
+func (h *CompanyHandler) Reject(ctx *gin.Context) {
+
+	studentid := ctx.Query("studentid")
+	jobid := ctx.Query("jobid")
+	if jobid == "" || studentid == "" {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": "missing jobid or studentid",
+		})
+		return
+	}
+
+	err := h.CompanyService.Reject(ctx, studentid, jobid)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	ctx.Status(http.StatusOK)
+}
+
+func (h *CompanyHandler) ScheduleInterview(ctx *gin.Context) {
+
+	var data dto.NewInterview
+	err := ctx.Bind(&data)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	data.UserId = ctx.GetInt64("ID")
+
+	intData, err := h.CompanyService.ScheduleInterview(ctx, data)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, intData)
+}
+
+func (h *CompanyHandler) Offer(ctx *gin.Context) {
+	fmt.Println("offered")
+	ctx.Status(http.StatusOK)
+}
+
+func (h *CompanyHandler) Hire(ctx *gin.Context) {
+	fmt.Println("hired")
+	ctx.Status(http.StatusOK)
 }

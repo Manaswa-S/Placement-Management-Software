@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.mod/internal/services"
 	sqlc "go.mod/internal/sqlc/generate"
+	"go.mod/internal/utils"
 )
 
 type StudentHandler struct {
@@ -122,13 +123,13 @@ func (h *StudentHandler) CancelApplication(ctx *gin.Context) {
 func (h *StudentHandler) MyApplications(ctx *gin.Context) {
 	// pre-defined filters map
 	filters := map[string]bool{
-		"all":true,
-		"applied": true,
-		"under_review": true,
-		"shortlisted": true,
-		"rejected": true,
-		"offered": true,
-		"hired": true,
+		"All":true,
+		"Applied": true,
+		"UnderReview": true,
+		"ShortListed": true,
+		"Rejected": true,
+		"Offered": true,
+		"Hired": true,
 	}
 	// get filters off the request body
 	status := ctx.Query("status")
@@ -147,16 +148,19 @@ func (h *StudentHandler) MyApplications(ctx *gin.Context) {
 		})
 		return
 	}
-	// filter data
-	if status != "all" {
-		var filteredData []sqlc.GetMyApplicationsRow
-		for _, app := range applicationsData {
-			if app.Status == status {
-				filteredData = append(filteredData, app)
-			}
+
+	var filteredData []sqlc.GetMyApplicationsRow
+	if status != "All" {
+		filteredData, err = utils.FilterFromSliceOf(applicationsData, "Status", status)
+		if err != nil {
+			ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
 		}
 		ctx.JSON(http.StatusOK, filteredData)
-	} else {
-		ctx.JSON(http.StatusOK, applicationsData)
+		return
 	}
+
+	ctx.JSON(http.StatusOK, applicationsData)
 }

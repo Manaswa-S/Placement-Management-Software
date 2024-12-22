@@ -11,6 +11,46 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const applicationStatusTo = `-- name: ApplicationStatusTo :exec
+UPDATE applications
+SET status = $1
+WHERE job_id = $2 AND student_id = $3 AND status = $4
+`
+
+type ApplicationStatusToParams struct {
+	Status    interface{}
+	JobID     int64
+	StudentID int64
+	Status_2  interface{}
+}
+
+func (q *Queries) ApplicationStatusTo(ctx context.Context, arg ApplicationStatusToParams) error {
+	_, err := q.db.Exec(ctx, applicationStatusTo,
+		arg.Status,
+		arg.JobID,
+		arg.StudentID,
+		arg.Status_2,
+	)
+	return err
+}
+
+const applicationStatusToRejected = `-- name: ApplicationStatusToRejected :exec
+UPDATE applications
+SET status = $1
+WHERE job_id = $2 AND student_id = $3
+`
+
+type ApplicationStatusToRejectedParams struct {
+	Status    interface{}
+	JobID     int64
+	StudentID int64
+}
+
+func (q *Queries) ApplicationStatusToRejected(ctx context.Context, arg ApplicationStatusToRejectedParams) error {
+	_, err := q.db.Exec(ctx, applicationStatusToRejected, arg.Status, arg.JobID, arg.StudentID)
+	return err
+}
+
 const cancelApplication = `-- name: CancelApplication :exec
 DELETE FROM applications 
 WHERE student_id = (SELECT student_id FROM students WHERE students.user_id = $1) 
@@ -273,30 +313,39 @@ SELECT
     students.skills,
     jobs.job_id, 
     jobs.title, 
-    applications.status::TEXT AS status 
+    applications.status::TEXT AS status,
+    COALESCE(interviews.status::TEXT, '') AS interview_status
 FROM applications
 JOIN jobs ON applications.job_id = jobs.job_id
 JOIN students ON applications.student_id = students.student_id
+LEFT JOIN interviews ON applications.student_id = interviews.student_id AND applications.job_id = interviews.job_id
 WHERE jobs.company_id = (SELECT companies.company_id FROM companies WHERE companies.user_id = $1)
+AND (jobs.job_id = $2 OR $2 = 0)
 `
 
-type GetApplicantsRow struct {
-	StudentID    int64
-	StudentName  string
-	RollNumber   string
-	Gender       string
-	Department   string
-	StudentEmail string
-	ContactNo    string
-	Cgpa         pgtype.Float8
-	Skills       pgtype.Text
-	JobID        int64
-	Title        string
-	Status       string
+type GetApplicantsParams struct {
+	UserID int64
+	JobID  int64
 }
 
-func (q *Queries) GetApplicants(ctx context.Context, userID int64) ([]GetApplicantsRow, error) {
-	rows, err := q.db.Query(ctx, getApplicants, userID)
+type GetApplicantsRow struct {
+	StudentID       int64
+	StudentName     string
+	RollNumber      string
+	Gender          string
+	Department      string
+	StudentEmail    string
+	ContactNo       string
+	Cgpa            pgtype.Float8
+	Skills          pgtype.Text
+	JobID           int64
+	Title           string
+	Status          string
+	InterviewStatus interface{}
+}
+
+func (q *Queries) GetApplicants(ctx context.Context, arg GetApplicantsParams) ([]GetApplicantsRow, error) {
+	rows, err := q.db.Query(ctx, getApplicants, arg.UserID, arg.JobID)
 	if err != nil {
 		return nil, err
 	}
@@ -317,6 +366,7 @@ func (q *Queries) GetApplicants(ctx context.Context, userID int64) ([]GetApplica
 			&i.JobID,
 			&i.Title,
 			&i.Status,
+			&i.InterviewStatus,
 		); err != nil {
 			return nil, err
 		}
@@ -558,6 +608,72 @@ func (q *Queries) InsertNewJob(ctx context.Context, arg InsertNewJobParams) (Job
 		&i.Position,
 		&i.Extras,
 		&i.ActiveStatus,
+	)
+	return i, err
+}
+
+const interviewStatusTo = `-- name: InterviewStatusTo :exec
+UPDATE interviews
+SET status = $1
+WHERE job_id = $2 AND student_id = $3
+`
+
+type InterviewStatusToParams struct {
+	Status    interface{}
+	JobID     int64
+	StudentID int64
+}
+
+func (q *Queries) InterviewStatusTo(ctx context.Context, arg InterviewStatusToParams) error {
+	_, err := q.db.Exec(ctx, interviewStatusTo, arg.Status, arg.JobID, arg.StudentID)
+	return err
+}
+
+const scheduleInterview = `-- name: ScheduleInterview :one
+INSERT INTO interviews (job_id, student_id, company_id, date, time, type, notes)
+VALUES ($1, $2, (SELECT company_id FROM companies WHERE user_id = $3), $4, $5, $6, $7)
+RETURNING job_id, student_id, company_id, date, TO_CHAR(time, 'hh:mi AM'), type::TEXT AS type, notes
+`
+
+type ScheduleInterviewParams struct {
+	JobID     int64
+	StudentID int64
+	UserID    int64
+	Date      pgtype.Date
+	Time      pgtype.Time
+	Type      interface{}
+	Notes     pgtype.Text
+}
+
+type ScheduleInterviewRow struct {
+	JobID     int64
+	StudentID int64
+	CompanyID int64
+	Date      pgtype.Date
+	ToChar    string
+	Type      string
+	Notes     pgtype.Text
+}
+
+func (q *Queries) ScheduleInterview(ctx context.Context, arg ScheduleInterviewParams) (ScheduleInterviewRow, error) {
+	row := q.db.QueryRow(ctx, scheduleInterview,
+		arg.JobID,
+		arg.StudentID,
+		arg.UserID,
+		arg.Date,
+		arg.Time,
+		arg.Type,
+		arg.Notes,
+	)
+	var i ScheduleInterviewRow
+	err := row.Scan(
+		&i.JobID,
+		&i.StudentID,
+		&i.CompanyID,
+		&i.Date,
+		&i.ToChar,
+		&i.Type,
+		&i.Notes,
 	)
 	return i, err
 }

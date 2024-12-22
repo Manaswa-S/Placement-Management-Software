@@ -27,6 +27,19 @@ type Company struct {
 	UserID                int64
 }
 
+type Interview struct {
+	InterviewID int64
+	JobID       int64
+	StudentID   int64
+	CompanyID   int64
+	Date        pgtype.Date
+	Time        pgtype.Time
+	Type        interface{}
+	Status      interface{}
+	Notes       pgtype.Text
+	CreatedAt   pgtype.Timestamp
+}
+
 type Job struct {
 	JobID        int64
 	DataUrl      pgtype.Text

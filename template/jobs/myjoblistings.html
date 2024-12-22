@@ -177,15 +177,16 @@
                                     onclick="closePosting(${job.JobID}, this)" 
                                     ${job.ActiveStatus ? '' : 'disabled'} 
                                     style="background-color: ${job.ActiveStatus ? '#6C63FF' : '#d3d3d3'}; color: ${job.ActiveStatus ? '#fff' : '#000'};">
-                                    ${job.ActiveStatus ? 'Close Posting' : 'Closed'}
+                                    ${job.ActiveStatus ? 'Close' : 'Closed'}
                                 </button>
                                 <button class="apply-btn" 
                                     onclick="abcdfunctionname(${job.JobID}, this)" 
                                     ${job.ActiveStatus ? '' : 'disabled'} 
                                     style="background-color: ${job.ActiveStatus ? '#6C63FF' : '#d3d3d3'}; color: ${job.ActiveStatus ? '#fff' : '#000'};">
-                                    ${job.ActiveStatus ? 'Edit Posting' : 'Edit Posting'}
+                                    ${job.ActiveStatus ? 'Edit' : 'Edit Posting'}
                                 </button>
-                                <button class="apply-btn" onclick="deletePosting(${job.JobID}, this)">Delete Posting</button>
+                                <button class="apply-btn" onclick="deletePosting(${job.JobID}, this)">Delete</button>
+                                
                                 <button class="apply-btn" onclick="redirectTo(${job.JobID}, this)">Applicants</button>
                             </div>
                         `;
@@ -197,7 +198,7 @@
 
 
         function redirectTo(jobID) {
-            window.location.href = "/laa/company/myappsstatic";
+            window.location.href = `/laa/company/myappsstatic?jobid=${jobID}`;
         }
 
         // Function to close posting

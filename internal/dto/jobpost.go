@@ -56,3 +56,13 @@ type ExtraInfoStudent struct {
 	Skills string
 	Extras map[string]interface{}
 }
+
+type NewInterview struct {
+	JobId int64
+	StudentId int64
+	UserId int64
+	Date time.Time `form:"Date" time_format:"2006-01-02"`
+	Time time.Time `form:"Time" time_format:"15:04"`
+	Type string
+	Notes string
+}

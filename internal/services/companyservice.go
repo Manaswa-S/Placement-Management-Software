@@ -75,9 +75,21 @@ func (c *CompanyService) NewJobPost(ctx *gin.Context, jobdata dto.NewJobData) (s
 	return jobData, nil
 }
 
-func (c * CompanyService) MyApplicants(ctx *gin.Context, userID int64) ([]sqlc.GetApplicantsRow, error){
+func (c * CompanyService) MyApplicants(ctx *gin.Context, userID int64, jobid string) ([]sqlc.GetApplicantsRow, error){
 
-	applicantsData, err := c.queries.GetApplicants(ctx, userID)
+	var jobID int64
+	var err error
+	if jobid != "null" {
+		jobID, err = strconv.ParseInt(jobid, 10, 64)
+		if err != nil {
+			return []sqlc.GetApplicantsRow{}, err
+		}
+	}
+
+	applicantsData, err := c.queries.GetApplicants(ctx, sqlc.GetApplicantsParams{
+		UserID: userID,
+		JobID: jobID,
+	})
 	if err != nil {
 		return []sqlc.GetApplicantsRow{}, err
 	}
@@ -85,7 +97,16 @@ func (c * CompanyService) MyApplicants(ctx *gin.Context, userID int64) ([]sqlc.G
 	return applicantsData, nil
 }
 
-func (c * CompanyService) GetFilePath(ctx *gin.Context, studentID int64, filetype string) (string, error){
+func (c * CompanyService) GetFilePath(ctx *gin.Context, studentid string, jobid string, filetype string) (string, error){
+
+	studentID, err := strconv.ParseInt(studentid, 10, 64)
+	if err != nil {
+		return "", err
+	}
+	jobID, err := strconv.ParseInt(jobid, 10, 64)
+	if err != nil {
+		return "", err
+	}
 
 	filePaths, err := c.queries.GetResumePath(ctx, studentID)
 	if err != nil {
@@ -103,6 +124,16 @@ func (c * CompanyService) GetFilePath(ctx *gin.Context, studentID int64, filetyp
 		return "", err
 	}
 	defer file.Close()
+
+	err = c.queries.ApplicationStatusTo(ctx, sqlc.ApplicationStatusToParams{
+		Status: "UnderReview",
+		JobID: jobID,
+		StudentID: studentID,
+		Status_2: "Applied",
+	})
+	if err != nil {
+		return "", err
+	}
 
 	return filepath, nil
 }
@@ -151,4 +182,82 @@ func (c * CompanyService) DeleteJob(ctx *gin.Context, jobid string, userID int64
 	}
 
 	return nil
+}
+
+func (c * CompanyService) ShortList(ctx *gin.Context, studentid string, jobid string) (error){
+
+	studentID, err := strconv.ParseInt(studentid, 10, 64)
+	if err != nil {
+		return err
+	}
+	jobID, err := strconv.ParseInt(jobid, 10, 64)
+	if err != nil {
+		return err
+	}
+
+	err = c.queries.ApplicationStatusTo(ctx, sqlc.ApplicationStatusToParams{
+		Status: "ShortListed",
+		JobID: jobID,
+		StudentID: studentID,
+		Status_2: "UnderReview",
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c * CompanyService) Reject(ctx *gin.Context, studentid string, jobid string) (error){
+
+	studentID, err := strconv.ParseInt(studentid, 10, 64)
+	if err != nil {
+		return err
+	}
+	jobID, err := strconv.ParseInt(jobid, 10, 64)
+	if err != nil {
+		return err
+	}
+
+	err = c.queries.ApplicationStatusToRejected(ctx, sqlc.ApplicationStatusToRejectedParams{
+		Status: "Rejected",
+		JobID: jobID,
+		StudentID: studentID,
+	})
+	if err != nil {
+		return err
+	}
+
+	err = c.queries.InterviewStatusTo(ctx, sqlc.InterviewStatusToParams{
+		Status: "Completed",
+		JobID: jobID,
+		StudentID: studentID,
+	})
+	if err != nil {
+		return err
+	}
+	
+
+	return nil
+}
+
+func (c * CompanyService) ScheduleInterview(ctx *gin.Context, data dto.NewInterview) (sqlc.ScheduleInterviewRow, error) {
+
+	// Convert time to microseconds since midnight
+    microsecondsSinceMidnight := int64(data.Time.Hour())*3600000000 + int64(data.Time.Minute())*60000000 + int64(data.Time.Second())*1000000
+	
+	intData, err := c.queries.ScheduleInterview(ctx, sqlc.ScheduleInterviewParams{
+		JobID: data.JobId,
+		StudentID: data.StudentId,
+		UserID: data.UserId,
+		Date: pgtype.Date{Time: data.Date, Valid: true},
+		Time: pgtype.Time{Microseconds: microsecondsSinceMidnight, Valid: true},
+		Type: data.Type,
+		Notes: pgtype.Text{String: data.Notes, Valid: true},
+	})
+	if err != nil {
+		return sqlc.ScheduleInterviewRow{}, err
+	}
+	
+	return intData, nil
 }

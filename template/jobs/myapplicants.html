@@ -110,6 +110,77 @@
             background: #8E94F2;
         }
 
+
+        /* Overlay background to dim the content */
+        .overlay {
+            display: none; /* Hidden by default */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+
+        /* Semi-modal style */
+        .semi-modal {
+            display: none; /* Hidden by default */
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            max-width: 600px;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            box-sizing: border-box;
+        }
+
+        .semi-modal-header {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .semi-modal input,
+        .semi-modal select,
+        .semi-modal button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            box-sizing: border-box;
+        }
+
+        .semi-modal button {
+            background-color: #6C63FF;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .semi-modal button:hover {
+            background-color: #8e94f2;
+        }
+
+        /* Close Button */
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: transparent;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+
         @media (max-width: 768px) {
             .filters {
                 flex-direction: column;
@@ -125,7 +196,7 @@
 
 <body>
     <div class="container">
-        <h1>Job Applicants</h1>
+        <h1 id="pageHeading">Job Applicants</h1>
 
         <!-- Filters Section -->
         <div class="filters">
@@ -142,15 +213,72 @@
             <button onclick="filterJobs()">Apply Filters</button>
         </div>
 
+        <!-- Semi-modal for Scheduling Interviews -->
+        <div class="overlay" id="scheduleOverlay" style="display: none;"></div>
+
+        <div class="semi-modal" id="scheduleModal" style="display: none;">
+            <button class="close-btn" onclick="closeScheduleModal()">x</button>
+            <div class="semi-modal-header">
+                Schedule Interview
+            </div>
+
+            <!-- Form for Interview Details -->
+            <form id="interviewForm" action="/laa/company/scheduleinterview" method="POST" enctype="multipart/form-data" onsubmit="submitForm(event)">
+                <!-- Hidden inputs for JobID and StudentID -->
+                <input type="hidden" id="JobId" name="JobId" />
+                <input type="hidden" id="StudentId" name="StudentId" />
+
+                <label for="interviewDate">Date:</label>
+                <input type="date" id="Date" name="Date" required />
+
+                <label for="interviewTime">Time:</label>
+                <input type="time" id="Time" name="Time" required />
+
+                <label for="Type">Type:</label>
+                <select id="Type" name="Type" required>
+                    <option value="">Type of Interview</option>
+                    <option value="InPerson">In-Person</option>
+                    <option value="Virtual">Virtual</option>
+                    <option value="Hybrid">Hybrid</option>
+                </select>
+
+                <label for="interviewNotes">Notes:</label>
+                <input type="text" id="Notes" name="Notes" placeholder="Add any relevant notes" required />
+
+                <button type="submit">Schedule Interview</button>
+            </form>
+        </div>
+
+
 
         <!-- Job Listings -->
         <div id="appList"></div>
     </div>
 
     <script>
+
+        // Extract job ID from the URL query parameters
+        function getJobIdFromURL() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('jobid');
+        }
+
+        const jobID = getJobIdFromURL();
+
+        // Update the heading with jobID or default text
+        function updateHeading() {
+            const pageHeading = document.getElementById('pageHeading');
+            if (jobID) {
+                pageHeading.textContent = `Job Applicants For Job ID: ${jobID}`;
+            } else {
+                pageHeading.textContent = "Job Applicants For All Jobs";
+            }
+        }
+        updateHeading();
+
         // Function to fetch job listings from the backend
         function fetchJobs(status = 'all') {
-            const url = `/laa/company/myapplicants?status=${status}`;
+            const url = `/laa/company/myapplicants?status=${status}&jobid=${jobID}`;
             fetch(url)
                 .then(response => response.json())
                 .then(data => {
@@ -171,9 +299,10 @@
                                     <p><strong>Skills:</strong> ${job.Skills}</p>
                                     <p><strong>Status:</strong> ${job.Status}</p>
                                 </div>
+                                ${generateActionButton(job.InterviewStatus, job.Status, job.StudentID, job.JobID)}
                                 <button class="apply-btn" onclick="details(${job.StudentID}, this)">Details</button>
-                                <button class="apply-btn" onclick="getFile(${job.StudentID}, 'resume', this)">Get Resume</button>
-                                <button class="apply-btn" onclick="getFile(${job.StudentID}, 'result', this)">Get Result</button>
+                                <button class="apply-btn" onclick="getFile(${job.StudentID}, ${job.JobID}, 'resume', this)">View Resume</button>
+                                <button class="apply-btn" onclick="getFile(${job.StudentID}, ${job.JobID}, 'result', this)">View Result</button>
                             </div>
                         `;
                         appList.innerHTML += jobCard;
@@ -182,8 +311,135 @@
                 .catch(error => console.error('Error fetching jobs:', error));
         }
 
-        function getFile(id, type) {
-            const url = `/laa/company/getfile?id=${id}&type=${type}`;
+        // Function to generate the action button based on job status
+        function generateActionButton(intStatus, status, studentID, jobID) {
+            if (status === 'UnderReview') {
+                return `<button class="apply-btn" onclick="shortlistApplicant(${studentID}, ${jobID}, this)">ShortList</button>
+                        <button class="apply-btn" onclick="rejectApplicant(${studentID}, ${jobID}, this)">Reject</button>`;
+            } else if (status === 'ShortListed') {
+                if (intStatus === '') {
+                    return `<button class="apply-btn" onclick="scheduleInterview(${studentID}, ${jobID}, this)">Schedule Interview</button>
+                        <button class="apply-btn" onclick="rejectApplicant(${studentID}, ${jobID}, this)">Reject</button>
+                        <button class="apply-btn" onclick="offerApplicant(${studentID}, ${jobID}, this)">Offer</button>`;
+                } 
+                if (intStatus != '') {
+                    return `<p class="job-details"><strong>Interview: ${intStatus}</strong></p>
+                        <button class="apply-btn" onclick="rejectApplicant(${studentID}, ${jobID}, this)">Reject</button>
+                        <button class="apply-btn" onclick="offerApplicant(${studentID}, ${jobID}, this)">Offer</button>`;
+                }    
+            } else if (status === 'Offered') {
+                return `<button class="apply-btn" onclick="rejectApplicant(${studentID}, ${jobID}, this)">Reject</button>
+                        <button class="apply-btn" onclick="hireApplicant(${studentID}, ${jobID}, this)">Hire</button>`;
+            }
+            // Add more status checks if necessary
+            return ''; // No action button for other statuses
+        }
+
+        // Function to shortlist an applicant
+        function shortlistApplicant(studentID, jobID) {
+            const url = `/laa/company/shortlist?studentid=${studentID}&jobid=${jobID}`;
+            fetch(url, { method: 'POST' })
+                .then(response => response.ok)
+                .then(data => {
+                    alert('Applicant shortlisted successfully');
+                    fetchJobs();  // Reload the list after action
+                })
+                .catch(error => {
+                    console.error('Error shortlisting applicant:', error);
+                    alert('Failed to shortlist applicant', error);
+                });
+        }
+
+        // Function to reject an applicant
+        function rejectApplicant(studentID, jobID) {
+            const url = `/laa/company/reject?studentid=${studentID}&jobid=${jobID}`;
+            fetch(url, { method: 'POST' })
+                .then(response => response.ok)
+                .then(data => {
+                    alert('Applicant rejected');
+                    fetchJobs();  // Reload the list after action
+                })
+                .catch(error => {
+                    console.error('Error rejecting applicant:', error);
+                    alert('Failed to reject applicant');
+                });
+        }
+
+        // Function to offer the job to an applicant
+        function offerApplicant(studentID, jobID) {
+            const url = `/laa/company/offer?studentid=${studentID}&jobid=${jobID}`;
+            fetch(url, { method: 'POST' })
+                .then(response => response.ok)
+                .then(data => {
+                    alert('Job offer made');
+                    fetchJobs();  // Reload the list after action
+                })
+                .catch(error => {
+                    console.error('Error offering job:', error);
+                    alert('Failed to offer job');
+                });
+        }
+
+        // Function to offer the job to an applicant
+        function hireApplicant(studentID, jobID) {
+            const url = `/laa/company/hire?studentid=${studentID}&jobid=${jobID}`;
+            fetch(url, { method: 'POST' })
+                .then(response => response.ok)
+                .then(data => {
+                    alert('Job offer made');
+                    fetchJobs();  // Reload the list after action
+                })
+                .catch(error => {
+                    console.error('Error offering job:', error);
+                    alert('Failed to offer job');
+                });
+        }
+
+       // Function to open the schedule modal
+        function scheduleInterview(studentID, jobID) {
+            document.getElementById('scheduleOverlay').style.display = 'block';
+            document.getElementById('scheduleModal').style.display = 'block';
+
+            // Set hidden input values for jobID and studentID
+            document.getElementById('JobId').value = jobID;
+            document.getElementById('StudentId').value = studentID;
+        }
+
+        // Function to handle form submission
+        function submitForm(event) {
+            event.preventDefault(); // Prevent default form submission behavior
+
+            const form = event.target;
+            const formData = new FormData(form);
+
+            fetch(form.action, {
+                method: 'POST',
+                body: formData,
+            })
+                .then(response => {
+                    if (response.ok) {
+                        alert('Interview scheduled successfully');
+                    } else {
+                        alert('Failed to schedule interview');
+                    }
+                    closeScheduleModal(); // Close the modal
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while scheduling the interview');
+                });
+        }
+
+        // Function to close the modal
+        function closeScheduleModal() {
+            document.getElementById('scheduleOverlay').style.display = 'none';
+            document.getElementById('scheduleModal').style.display = 'none';
+        }
+
+
+
+        function getFile(studentID, jobID, type) {
+            const url = `/laa/company/getfile?studentid=${studentID}&jobid=${jobID}&type=${type}`;
 
             fetch(url, { method: 'GET' })
                 .then(response => {
@@ -206,7 +462,6 @@
                     alert('Failed to fetch the file. Please try again later.');
                 });
         }
-
 
         // Function to apply filters
         function filterJobs() {

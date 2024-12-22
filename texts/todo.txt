@@ -16,29 +16,18 @@ handler functions are structed wrong, need to use gin.HandlerFunc
 
 
 
-~~~~~companies should see the applications to their listings
-~~~~~do something about file saving 
-~~~~~my applicants
+Interview Conflict: Ensure that there is logic in place to check for conflicts before scheduling an interview.
+Rescheduling: Provide a way for the company to reschedule the interview in case of an issue (
 
 
-have a applicants button in the job listings menu instead of having a seperate menu with actions like shortlist, reject, etc
 
-
-the students can apply to jobs only if they are active, the closed jobs will be removed from view 7 days after closing them
-
-*there is no security to job posting related methods, anyone with a valid token can add or delete them
+Actions for Each Applicant:
+Shortlist, reject, or mark as interviewed.
 
 add search box wherever needed
 
-add detailed view pages for myapplications and myapplicants
-
-add filters every where, or have a utils func
-
-do something about having to scan the users table everytime to get the subid like student_id
-either include the subid in the JWT
-
-when student applies to a job, get his resume, cover letter , etc ...
-
-let the admin verify users
-
 later on add edit functions in job listings and applications
+
+redirect to login page when token invalid
+
+user cannot apply for any further jobs when he has been hired for atleast one job and similar constraints

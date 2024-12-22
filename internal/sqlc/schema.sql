@@ -78,8 +78,24 @@ CREATE TABLE applications (
     student_id BIGINT NOT NULL,
     data_url TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    status application_status NOT NULL DEFAULT 'applied'::application_status_test,
+    status application_status NOT NULL DEFAULT 'Applied',
     CONSTRAINT students_app_pkey FOREIGN KEY (student_id) REFERENCES students(student_id),
     CONSTRAINT jobs_pkey FOREIGN KEY (job_id) REFERENCES jobs(job_id) ON DELETE CASCADE
+);
+
+CREATE TABLE interviews (
+    interview_id BIGINT PRIMARY KEY DEFAULT nextval('interviews_interview_id_seq'::regclass),
+    job_id BIGINT NOT NULL,
+    student_id BIGINT NOT NULL,
+    company_id BIGINT NOT NULL,
+    date DATE NOT NULL,
+    time TIME NOT NULL,
+    type interview_type NOT NULL,
+    status interview_status NOT NULL,  
+    notes TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT jobs_interviews_pkey FOREIGN KEY (job_id) REFERENCES jobs(job_id),
+    CONSTRAINT students_interviews_pkey FOREIGN KEY (student_id) REFERENCES students(student_id),
+    CONSTRAINT companies_interviews_pkey FOREIGN KEY (company_id) REFERENCES companies(company_id)
 );
 
