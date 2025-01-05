@@ -27,12 +27,14 @@ func (h *CompanyHandler) RegisterRoute(companyRoute *gin.RouterGroup) {
 	companyRoute.GET("/newjobget", h.NewJobGet)
 	// post new job form
 	companyRoute.POST("/newjobpost", h.NewJobPost)
+
 	// get the template for all applicants
 	companyRoute.GET("/myappsstatic", h.MyApplicantsStatic)
 	// get all applicants data
 	companyRoute.GET("/myapplicants", h.MyApplicants)
+
 	// get any file (resume, result)
-	companyRoute.GET("/getfile", h.GetFile)
+	companyRoute.GET("/getfile", h.GetResumeOrResultFile)
 	// get my job listings static
 	companyRoute.GET("/myjobliststatic", h.MyJobListStatic)
 	// get my job listings
@@ -46,8 +48,11 @@ func (h *CompanyHandler) RegisterRoute(companyRoute *gin.RouterGroup) {
 	companyRoute.POST("/shortlist", h.ShortList)
 	companyRoute.POST("/reject", h.Reject)
 	companyRoute.POST("/offer", h.Offer)
-	companyRoute.POST("/hire", h.Hire)
 	companyRoute.POST("/scheduleinterview", h.ScheduleInterview)
+	companyRoute.POST("/cancelinterview", h.CancelInterview)
+
+	companyRoute.GET("/newtest", h.NewTestStatic)
+	companyRoute.POST("/newtestpost", h.NewTestPost)
 
 }
 
@@ -95,12 +100,15 @@ func (h *CompanyHandler) NewJobPost(ctx *gin.Context) {
 	ctx.Redirect(http.StatusSeeOther, "/laa/company/dashboard")
 }
 
+
 func (h *CompanyHandler) MyApplicantsStatic(ctx *gin.Context) {
+	// return the html template
+	// the template then indirectly calls /myapplicants
 	ctx.File("./template/jobs/myapplicants.html")
 }
 
 func (h *CompanyHandler) MyApplicants(ctx *gin.Context) {
-
+	// get jobid and userid off the request
 	jobid := ctx.Query("jobid")
 	userID, exists := ctx.Get("ID")
 	if !exists { 
@@ -110,33 +118,36 @@ func (h *CompanyHandler) MyApplicants(ctx *gin.Context) {
 		return
 	}
 
+	// service call
 	applicantsData, err := h.CompanyService.MyApplicants(ctx, userID.(int64), jobid)
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
-		fmt.Println(err.Error())
 		return
 	}
 
+	// respond with 200
 	ctx.JSON(http.StatusOK, applicantsData)
 }
 
-func (h *CompanyHandler) GetFile(ctx *gin.Context) {
+func (h *CompanyHandler) GetResumeOrResultFile(ctx *gin.Context) {
 
-	studentid := ctx.Query("studentid")
-	jobid := ctx.Query("jobid")
+	// get applicationid and type ('resume' or 'result') of file 
+	applicationid := ctx.Query("applicationid")
 	filetype := ctx.Query("type")
-	if studentid == "" || jobid == "" || filetype == "" {
+	if applicationid == "" || filetype == "" {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": "path or type not specified",
+			"error": "applicationid or type not specified",
 		})
 		return
 	}
+	userID := ctx.GetInt64("ID")
 
-	filePath, err := h.CompanyService.GetFilePath(ctx, studentid, jobid, filetype)
+	//service call
+	filePath, err := h.CompanyService.GetResumeOrResultFilePath(ctx, userID, applicationid, filetype)
 	if err != nil {
-		ctx. AbortWithStatusJSON(http.StatusNotFound, gin.H{
+		ctx. AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
 		return
@@ -145,39 +156,41 @@ func (h *CompanyHandler) GetFile(ctx *gin.Context) {
 	// browser heavily caches these files
 	// prevent it from doing that by setting this header
 	ctx.Header("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0")
-	
 	ctx.File(filePath)
 }
+
 
 func (h *CompanyHandler) MyJobListStatic(ctx *gin.Context) {
 	ctx.File("./template/jobs/myjoblistings.html")
 }
 
 func (h *CompanyHandler) MyJobListings(ctx *gin.Context) {
-
+	// get userid off token, to identify company
 	userid, exists := ctx.Get("ID")
 	if !exists || userid == "" {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 			"error": "unable to get user ID",
 		})
-		fmt.Println("error")
 		return
 	}
 
+	//service delegation
 	jobListings, err := h.CompanyService.MyJobListings(ctx, userid.(int64))
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
-		fmt.Println(err)
 		return
 	}
 
+	// 200OK response
 	ctx.JSON(http.StatusOK, jobListings)
 }
 
+
 func (h *CompanyHandler) CloseJob(ctx *gin.Context) {
 
+	// extract jobid and ID from request
 	jobid := ctx.Query("jobid")
 	userid, exists := ctx.Get("ID")
 	if !exists || userid == "" {
@@ -187,14 +200,16 @@ func (h *CompanyHandler) CloseJob(ctx *gin.Context) {
 		return
 	}
 
+	// service delegation
 	err := h.CompanyService.CloseJob(ctx, jobid, userid.(int64))
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
+			"error": "Failed to close job: " + err.Error(),
 		})
 		return
 	}
 
+	// 200OK response
 	ctx.JSON(http.StatusOK, gin.H{
 		"status": "closed job successfully",
 	})
@@ -202,6 +217,7 @@ func (h *CompanyHandler) CloseJob(ctx *gin.Context) {
 
 func (h *CompanyHandler) DeleteJob(ctx *gin.Context) {
 
+	// get jobid and ID off request
 	jobid := ctx.Query("jobid")
 	userid, exists := ctx.Get("ID")
 	if !exists || userid == "" {
@@ -211,14 +227,16 @@ func (h *CompanyHandler) DeleteJob(ctx *gin.Context) {
 		return
 	}
 
+	// service delegation
 	err := h.CompanyService.DeleteJob(ctx, jobid, userid.(int64))
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
+			"error": "Failed to delete job: " + err.Error(),
 		})
 		return
 	}
 
+	//200OK response
 	ctx.JSON(http.StatusOK, gin.H{
 		"status": "delete job successfully",
 	})
@@ -226,17 +244,17 @@ func (h *CompanyHandler) DeleteJob(ctx *gin.Context) {
 
 
 func (h *CompanyHandler) ShortList(ctx *gin.Context) {
-	
-	studentid := ctx.Query("studentid")
-	jobid := ctx.Query("jobid")
-	if jobid == "" || studentid == "" {
+	// applicationid off request
+	userID, exists := ctx.Get("ID")
+	applicationid := ctx.Query("applicationid")
+	if applicationid == "" || !exists {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 			"error": "missing jobid or studentid",
 		})
 		return
 	}
-
-	err := h.CompanyService.ShortList(ctx, studentid, jobid)
+	// service delegation
+	err := h.CompanyService.ShortList(ctx, applicationid, userID.(int64))
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
@@ -244,33 +262,34 @@ func (h *CompanyHandler) ShortList(ctx *gin.Context) {
 		return
 	}
 
+	// 200OK response
 	ctx.Status(http.StatusOK)
 }
 
 func (h *CompanyHandler) Reject(ctx *gin.Context) {
-
-	studentid := ctx.Query("studentid")
-	jobid := ctx.Query("jobid")
-	if jobid == "" || studentid == "" {
+	// get applicationid from request
+	userid, exists := ctx.Get("ID")
+	applicationid := ctx.Query("applicationid")
+	if applicationid == "" || !exists {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 			"error": "missing jobid or studentid",
 		})
 		return
 	}
-
-	err := h.CompanyService.Reject(ctx, studentid, jobid)
+	// service delegation
+	err := h.CompanyService.Reject(ctx, applicationid, userid.(int64))
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
 		return
 	}
-
 	ctx.Status(http.StatusOK)
 }
 
 func (h *CompanyHandler) ScheduleInterview(ctx *gin.Context) {
 
+	// bind the POST form for new interview (time, date, etc)
 	var data dto.NewInterview
 	err := ctx.Bind(&data)
 	if err != nil {
@@ -279,9 +298,18 @@ func (h *CompanyHandler) ScheduleInterview(ctx *gin.Context) {
 		})
 		return
 	}
-	data.UserId = ctx.GetInt64("ID")
+	// get userID from token
+	userid, exists := ctx.Get("ID")
+	if !exists {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": "missing ID",
+		})
+		return
+	}
+	data.UserId = userid.(int64)
 
-	intData, err := h.CompanyService.ScheduleInterview(ctx, data)
+	// service delegation
+	err = h.CompanyService.ScheduleInterview(ctx, data)
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
@@ -289,15 +317,95 @@ func (h *CompanyHandler) ScheduleInterview(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, intData)
-}
-
-func (h *CompanyHandler) Offer(ctx *gin.Context) {
-	fmt.Println("offered")
+	// 200OK response
 	ctx.Status(http.StatusOK)
 }
 
-func (h *CompanyHandler) Hire(ctx *gin.Context) {
-	fmt.Println("hired")
+func (h *CompanyHandler) Offer(ctx *gin.Context) {
+	// get ID, application ID and offer letter from request
+	userid, exists := ctx.Get("ID")
+	applicationid := ctx.PostForm("OfferApplicationId")
+	offerLetter, err := ctx.FormFile("OfferLetter")
+	// TODO: validate and check file for size, type, etc
+	if err != nil || applicationid == "" || !exists {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Sprintf("missing user id or application id or offer letter : %s", err),
+		})
+		return
+	}
+	// service delegation
+	err = h.CompanyService.Offer(ctx, userid.(int64), applicationid, offerLetter)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	// 200OK response
+	ctx.Status(http.StatusOK)
+}
+
+func (h *CompanyHandler) CancelInterview(ctx *gin.Context) {
+	// get userid and application id from request
+	userid, exists := ctx.Get("ID")
+	applicationid := ctx.Query("applicationid")
+	if applicationid == "" || !exists {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": "user id or application id not found",
+		})
+		return
+	}
+	// service delegation
+	err := h.CompanyService.CancelInterview(ctx, userid.(int64), applicationid)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	// 200OK response
+	ctx.Status(http.StatusOK)
+}
+
+func (h *CompanyHandler) NewTestStatic(ctx *gin.Context) {
+	collaboratorEmail := os.Getenv("NewTestGoogleFormsCollaboratorEmail")
+	userid := ctx.GetInt64("ID")
+	jobidtoBind, err := h.CompanyService.MyJobListings(ctx, userid)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	ctx.HTML(200, "newtest.html", gin.H{
+		"NewTestGoogleFormsCollaboratorEmail": collaboratorEmail,
+		"JobIDToBind": jobidtoBind,
+	})
+}
+
+func (h *CompanyHandler) NewTestPost(ctx *gin.Context) {
+	var newtestData dto.NewTestPost
+	// bind the metadata
+	err := ctx.Bind(&newtestData)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Errorf("failed to bind new test data: %s", err),
+		})
+		return
+	}
+	// service delegation
+	errf := h.CompanyService.NewTestPost(ctx, newtestData)
+	if errf.Message != "" {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"type": errf.Type,
+			"message": errf.Message,
+		})
+		return
+	}
+
+	// 200OK
 	ctx.Status(http.StatusOK)
 }

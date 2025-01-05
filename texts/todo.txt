@@ -12,17 +12,29 @@ refresh token is useless as of now
 
 handler functions are structed wrong, need to use gin.HandlerFunc
 
+point to data man, dont juggle it all around
 
 
+in logger if 'explicit_error' is true, log it as CRITICAL error in a separate area
 
+custom 'alert' ui
+
+export redis cache when shutting down
+
+the test can be binded to an existing job listing or none
+
+add a safety measure that saves all redis cache data before shutting down
+
+restructure the template folder
+
+new test email, results, etc
 
 Interview Conflict: Ensure that there is logic in place to check for conflicts before scheduling an interview.
-Rescheduling: Provide a way for the company to reschedule the interview in case of an issue (
+Rescheduling: Provide a way for the company to reschedule the interview in case of an issue 
 
+many filter s are not working
 
-
-Actions for Each Applicant:
-Shortlist, reject, or mark as interviewed.
+have a 'empty' thing when len(result) == 0
 
 add search box wherever needed
 
@@ -31,3 +43,12 @@ later on add edit functions in job listings and applications
 redirect to login page when token invalid
 
 user cannot apply for any further jobs when he has been hired for atleast one job and similar constraints
+
+set a timer to delete the rejected/offered/hired applications after 7 days
+
+there should be a notifications thing for every role
+
+the interview process should be variable
+
+
+after singup as admin it still sends a company extra info , the methods consider only two roles (company or student) and misbehave for anything else

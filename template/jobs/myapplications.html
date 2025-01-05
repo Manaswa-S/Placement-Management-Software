@@ -120,6 +120,14 @@
                 width: 100%;
             }
         }
+
+        .no-jobs {
+            display:block;
+            top:50%; 
+            text-align: center;
+            font-size: 0.8em;
+            color: #555;
+        }
     </style>
 </head>
 
@@ -130,14 +138,12 @@
         <!-- Filters Section -->
         <div class="filters">
             <select name="status" id="status">
-                <option value="">Application Status</option>
                 <option value="All">All</option>
                 <option value="Applied">Applied</option>
                 <option value="UnderReview">UnderReview</option>
                 <option value="ShortListed">ShortListed</option>
                 <option value="Rejected">Rejected</option>
                 <option value="Offered">Offered</option>
-                <option value="Hired">Hired</option>
             </select>
             <button onclick="filterJobs()">Apply Filters</button>
         </div>
@@ -155,7 +161,18 @@
                 .then(response => response.json())
                 .then(data => {
                     const appList = document.getElementById('appList');
-                    appList.innerHTML = ''; // Clear existing jobs
+
+                    if (data === null) {
+                        appList.innerHTML = `
+                            <div class="no-jobs">
+                                No applications at the moment. Apply to jobs to see them here.
+                            </div>
+                        `;
+                        return;
+                    } else {
+                        appList.innerHTML = ''; // Clear existing jobs
+                    }
+
                     data.forEach(job => {
                         const jobCard = `
                             <div class="job-card">
@@ -167,11 +184,11 @@
                                     <p><strong>CTC:</strong> ${job.Salary}</p>
                                     <p><strong>Position:</strong> ${job.Position}</p>
                                     <p><strong>Skills:</strong> ${job.Skills.join(', ')}</p>
-                                    <p><strong>Status:</strong> ${job.Status}</p>
+                                    <p><strong>Status: ${job.Status}</strong></p>
                                     <p><strong>Representative Name:</strong> ${job.RepresentativeName}</p>
                                     <p><strong>Representative Email:</strong> ${job.RepresentativeEmail}</p>
                                 </div>
-                                <button class="apply-btn" onclick="cancelApplication(${job.JobID}, this)">Cancel Application</button>
+                                    ${generateActionButton(job.Status, job.JobID)}
                             </div>
                         `;
                         appList.innerHTML += jobCard;
@@ -179,6 +196,19 @@
                 })
                 .catch(error => console.error('Error fetching jobs:', error));
         }
+
+        function generateActionButton(jobStatus, jobID) {
+            if (jobStatus === 'Rejected') {
+                return `<p class="job-details">The application will be auto deleted after 7 days.</p>`;
+            } else if (jobStatus === 'Applied' || jobStatus === 'UnderReview') {
+                return `<button class="apply-btn" onclick="cancelApplication(${jobID}, this)">Cancel Application</button>`;
+            } else if (jobStatus === 'Offered') {
+                return `<p class="job-details"><strong>Offered !</strong></p>`;
+            }
+
+            return '';
+        }
+
 
         // Function to cancel application
         function cancelApplication(jobID, button) {

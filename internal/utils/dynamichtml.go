@@ -2,7 +2,6 @@ package utils
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"html/template"
 )
@@ -14,16 +13,14 @@ func DynamicHTML(pathToHTML string, data interface{}) (bytes.Buffer, error) {
 	// Parse the template file into object assigned to 'bodytemp'
 	bodytemplate, err := template.ParseFiles(pathToHTML)
 	if err != nil {
-		fmt.Println(err.Error())
-		return bytes.Buffer{}, errors.New("failed to parse html template")
+		return bytes.Buffer{}, fmt.Errorf("failed to parse html template : %v", err)
 	}
 
 	// Execute the template and apply 'data' to the template
 	// store the formed result in 'body'
 	err = bodytemplate.Execute(&body, data)
 	if err != nil {
-		fmt.Println(err.Error())
-		return bytes.Buffer{}, errors.New("failed to execute html template")
+		return bytes.Buffer{}, fmt.Errorf("failed to execute html template : %v", err)
 	}
 
 	return body, nil

@@ -140,6 +140,13 @@
                 width: 100%;
             }
         }
+        .no-jobs {
+            display:block;
+            top:50%; 
+            text-align: center;
+            font-size: 0.8em;
+            color: #555;
+        }
     </style>
 </head>
 
@@ -150,17 +157,11 @@
         <!-- Filters Section -->
         <div class="filters">
             <select name="jobType" id="jobType">
-                <option value="">All Job Types</option>
-                <option value="full-time">Full-Time</option>
-                <option value="internship">Internship</option>
-                <option value="part-time">Part-Time</option>
-            </select>
-
-            <select name="location" id="location">
-                <option value="">All Locations</option>
-                <option value="remote">Remote</option>
-                <option value="onsite">On-Site</option>
-                <option value="hybrid">Hybrid</option>
+                <option value="All">All</option>
+                <option value="Full-time">Full-time</option>
+                <option value="Part-time">Part-time</option>
+                <option value="Internship">Internship</option>
+                <option value="Contract">Contract</option>
             </select>
 
             <button onclick="filterJobs()">Apply Filters</button>
@@ -172,13 +173,24 @@
 
     <script>
         // Function to fetch job listings from the backend
-        function fetchJobs(jobType = '', location = '') {
-            const url = `/laa/student/alljobs?jobType=${jobType}&location=${location}`;
+        function fetchJobs(jobType = 'All') {
+            const url = `/laa/student/alljobs?jobType=${jobType}`;
             fetch(url)
                 .then(response => response.json())
                 .then(data => {
                     const jobList = document.getElementById('jobList');
-                    jobList.innerHTML = ''; // Clear existing jobs
+
+                    if (data === null) {
+                        jobList.innerHTML = `
+                            <div class="no-jobs">
+                                No jobs available at the moment. Please check back later.
+                            </div>
+                        `;
+                        return;
+                    } else {
+                        jobList.innerHTML = ''; // Clear existing jobs
+                    }
+
                     data.forEach(job => {
                         const jobCard = `
                             <div class="job-card">
@@ -274,8 +286,7 @@
         
         function filterJobs() {
             const jobType = document.getElementById('jobType').value;
-            const location = document.getElementById('location').value;
-            fetchJobs(jobType, location);
+            fetchJobs(jobType);
         }
 
         // Initial load

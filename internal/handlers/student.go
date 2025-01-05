@@ -1,12 +1,12 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"go.mod/internal/services"
-	sqlc "go.mod/internal/sqlc/generate"
-	"go.mod/internal/utils"
 )
 
 type StudentHandler struct {
@@ -32,6 +32,14 @@ func (h *StudentHandler) RegisterRoute(studentRoute *gin.RouterGroup) {
 	studentRoute.GET("/myappsstatic", h.MyAppsStatic)
 	// get applied job list
 	studentRoute.GET("/myapplications", h.MyApplications)
+	// get upcoming events template
+	studentRoute.GET("/upcoming", h.UpcomingStatic)
+	// upcoming events data with a filter
+	studentRoute.GET("/upcomingdata", h.UpcomingData)
+	// get take test template
+	studentRoute.GET("/taketest", h.TakeTestStatic)
+	// sends data for a question given the testid, and itemid
+	studentRoute.GET("/taketestdata", h.TakeTest)
 }
 
 
@@ -47,9 +55,16 @@ func (h *StudentHandler) MyAppsStatic(ctx *gin.Context) {
 func (h *StudentHandler) ApplicableJobs(ctx *gin.Context) {
 	// TODO: get the filters of the request body  
 
+	jobType := ctx.Query("jobType")
+	if jobType == "" {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": "Job type not specified",
+		})
+		return
+	}
 
 	// call the service that sends all job listings that the user has not yet applied for
-	alljobs, err := h.StudentService.GetApplicableJobs(ctx)
+	alljobs, err := h.StudentService.GetApplicableJobs(ctx, jobType)
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
@@ -121,46 +136,114 @@ func (h *StudentHandler) CancelApplication(ctx *gin.Context) {
 	})
 }
 func (h *StudentHandler) MyApplications(ctx *gin.Context) {
-	// pre-defined filters map
-	filters := map[string]bool{
-		"All":true,
-		"Applied": true,
-		"UnderReview": true,
-		"ShortListed": true,
-		"Rejected": true,
-		"Offered": true,
-		"Hired": true,
-	}
+
 	// get filters off the request body
 	status := ctx.Query("status")
-	if _, exists := filters[status]; !exists {
+	if status == "" {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": "unknown filter",
+			"error": "no status specified in request body",
 		})
+		fmt.Println("error")
+		return
+	}
+
+	userID, exists := ctx.Get("ID")
+	if !exists {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": "user ID not found in token",
+		})
+		fmt.Println("erro")
 		return
 	}
 
 	// call service 
-	applicationsData, err := h.StudentService.MyApplications(ctx)
+	applicationsData, err := h.StudentService.MyApplications(ctx, userID, status)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		fmt.Println(err)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, applicationsData)
+}
+func (h *StudentHandler) UpcomingStatic(ctx *gin.Context) {
+	ctx.File("./template/student/upcoming.html")
+}
+func (h *StudentHandler) UpcomingData(ctx *gin.Context) {
+	// get ID and eventttype
+	userid, exists := ctx.Get("ID")
+	eventtype := ctx.Query("eventtype")
+	if !exists || eventtype == "" {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": "missing ID or eventtype",
+		})
+		return
+	}
+	// service delegation
+	allUpcomingData, err := h.StudentService.UpcomingData(ctx, userid.(int64), eventtype)
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
 		return
 	}
+	// return data
+	ctx.JSON(http.StatusOK, allUpcomingData)
+}
 
-	var filteredData []sqlc.GetMyApplicationsRow
-	if status != "All" {
-		filteredData, err = utils.FilterFromSliceOf(applicationsData, "Status", status)
-		if err != nil {
-			ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
-				"error": err.Error(),
-			})
-			return
-		}
-		ctx.JSON(http.StatusOK, filteredData)
+func (h *StudentHandler) TakeTestStatic(ctx *gin.Context) {
+
+	userid, exists := ctx.Get("ID")
+	testID := ctx.Query("testid")
+	if testID == "" || !exists {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": "missing test ID or user ID",
+		})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, applicationsData)
+	testMetadata, err := h.StudentService.TestMetadata(ctx, userid.(int64), testID)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+	}
+
+	
+	// send the template
+	ctx.HTML(200, "takeTest.html", gin.H{
+		"TestID": testID,
+		"TestName": testMetadata.TestName,
+		"TestDescription": testMetadata.Description.String,
+		"TestDuration": testMetadata.Duration,
+		"TestEndDate": strings.Split(testMetadata.EndTime, " ")[0],
+		"TestEndTime": strings.Split(testMetadata.EndTime, " ")[1],
+		"QCount": testMetadata.QCount,
+		"TestType": testMetadata.Type,
+	})
+}
+func (h *StudentHandler) TakeTest(ctx *gin.Context) {
+
+	userid, exists := ctx.Get("ID")
+	testid := ctx.Query("testid")
+	currentItemId := ctx.Query("itemid")
+	if !exists || testid == "" || currentItemId == "" {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": "missing ID or eventtype",
+		})
+		return
+	}
+
+	result, err := h.StudentService.TakeTest(ctx, userid.(int64), testid, currentItemId)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		fmt.Println(err)
+		return
+	}
+
+	ctx.JSON(200, result)
 }

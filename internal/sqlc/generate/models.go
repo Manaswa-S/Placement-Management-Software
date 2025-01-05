@@ -28,16 +28,15 @@ type Company struct {
 }
 
 type Interview struct {
-	InterviewID int64
-	JobID       int64
-	StudentID   int64
-	CompanyID   int64
-	Date        pgtype.Date
-	Time        pgtype.Time
-	Type        interface{}
-	Status      interface{}
-	Notes       pgtype.Text
-	CreatedAt   pgtype.Timestamp
+	InterviewID   int64
+	ApplicationID int64
+	CompanyID     int64
+	DateTime      pgtype.Timestamptz
+	Type          interface{}
+	Status        interface{}
+	Notes         pgtype.Text
+	Location      string
+	CreatedAt     pgtype.Timestamp
 }
 
 type Job struct {
@@ -73,6 +72,27 @@ type Student struct {
 	Skills       pgtype.Text
 	UserID       int64
 	Extras       []byte
+}
+
+type Test struct {
+	TestID       int64
+	TestName     string
+	Description  pgtype.Text
+	Duration     int64
+	QCount       int64
+	EndTime      pgtype.Timestamptz
+	Type         string
+	UploadMethod interface{}
+	JobID        pgtype.Int8
+	CompanyID    int64
+	FileID       string
+}
+
+type Testresult struct {
+	ResultID  int64
+	TestID    int64
+	UserID    int64
+	Responses []byte
 }
 
 type User struct {

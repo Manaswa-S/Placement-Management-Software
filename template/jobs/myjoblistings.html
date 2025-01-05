@@ -120,6 +120,14 @@
                 width: 100%;
             }
         }
+
+        .no-jobs {
+            display:block;
+            top:50%; 
+            text-align: center;
+            font-size: 0.8em;
+            color: #555;
+        }
     </style>
 </head>
 
@@ -158,7 +166,18 @@
                 .then(response => response.json())
                 .then(data => {
                     const jobList = document.getElementById('jobList');
-                    jobList.innerHTML = ''; // Clear existing jobs
+
+                    if (data === null) {
+                        jobList.innerHTML = `
+                            <div class="no-jobs">
+                                No listings. Go to New Job to create one.
+                            </div>
+                        `;
+                        return;
+                    } else {
+                        jobList.innerHTML = ''; // Clear existing jobs
+                    }
+
                     data.forEach(job => {
                         const jobCard = `
                             <div class="job-card">
@@ -219,7 +238,7 @@
         
         // Function to delete posting with confirmation
         function deletePosting(jobID, button) {
-            if (confirm("Are you sure you want to delete this job posting? This action cannot be undone.")) {
+            if (confirm("Are you sure you want to delete this job posting?\nAll corresponding interviews will also be cancelled.\nThis action cannot be undone.")) {
                 const url = `/laa/company/deletejob?jobid=${jobID}`;
                 fetch(url, { method: 'GET' })
                     .then(response => {
@@ -228,6 +247,7 @@
                             button.disabled = true;
                             button.style.backgroundColor = '#6c757d';
                             alert('Job posting successfully deleted.');
+                            fetchJobs();
                         } else {
                             alert('Failed to delete. Please try again later.');
                         }

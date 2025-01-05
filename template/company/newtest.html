@@ -53,6 +53,7 @@
             font-size: 16px;
             margin-top: 5px;
             margin-bottom: 5px;
+            padding: 2px;
             color: #6C63FF;
         }
         .form-section li {
@@ -123,6 +124,50 @@
             background: #ff8787;
         }
 
+        .toast {
+            visibility: hidden;
+            color: #fff;
+            text-align: center;
+            border-radius: 5px;
+            padding: 10px;
+            position:fixed;
+            z-index: 1;
+            right: 2%;
+            bottom: 5%;
+            font-size:smaller;
+        }
+        .toast.show {
+            visibility: visible;
+            animation: fadein 0.5s, fadeout 0.5s 2.5s;
+        }
+        .toast.green {
+            background-color: #4CAF50; /* Green for success */
+        }
+        .toast.red {
+            background-color: #f44336; /* Red for error */
+        }
+        .toast.loading {
+            background-color: #ffffff; /* White for loading */
+            color: black;
+            animation: load 1s infinite alternate;
+        }
+        @keyframes fadein {
+            from {bottom: 0; opacity: 0;}
+            to {bottom: 5%; opacity: 1;}
+        }
+        @keyframes fadeout {
+            from {bottom: 5%; opacity: 1;}
+            to {bottom: 0; opacity: 0;}
+        }
+        @keyframes load {
+        0% {
+            background-color: #ffffff; /* Blue */
+        }
+        100% {
+            background-color: #a883ff; /* Orange */
+        }
+        }
+
     </style>
 </head>
 <body>
@@ -132,45 +177,52 @@
             <h1>Create New Test</h1>
         </div>
 
-        <form id="newTestForm">
+        <form id="newTestForm" onsubmit="uploadQuestions(UploadMethod.value, event)">
             <!-- Test Metadata Section -->
             <div class="form-section">
-                <label for="testName">Test Name</label>
-                <input type="text" id="testName" name="testName" placeholder="Enter test name" required>
+                <label for="Name">Test Name</label>
+                <input type="text" id="Name" name="Name" placeholder="Enter test name" required>
 
-                <label for="description">Description</label>
-                <textarea id="description" name="description" placeholder="Brief description of the test" rows="4" required></textarea>
+                <label for="Description">Description</label>
+                <textarea id="Description" name="Description" placeholder="Brief description of the test" rows="4" required></textarea>
 
-                <label for="duration">Test Duration (in minutes)</label>
-                <input type="number" id="duration" name="duration" placeholder="Enter duration" required>
+                <label for="Duration">Test Duration (in minutes)</label>
+                <input type="number" id="Duration" name="Duration" placeholder="Enter duration" required>
 
-                <label for="questionCount">Number of Questions</label>
-                <input type="number" id="questionCount" name="questionCount" placeholder="Enter total questions" required>
+                <label for="QuestionCount">Number of Questions</label>
+                <input type="number" id="QuestionCount" name="QuestionCount" placeholder="Enter total questions" required>
 
-                <label for="endDateTime">End Date</label>
-                <input type="datetime-local" id="endDateTime" name="endDateTime" placeholder="Enter the date and time to end the test" required>
+                <label for="EndDateTime">End Date Time</label>
+                <input type="datetime-local" id="EndDateTime" name="EndDateTime" placeholder="Enter the date and time to end the test" required>
 
-                <label for="testType">Test Type</label>
-                <select id="testType" name="testType" required>
-                    <option value="aptitude">Aptitude</option>
-                    <option value="technical">Technical</option>
-                    <option value="coding">Coding</option>
-                    <option value="others">Others</option>
+                <label for="BindedJobId">Bind to Job</label>
+                <select id="BindedJobId" name="BindedJobId" required>
+                    <option value="" disabled selected >Select the Job to bind Test to</option>
+                    {{range .JobIDToBind}}
+                        <option value="{{.JobID}}">{{.JobID}} : {{.Title}} : {{.Position}}</option>
+                    {{end}}
                 </select>
 
-                <label for="uploadMethod">Choose Upload Method</label>
-                <select id="uploadMethod" name="uploadMethod" required>
-                    <option value="google">Google Forms (Recommended for now !)</option>
-                    <option value="csvjson">Upload CSV/JSON File</option>
-                    <option value="manual">Enter Questions Manually</option>
+                <label for="Type">Test Type</label>
+                <select id="Type" name="Type" required>
+                    <option value="Aptitude">Aptitude</option>
+                    <option value="Technical">Technical</option>
+                    <option value="Coding">Coding</option>
+                    <option value="Other">Others</option>
+                </select>
+
+                <label for="UploadMethod">Choose Upload Method</label>
+                <select id="UploadMethod" name="UploadMethod" required>
+                    <option value="GForms">Google Forms (Recommended for now !)</option>
+                    <option value="CSVJSON">#Upload CSV/JSON File</option>
+                    <option value="Manual">#Enter Questions Manually</option>
                 </select>
             </div>
 
             <!-- Submission Button -->
             <div class="button-grid">
-                <button class="form-btn" onclick="uploadQuestions(uploadMethod.value, event)">Create Test</button>
+                <button class="form-btn" type="submit">Create Test</button>
             </div>
-
         </form>
     </div>
 
@@ -206,20 +258,18 @@
             </div>
 
             <form id="gFormsForm" onsubmit="gformPost(event)">
-                
-                <input type="hidden" name="UploadType" value="gform">
+                <div class="form-section">
+                    <label for="ResponderLink">Paste Google Form Link</label>
+                    <input type="url" id="ResponderLink" name="ResponderLink" placeholder="https://forms.google.com/example" required>
 
-                <label for="formLink">Paste Google Form Link</label>
-                <input type="url" id="formLink" name="formLink" placeholder="https://forms.google.com/example" required>
-
-                <label for="additionalInfo">Additional Notes or Instructions</label>
-                <input type="text" id="additionalInfo" name="additionalInfo" placeholder="Any specific details about the test (optional)"></input>
-            <div class="button-grid">
-                <button class="form-btn"  onclick="back()"> < Back</button>
-                <button class="form-btn" type="submit" >Create Test</button>
-            </div>
-        </form>
-
+                    <label for="Notes">Additional Notes or Instructions</label>
+                    <input type="text" id="Notes" name="Notes" placeholder="Any specific details about the test (optional)"></input>
+                </div>
+                <div class="button-grid">
+                    <button class="form-btn" type="button" onclick="back()"> < Back</button>
+                    <button class="form-btn" type="submit" >Create Test</button>
+                </div>
+            </form>
         </div>
 
 
@@ -236,14 +286,7 @@
                 <div class="form-instructions">
                     <label>Instructions: </label>
                     <ul class="form-section">
-                        <li>Ensure the Google Form is properly set up with all the required questions.</li>
-                        <li>Copy the public link of the Google Form and paste it in the input field below.</li>
-                        <li>For insights and analytics, grant access of the form to the admin email: <br>
-                                Steps: 
-                                    1) Share
-                                    2) Collaborators
-                                    3) Add this email : <strong>{{.NewTestGoogleFormsCollaboratorEmail}}</strong></li>
-                    </ul>
+                        <li>Under Progess ! See You Later !</li>
                 </div>
             </div>
 
@@ -268,13 +311,7 @@
                 <div class="form-instructions">
                     <label>Instructions: </label>
                     <ul class="form-section">
-                        <li>Ensure the Google Form is properly set up with all the required questions.</li>
-                        <li>Copy the public link of the Google Form and paste it in the input field below.</li>
-                        <li>For insights and analytics, grant access of the form to the admin email: <br>
-                                Steps: 
-                                    1) Share
-                                    2) Collaborators
-                                    3) Add this email : <strong>{{.NewTestGoogleFormsCollaboratorEmail}}</strong></li>
+                        <li>Under Progess ! See You Later !</li>
                     </ul>
                 </div>
             </div>
@@ -290,9 +327,26 @@
         </div>
     </div>
 
+    <div id="toast"></div>
 
 
     <script>
+
+        function showToast(message, type, timeout = 3000) {
+            const toast = document.getElementById("toast");
+            toast.innerText = message;
+            toast.className = `toast show ${type}`;
+            if (timeout != 0) {
+                setTimeout(() => {
+                    toast.className = toast.className.replace("show", "");
+                }, timeout);
+            }
+        }
+
+        function closeToast() {
+            const toast = document.getElementById("toast");
+            toast.className = toast.className.replace("show", "");
+        }
 
         function combineForms(form1, form2) {
 
@@ -311,18 +365,26 @@
 
         function gformPost(event) {
             event.preventDefault();
-
+            // show loading toast
+            showToast("Creating new Test...", "loading", 0);
+            // combine the metadata and gforms forms
             const formData = combineForms('newTestForm', 'gFormsForm');
-
+            // POST
             fetch('/laa/company/newtestpost', {
                 method: 'POST',
                 body: formData
             })
             .then((response) => {
+                closeToast();
                 if (response.ok) {
                     // show toast or pop-up
+                    alert('New Test Created Successfully.');
+                    window.location.href = `/laa/company/dashboard`;
                 } else {
                     // show error
+                    response.json().then(error => {
+                        alert('Error: ' + error.message + '\nCode: ' + error.type);
+                    });
                 }
             })
             .catch(error => {
@@ -331,6 +393,7 @@
             });
         }
 
+        // TODO: 
         function csvjsonPost(event) {
             event.preventDefault();
 
@@ -351,7 +414,7 @@
                 // show error toast
             });
         }
-
+        // TODO:
         function manualFormPost(event) {
             event.preventDefault();
 
@@ -373,14 +436,15 @@
             });
         }
 
+        function uploadQuestions(method, event) {
 
-        function uploadQuestions(method) {
             event.preventDefault();
-            if (method === 'google') {
+
+            if (method === 'GForms') {
                 document.getElementById('googleforms').style.display = 'block';
-            } else if (method === 'csvjson') {
+            } else if (method === 'CSVJSON') {
                 document.getElementById('csvjsonupload').style.display = 'block';
-            } else if (method === 'manual') {
+            } else if (method === 'Manual') {
                 document.getElementById('manualques').style.display = 'block';
             } else {
                 return;

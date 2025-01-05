@@ -171,7 +171,7 @@
 
         /* Close Button */
         .close-btn {
-            position: absolute;
+            position:static;
             top: 10px;
             right: 10px;
             background-color: transparent;
@@ -191,6 +191,45 @@
                 width: 100%;
             }
         }
+
+        .toast {
+            visibility: hidden;
+            color: #fff;
+            text-align: center;
+            border-radius: 5px;
+            padding: 10px;
+            position:fixed;
+            z-index: 1;
+            right: 5%;
+            bottom: 5%;
+            font-size:smaller;
+        }
+        .toast.show {
+            visibility: visible;
+            animation: fadein 0.5s, fadeout 0.5s 2.5s;
+        }
+        .toast.green {
+            background-color: #4CAF50; /* Green for success */
+        }
+        .toast.red {
+            background-color: #f44336; /* Red for error */
+        }
+        @keyframes fadein {
+            from {bottom: 0; opacity: 0;}
+            to {bottom: 5%; opacity: 1;}
+        }
+        @keyframes fadeout {
+            from {bottom: 5%; opacity: 1;}
+            to {bottom: 0; opacity: 0;}
+        }
+        .no-jobs {
+            display:block;
+            top:50%; 
+            text-align: center;
+            font-size: 0.8em;
+            color: #555;
+        }
+
     </style>
 </head>
 
@@ -224,9 +263,8 @@
 
             <!-- Form for Interview Details -->
             <form id="interviewForm" action="/laa/company/scheduleinterview" method="POST" enctype="multipart/form-data" onsubmit="submitForm(event)">
-                <!-- Hidden inputs for JobID and StudentID -->
-                <input type="hidden" id="JobId" name="JobId" />
-                <input type="hidden" id="StudentId" name="StudentId" />
+                <!-- Hidden inputs for ApplicationId -->
+                <input type="hidden" id="ApplicationId" name="ApplicationId" />
 
                 <label for="interviewDate">Date:</label>
                 <input type="date" id="Date" name="Date" required />
@@ -242,14 +280,36 @@
                     <option value="Hybrid">Hybrid</option>
                 </select>
 
+                <label for="interviewLocation">Location/Link:</label>
+                <input type="text" id="Location" name="Location" placeholder="Interview Location or Virtual Meeting Link" required />
+
                 <label for="interviewNotes">Notes:</label>
-                <input type="text" id="Notes" name="Notes" placeholder="Add any relevant notes" required />
+                <input type="text" id="Notes" name="Notes" placeholder="Add any relevant notes" />
 
                 <button type="submit">Schedule Interview</button>
             </form>
         </div>
 
 
+        <div class="semi-modal" id="offerModal" style="display: none;">
+            <button class="close-btn" onclick="closeOfferModal()">x</button>
+            <div class="semi-modal-header">
+                Offer Letter
+            </div>
+
+            <!-- Form for Interview Details -->
+            <form id="OfferForm" action="/laa/company/offer" method="POST" enctype="multipart/form-data" onsubmit="offerApplicant(event)">
+                <!-- Hidden inputs for ApplicationId -->
+                <input type="hidden" id="OfferApplicationId" name="OfferApplicationId" />
+    
+                <label for="OfferLetter">Offer Letter:</label>
+                <input type="file" id="OfferLetter" name="OfferLetter" placeholder="Upload the official offer letter" required />
+
+                <button type="submit">Offer</button>
+            </form>
+        </div>
+
+        <div id="toast"></div>
 
         <!-- Job Listings -->
         <div id="appList"></div>
@@ -257,13 +317,27 @@
 
     <script>
 
+        function showToast(message, type, timeout = 3000) {
+            const toast = document.getElementById("toast");
+            toast.innerText = message; // Set dynamic text
+            toast.className = `toast show ${type}`;
+            setTimeout(() => {
+                toast.className = toast.className.replace("show", "");
+            }, timeout);
+        }
+
+
         // Extract job ID from the URL query parameters
         function getJobIdFromURL() {
             const params = new URLSearchParams(window.location.search);
             return params.get('jobid');
         }
 
-        const jobID = getJobIdFromURL();
+        const jobid = getJobIdFromURL();
+        let jobID = 0;
+        if (jobid !== null) {
+            jobID = jobid;
+        }
 
         // Update the heading with jobID or default text
         function updateHeading() {
@@ -283,7 +357,18 @@
                 .then(response => response.json())
                 .then(data => {
                     const appList = document.getElementById('appList');
-                    appList.innerHTML = ''; // Clear existing jobs
+                    
+                    if (data === null) {
+                        appList.innerHTML = `
+                            <div class="no-jobs">
+                                No applications at the moment. Please check back later.
+                            </div>
+                        `;
+                        return;
+                    } else {
+                        appList.innerHTML = ''; // Clear existing jobs
+                    }
+
                     data.forEach(job => {
                         const jobCard = `
                             <div class="job-card">
@@ -299,10 +384,10 @@
                                     <p><strong>Skills:</strong> ${job.Skills}</p>
                                     <p><strong>Status:</strong> ${job.Status}</p>
                                 </div>
-                                ${generateActionButton(job.InterviewStatus, job.Status, job.StudentID, job.JobID)}
+                                ${generateActionButton(job.InterviewStatus, job.Status, job.ApplicationID)}
                                 <button class="apply-btn" onclick="details(${job.StudentID}, this)">Details</button>
-                                <button class="apply-btn" onclick="getFile(${job.StudentID}, ${job.JobID}, 'resume', this)">View Resume</button>
-                                <button class="apply-btn" onclick="getFile(${job.StudentID}, ${job.JobID}, 'result', this)">View Result</button>
+                                <button class="apply-btn" onclick="getFile(${job.ApplicationID}, 'resume', this)">View Resume</button>
+                                <button class="apply-btn" onclick="getFile(${job.ApplicationID}, 'result', this)">View Result</button>
                             </div>
                         `;
                         appList.innerHTML += jobCard;
@@ -312,97 +397,109 @@
         }
 
         // Function to generate the action button based on job status
-        function generateActionButton(intStatus, status, studentID, jobID) {
+        function generateActionButton(intStatus, status, ApplicationId) {
             if (status === 'UnderReview') {
-                return `<button class="apply-btn" onclick="shortlistApplicant(${studentID}, ${jobID}, this)">ShortList</button>
-                        <button class="apply-btn" onclick="rejectApplicant(${studentID}, ${jobID}, this)">Reject</button>`;
+                return `<button class="apply-btn" onclick="shortlistApplicant(${ApplicationId}, this)">ShortList</button>
+                        <button class="apply-btn" onclick="rejectApplicant(${ApplicationId}, this)">Reject</button>`;
             } else if (status === 'ShortListed') {
-                if (intStatus === '') {
-                    return `<button class="apply-btn" onclick="scheduleInterview(${studentID}, ${jobID}, this)">Schedule Interview</button>
-                        <button class="apply-btn" onclick="rejectApplicant(${studentID}, ${jobID}, this)">Reject</button>
-                        <button class="apply-btn" onclick="offerApplicant(${studentID}, ${jobID}, this)">Offer</button>`;
-                } 
-                if (intStatus != '') {
+                if (intStatus === '' || intStatus === 'Cancelled') {
+                    return `<button class="apply-btn" onclick="scheduleInterview(${ApplicationId}, this)">Schedule Interview</button>
+                        <button class="apply-btn" onclick="rejectApplicant(${ApplicationId}, this)">Reject</button>
+                        <button class="apply-btn" onclick="offerModal(${ApplicationId}, this)">Offer</button>`;
+                } else {
                     return `<p class="job-details"><strong>Interview: ${intStatus}</strong></p>
-                        <button class="apply-btn" onclick="rejectApplicant(${studentID}, ${jobID}, this)">Reject</button>
-                        <button class="apply-btn" onclick="offerApplicant(${studentID}, ${jobID}, this)">Offer</button>`;
+                        <button class="apply-btn" onclick="cancelInterview(${ApplicationId}, this)">Cancel Interview</button>
+                        <button class="apply-btn" onclick="rejectApplicant(${ApplicationId}, this)">Reject</button>
+                        <button class="apply-btn" onclick="offerModal(${ApplicationId}, this)">Offer</button>`;
                 }    
             } else if (status === 'Offered') {
-                return `<button class="apply-btn" onclick="rejectApplicant(${studentID}, ${jobID}, this)">Reject</button>
-                        <button class="apply-btn" onclick="hireApplicant(${studentID}, ${jobID}, this)">Hire</button>`;
+                return ``;
             }
             // Add more status checks if necessary
             return ''; // No action button for other statuses
         }
 
         // Function to shortlist an applicant
-        function shortlistApplicant(studentID, jobID) {
-            const url = `/laa/company/shortlist?studentid=${studentID}&jobid=${jobID}`;
+        function shortlistApplicant(ApplicationId) {
+            const url = `/laa/company/shortlist?applicationid=${ApplicationId}`;
             fetch(url, { method: 'POST' })
                 .then(response => response.ok)
                 .then(data => {
-                    alert('Applicant shortlisted successfully');
+                    showToast('Applicant shortlisted successfully', 'green');
                     fetchJobs();  // Reload the list after action
                 })
                 .catch(error => {
                     console.error('Error shortlisting applicant:', error);
-                    alert('Failed to shortlist applicant', error);
+                    showToast('Failed to shortlist applicant', 'red');
                 });
         }
 
         // Function to reject an applicant
-        function rejectApplicant(studentID, jobID) {
-            const url = `/laa/company/reject?studentid=${studentID}&jobid=${jobID}`;
-            fetch(url, { method: 'POST' })
-                .then(response => response.ok)
-                .then(data => {
-                    alert('Applicant rejected');
-                    fetchJobs();  // Reload the list after action
-                })
-                .catch(error => {
-                    console.error('Error rejecting applicant:', error);
-                    alert('Failed to reject applicant');
-                });
+        function rejectApplicant(ApplicationId) {
+            if (confirm("Are you sure you want to REJECT this applicant? This action cannot be undone.")) {   
+                const url = `/laa/company/reject?applicationid=${ApplicationId}`;
+                fetch(url, { method: 'POST' })
+                    .then(response => response.ok)
+                    .then(data => {
+                        showToast('Applicant rejected', 'green');
+                        fetchJobs();  // Reload the list after action
+                    })
+                    .catch(error => {
+                        console.error('Error rejecting applicant:', error);
+                        showToast('Failed to reject applicant', 'red');
+                    });
+            }
         }
 
-        // Function to offer the job to an applicant
-        function offerApplicant(studentID, jobID) {
-            const url = `/laa/company/offer?studentid=${studentID}&jobid=${jobID}`;
-            fetch(url, { method: 'POST' })
-                .then(response => response.ok)
-                .then(data => {
-                    alert('Job offer made');
-                    fetchJobs();  // Reload the list after action
-                })
-                .catch(error => {
-                    console.error('Error offering job:', error);
-                    alert('Failed to offer job');
-                });
+
+        // Function to open the schedule modal
+        function offerModal(ApplicationId) {
+            document.getElementById('scheduleOverlay').style.display = 'block';
+            document.getElementById('offerModal').style.display = 'block';
+
+            // Set hidden input values for jobID and studentID
+            document.getElementById('OfferApplicationId').value = ApplicationId;
         }
 
-        // Function to offer the job to an applicant
-        function hireApplicant(studentID, jobID) {
-            const url = `/laa/company/hire?studentid=${studentID}&jobid=${jobID}`;
-            fetch(url, { method: 'POST' })
-                .then(response => response.ok)
-                .then(data => {
-                    alert('Job offer made');
-                    fetchJobs();  // Reload the list after action
+        // Function to close the modal
+        function closeOfferModal() {
+            document.getElementById('scheduleOverlay').style.display = 'none';
+            document.getElementById('offerModal').style.display = 'none';
+        }
+
+        // Function to handle form submission
+        function offerApplicant(event) {
+            event.preventDefault(); // Prevent default form submission behavior
+
+            const form = event.target;
+            const formData = new FormData(form);
+
+            fetch(form.action, {
+                method: 'POST',
+                body: formData,
+            })
+                .then(response => {
+                    if (response.ok) {
+                        showToast('Offer Letter sent successfully via Email.', 'green');
+                        fetchJobs();
+                    } else {
+                        showToast('Failed to send email.', 'red');
+                    }
+                    closeOfferModal(); // Close the modal
                 })
                 .catch(error => {
-                    console.error('Error offering job:', error);
-                    alert('Failed to offer job');
+                    console.error('Error:', error);
+                    showToast('An error occurred while sending email.', 'red');
                 });
         }
 
        // Function to open the schedule modal
-        function scheduleInterview(studentID, jobID) {
+        function scheduleInterview(ApplicationId) {
             document.getElementById('scheduleOverlay').style.display = 'block';
             document.getElementById('scheduleModal').style.display = 'block';
 
             // Set hidden input values for jobID and studentID
-            document.getElementById('JobId').value = jobID;
-            document.getElementById('StudentId').value = studentID;
+            document.getElementById('ApplicationId').value = ApplicationId;
         }
 
         // Function to handle form submission
@@ -418,15 +515,16 @@
             })
                 .then(response => {
                     if (response.ok) {
-                        alert('Interview scheduled successfully');
+                        showToast('Interview scheduled successfully.\nThe applicant will be notified via email for the upcoming interview.', 'green');
+                        fetchJobs();
                     } else {
-                        alert('Failed to schedule interview');
+                        showToast('Failed to schedule interview', 'red');
                     }
                     closeScheduleModal(); // Close the modal
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('An error occurred while scheduling the interview');
+                    showToast('An error occurred while scheduling the interview', 'red');
                 });
         }
 
@@ -436,30 +534,46 @@
             document.getElementById('scheduleModal').style.display = 'none';
         }
 
+        // function to cancel scheduled interview
+        function cancelInterview(ApplicationId) {
+            if (confirm("Are you sure you want to cancel this interview? This action cannot be undone.")) {   
+                const url = `/laa/company/cancelinterview?applicationid=${ApplicationId}`;
+                fetch(url, { method: 'POST' })
+                    .then(response => {
+                        if (response.ok) {
+                            showToast('Interview cancelled', 'green');
+                            fetchJobs();  // Reload the list after action
+                        } else {
+                            showToast('Failed to cancel interview', 'red');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error cacelling interview:', error);
+                    });
+            }
+        }
 
-
-        function getFile(studentID, jobID, type) {
-            const url = `/laa/company/getfile?studentid=${studentID}&jobid=${jobID}&type=${type}`;
+        function getFile(applicationId, type) {
+            const url = `/laa/company/getfile?applicationid=${applicationId}&type=${type}`;
 
             fetch(url, { method: 'GET' })
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error('Failed to fetch the file.');
+                        showToast('Failed to fetch the file.', 'red');
+                    } else {
+                        return response.blob();
                     }
-
-                    // Create a blob from the response
-                    return response.blob();
                 })
                 .then(blob => {
                     // Create a URL for the blob
                     const fileURL = window.URL.createObjectURL(blob);
+                    fetchJobs();
 
                     // Open the file in a new tab
                     window.open(fileURL, '_blank');
                 })
                 .catch(error => {
                     console.error('Error fetching the file:', error);
-                    alert('Failed to fetch the file. Please try again later.');
                 });
         }
 

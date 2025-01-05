@@ -3,7 +3,6 @@ package utils
 import (
 	"bytes"
 	"fmt"
-	"html/template"
 	"net/smtp"
 	"os"
 )
@@ -15,29 +14,9 @@ type EmailData struct {
 	Signup_Confirmation_Link string
 	Resend_Email_Link string
 	Password_Reset_Link string
-	// Below 2 fields are always required
-	PathToTemplate string
-	To_Email []string
 }
 
-func SendEmailHTML (data EmailData) {
-
-	var body bytes.Buffer
-
-	// Parse the template file into object assigned to 'bodytemp'
-	bodytemplate, err := template.ParseFiles(data.PathToTemplate)
-	if err != nil {
-		fmt.Println(err.Error())
-		return
-	}
-
-	// Execute the template and apply 'data' to the template
-	// store the formed result in 'body'
-	err = bodytemplate.Execute(&body, data)
-	if err != nil {
-		fmt.Println(err.Error())
-		return
-	}
+func SendEmailHTML (body bytes.Buffer, 	to_Email []string) {
 	
 	// required headers for html
 	headers := "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";"
@@ -53,11 +32,11 @@ func SendEmailHTML (data EmailData) {
 		os.Getenv("SMTP_GO_Host"),
 	)
 	// connect to server and send email
-	err = smtp.SendMail(
+	err := smtp.SendMail(
 		os.Getenv("SMTP_GO_HostAddress"),
 		auth,
 		os.Getenv("SMTP_GO_From"),
-		data.To_Email,
+		to_Email,
 		[]byte(demo),
 	)
 	if err != nil {

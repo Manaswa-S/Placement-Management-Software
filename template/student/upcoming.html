@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upcoming Events</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #ece9e6, #ffffff);
+            color: #333;
+        }
+
+        .container {
+            width: 90%;
+            margin: 20px auto;
+            max-width: 1200px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #6C63FF;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            transition: box-shadow 0.3s;
+        }
+
+        .card:hover {
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .title {
+            font-size: 1.2em;
+            color: #6C63FF;
+            margin-bottom: 4px;
+        }
+
+        .details {
+            display:grid; 
+            grid-template-columns: repeat(2, 1fr); 
+            font-size: 0.8em;
+            color: #555;
+        }
+
+        .details p {
+            margin: 3px 0; 
+            line-height: 1.4;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .apply-btn {
+            margin: auto;
+            background: #6C63FF;
+            color: #fff;
+            font-size: 14px;
+            font-weight: bold;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 15px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background-color 0.3s;
+        }
+
+        .apply-btn:hover {
+            background: #8E94F2;
+        }
+
+        .filters {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+
+        .filters select {
+            padding: 10px;
+            font-size: 14px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+
+        .filters button {
+            background: #6C63FF;
+            color: #fff;
+            font-size: 14px;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .filters button:hover {
+            background: #8E94F2;
+        }
+
+
+        .overlay {
+            display: none; /* Hidden by default */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+
+        .semi-modal {
+            display: none; /* Hidden by default */
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            max-width: 600px;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            box-sizing: border-box;
+        }
+
+        .semi-modal-header {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .semi-modal input,
+        .semi-modal select,
+        .semi-modal button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            box-sizing: border-box;
+        }
+
+        .semi-modal button {
+            background-color: #6C63FF;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .semi-modal button:hover {
+            background-color: #8e94f2;
+        }
+
+        /* Close Button */
+        .close-btn {
+            position:static;
+            top: 10px;
+            right: 10px;
+            background-color: transparent;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+
+        @media (max-width: 768px) {
+            .filters {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .filters select {
+                width: 100%;
+            }
+        }
+
+        .toast {
+            visibility: hidden;
+            color: #fff;
+            text-align: center;
+            border-radius: 5px;
+            padding: 10px;
+            position:fixed;
+            z-index: 1;
+            right: 5%;
+            bottom: 5%;
+            font-size:smaller;
+        }
+        .toast.show {
+            visibility: visible;
+            animation: fadein 0.5s, fadeout 0.5s 2.5s;
+        }
+        .toast.green {
+            background-color: #4CAF50; /* Green for success */
+        }
+        .toast.red {
+            background-color: #f44336; /* Red for error */
+        }
+        @keyframes fadein {
+            from {bottom: 0; opacity: 0;}
+            to {bottom: 5%; opacity: 1;}
+        }
+        @keyframes fadeout {
+            from {bottom: 5%; opacity: 1;}
+            to {bottom: 0; opacity: 0;}
+        }
+        .no-cards {
+            display:block;
+            top:50%; 
+            text-align: center;
+            font-size: 0.8em;
+            color: #555;
+        }
+
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1 id="pageHeading">Upcoming Events</h1>
+
+        <!-- Filters Section -->
+        <div class="filters">
+            <select name="eventtype" id="eventtype">
+                <option value="all">All</option>
+                <option value="interview">Interview</option>
+                <option value="test">Test</option>
+                <option value="lecture">#Lecture</option>
+            </select>
+            <button onclick="filterJobs()">Apply Filters</button>
+        </div>
+
+        <div id="appList"></div>
+    </div>
+
+    <script>
+
+        function showToast(message, type, timeout = 3000) {
+            const toast = document.getElementById("toast");
+            toast.innerText = message; // Set dynamic text
+            toast.className = `toast show ${type}`;
+            setTimeout(() => {
+                toast.className = toast.className.replace("show", "");
+            }, timeout);
+        }
+
+
+        // Function to fetch job listings from the backend
+        function fetchJobs(eventtype = 'all') {
+            const url = `/laa/student/upcomingdata?eventtype=${eventtype}`;
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    const appList = document.getElementById('appList');
+                    appList.innerHTML = ''; // Clear existing jobs
+                    
+                    const { InterviewsData, TestsData } = data;
+                    if (InterviewsData != null) {
+                        InterviewsData.forEach(job => {
+                            const intCard = `
+                                <div class="card">
+                                    <div class="title">${job.Title}</div>
+                                    <div class="details">
+                                            <p>Interview ID: ${job.InterviewID}</p>
+                                            <p>Company: ${job.CompanyName}</p>
+                                            <p>Date: ${job.Date}</p>
+                                            <p>Time: ${job.Time}</p>
+                                            <p>Type: ${job.InterviewsType}</p>
+                                            <p>Location: ${job.Location}</p>
+                                            <p>Notes: ${job.Notes}</p>
+                                    </div>
+                                </div>
+                            `;
+                            appList.innerHTML += intCard;
+                        });
+                    }
+                    if (TestsData != null) {
+                        TestsData.forEach(job => {
+                            const testCard = `
+                                <div class="card">
+                                    <div class="title">${job.TestName}</div>
+                                    <div class="details">
+                                            <p>Test ID: ${job.TestID}</p>
+                                            <p title="${job.Description}">Description: ${job.Description}</p>
+                                            <p>Company Name: ${job.CompanyName}</p>
+                                            <p>Duration: ${job.Duration} mins.</p>
+                                            <p>Job Title: ${job.Title}</p>
+                                            <p>No. of Questions: ${job.QCount}</p>
+                                            <p>Last Date: ${job.EndTime}</p>
+                                            <p>Type: ${job.Type}</p>
+                                        <div>
+                                            <button class="apply-btn" onclick="takeTest(${job.TestID}, this)"> Take Test </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                            appList.innerHTML += testCard;
+                        });
+                    }
+
+                    if (InterviewsData === null && TestsData === null) {
+                        appList.innerHTML = `
+                            <div class="no-cards">
+                                No upcoming events. Relax !
+                            </div>
+                        `;
+                        return;
+                    }
+                })
+                .catch(error => console.error('Error fetching events:', error));
+        }
+
+
+
+        function takeTest(testID) {
+            const URL = `/laa/student/taketest?testid=${testID}`;
+            window.location.href = URL;
+        }
+
+        // Function to apply filters
+        function filterJobs() {
+            const eventtype = document.getElementById('eventtype').value;
+            fetchJobs(eventtype);
+        }
+
+        // Initial load
+        fetchJobs();
+    </script>
+</body>
+
+</html>

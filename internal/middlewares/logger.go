@@ -39,12 +39,21 @@ func Logger() gin.HandlerFunc {
 			Latency: time.Duration(time.Since(before.StartTime).Microseconds()),
 		}
 
+		var explicit_err any
+		experr, exists := c.Get("error")
+		if exists {
+			explicit_err = experr
+		} else {
+			explicit_err = "nil"
+		}
+
 		logData := map[string]interface{}{
 			"client_ip": before.ClientIP,
 			"method":    before.Method,
 			"path":      before.Path,
 			"status":    after.StatusCode,
-			"error":     after.ErrorMsg,
+			"internal_error":     after.ErrorMsg,
+			"explicit_error":     explicit_err.(string),
 			"latency":   after.Latency.String(),
 		}
 		jsonLog, _ := json.Marshal(logData)

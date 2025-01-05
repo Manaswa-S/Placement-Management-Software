@@ -16,8 +16,8 @@ var	QueriesPool *sqlc.Queries
 var	RedisClient *redis.Client
 
 
-func InitDB()  {
-	fmt.Println("in initdb")
+func InitDB() (error) {
+	fmt.Println("Connecting to Databases and Cache...")
 	// create context object
 	ctx := context.Background()
 	
@@ -25,7 +25,7 @@ func InitDB()  {
 	dbConn := os.Getenv("PMSDBLoginCredentials")
 	pool, err := pgxpool.New(ctx, dbConn)
 	if err != nil {
-		fmt.Println("Error creating database pool: ", err)
+		return fmt.Errorf("error creating database pool: %s", err)
 	}
 
 	// inittialize queries pool
@@ -40,16 +40,20 @@ func InitDB()  {
 	})
 	_, err = RedisClient.Ping(ctx).Result()
 	if err != nil {
-		fmt.Printf("Failed to connect to Redis: %v", err)
+		return fmt.Errorf("failed to connect to Redis: %v", err)
 	}
+
+	return nil
 }
 
 // Close DB and Redis connections
-func Close() {
+func Close() (error) {
+	fmt.Println("Closing connections to Databases and Cache...")
 	if Pool != nil {
 		Pool.Close()
 	}
 	if RedisClient != nil {
-		RedisClient.Close()
+		return RedisClient.Close()
 	}
+	return nil
 }

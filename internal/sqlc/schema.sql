@@ -85,17 +85,38 @@ CREATE TABLE applications (
 
 CREATE TABLE interviews (
     interview_id BIGINT PRIMARY KEY DEFAULT nextval('interviews_interview_id_seq'::regclass),
-    job_id BIGINT NOT NULL,
-    student_id BIGINT NOT NULL,
+    application_id BIGINT NOT NULL,
     company_id BIGINT NOT NULL,
-    date DATE NOT NULL,
-    time TIME NOT NULL,
+    date_time TIMESTAMP WITH TIME ZONE NOT NULL,
     type interview_type NOT NULL,
     status interview_status NOT NULL,  
     notes TEXT,
+    location TEXT NOT NULL DEFAULT 'Campus',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT jobs_interviews_pkey FOREIGN KEY (job_id) REFERENCES jobs(job_id),
-    CONSTRAINT students_interviews_pkey FOREIGN KEY (student_id) REFERENCES students(student_id),
+    CONSTRAINT applications_interviews_pkey FOREIGN KEY (application_id) REFERENCES applications(application_id),
     CONSTRAINT companies_interviews_pkey FOREIGN KEY (company_id) REFERENCES companies(company_id)
 );
 
+CREATE TABLE tests (
+    test_id BIGINT PRIMARY KEY NOT NULL DEFAULT nextval('tests_test_id_seq'::regclass),
+    test_name VARCHAR(255) NOT NULL,
+    description TEXT,
+    duration BIGINT NOT NULL,
+    q_count BIGINT NOT NULL,
+    end_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    type VARCHAR(255) NOT NULL,
+    upload_method test_upload_method NOT NULL,
+    job_id BIGINT,
+    company_id BIGINT NOT NULL,
+    file_id TEXT NOT NULL,
+    CONSTRAINT companies_tests_pkey FOREIGN KEY (company_id) REFERENCES companies(company_id),
+    CONSTRAINT jobs_pkey FOREIGN KEY (jod_id) REFERENCES jobs(job_id)
+);
+
+CREATE TABLE testResults(
+    result_id BIGINT NOT NULL DEFAULT nextval('"testResults_result_id_seq"'::regclass),
+    test_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    responses JSOn NOT NULL,
+    CONSTRAINT "testResults_result_id_pkey" PRIMARY KEY (result_id)
+)

@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Arial', sans-serif;
+        }
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #5951f5, #abafea);
+            color: #333;
+            display: flex;
+        }
+        .container {
+            display:block;
+            width: 90%;
+            height: 100vh;
+            margin: 20px auto;
+            max-width: 1200px;
+        }
+
+        .card {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            transition: box-shadow 0.3s;
+        }
+        .card:hover {
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .title {
+            font-size: 1.2em;
+            color: #000000;
+            margin-bottom: 4px;
+        }
+        .description {
+            font-size: 0.9em;
+            color: #535252;
+            margin-bottom: 4px;
+        }
+        .details {
+            display:block; 
+            font-size: 0.8em;
+            color: #555;
+        }
+        .details label {
+            margin: 3px 0; 
+            line-height: 1.4;
+        }
+        .details p {
+            margin: 3px 0; 
+            line-height: 1.4;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .image {
+            width: auto;  /* Set width to 100% of its container */
+            max-width: 500px;  /* Limit the maximum width */
+            height: auto;  /* Maintain the aspect ratio */
+            border: 2px solid #ccc;  /* Add a light border */
+            border-radius: 10px;  /* Round corners */
+            /* box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);  Add a shadow */
+            display: block;  /* Remove any unwanted inline spacing */
+            margin: 0 auto;  /* Center the image horizontally */
+            margin-top: 20px;
+            margin-bottom: 20px;
+
+        }
+
+        .bottom-nav {
+            position: fixed;     
+            bottom: 0;              
+            left: 0;      
+            width: 100%;
+            background-color: #ffffff;
+            display: none;
+            justify-content: center;
+            padding: 10px 0;
+        }
+
+        .apply-btn {
+            margin: auto;
+            background: #6C63FF;
+            color: #fff;
+            font-size: 15px;
+            font-weight: bold;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 15px;
+            cursor: pointer;
+        }
+
+        .apply-btn:hover {
+            background: #8E94F2;
+        }
+
+        /* The actual spinner */
+        .spinner {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            border: 6px solid #f3f3f3;  
+            border-top: 6px solid #6C63FF;  
+            border-radius: 50%;        
+            width: 60px;                
+            height: 60px;               
+            animation: spin 2s linear infinite; 
+        }
+
+        /* Keyframes for the spinning animation */
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="q-container" class="container">
+    </div>
+
+    <div id="navigator" class="bottom-nav">
+        <button id="prev-btn" class="apply-btn">Previous</button>
+        <button id="next-btn" class="apply-btn">Next</button>
+    </div>
+
+    <div class="spinner" id="spinner" style="display: none;">
+    </div>
+
+
+    <script>
+        const appList = document.getElementById('q-container');
+
+        function fetchQuestion(itemID) {
+            showSpinner();
+            const url = `/laa/student/taketestdata?testid={{.TestID}}&itemid=${itemID}`;
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    hideSpinner();
+
+                    appList.innerHTML = ''; // Clear existing jobs
+                
+                    const item = data.Item;
+                    console.log(data);
+                        
+                        let path = item;
+                        let template = ``;
+
+                        if (path.questionItem) {
+                            // it is a question
+                            if (path.title) {
+                                template += `
+                                    <div class="card">
+                                        <div class="title">
+                                            <p>Question: ${path.title}</p>
+                                        </div>
+                                `;
+                            }
+                            
+                            if (path.description) {
+                                template += `
+                                        <div class="description"> 
+                                            <p>${path.description}</p>
+                                        </div>
+                                `;
+                            }
+
+                            let answer = path.questionItem.question
+
+                            
+                      
+
+                            if (path.questionItem.image) {
+                                let imageStr = path.questionItem.image.contentUri;
+
+                                template += `
+                                    <div class="image">
+                                        <img src="${item.questionItem.image.contentUri}" style="max-width: 100%; height: auto;">
+                                    </div>
+                                `;
+                            }
+                            
+                            if (answer.textQuestion) {
+                                if (answer.textQuestion.paragraph) {
+                                    // it is a paragraph form text answer
+                                    template += `
+                                        <div class="details">
+                                            <textarea placeholder="Long Answer"></textarea>
+                                        </div>
+                                    `;
+                                } else {
+                                    // it is a short form text answer
+                                    template += `
+                                        <div class="details">
+                                            <input type="text" placeholder="Short Answer">
+                                        </div>
+                                    `;
+                                }
+                            } else if (answer.choiceQuestion) {
+                                // it is choice answer
+                                let choiceType = answer.choiceQuestion.type;
+                                let options = answer.choiceQuestion.options;
+
+                                template += `
+                                        <label>
+                                `;
+
+                                if (choiceType == "RADIO") {
+                                    // it is of RADIO type
+                                    for (const option of options) {
+                                        template += `
+                                                    <input type="radio" name="${option.value}" value="${option.value}">
+                                                    ${option.value}
+                                                    <br>
+                                        `;
+                                    }
+                                } else if (choiceType == "CHECKBOX") {
+                                    // it is of CHECKBOX type
+                                    for (const option of options) {
+                                        template += `
+                                                    <input type="checkbox" name="${option.value}" value="${option.value}">
+                                                    ${option.value}
+                                                    <br>
+                                        `;
+                                    }
+                                } else if (choiceType == "DROP_DOWN") {
+                                    // it is of DROP_DOWN type
+                                    template += `
+                                                    <select>
+                                        `;
+                                    for (const option of options) {
+                                        template += `
+                                                        <option value="${option.value}">${option.value}</option>
+                                                        <br>
+                                        `;
+                                    }
+                                    template += `
+                                                    </select>
+                                        `;
+                                }
+
+                                template += `
+                                        </label>
+                                `;
+                            }
+                        } 
+                        else if (path.videoItem) {
+                            // it is a video
+                            if (path.title) {
+                                let title = path.title; // we have the video title
+                                template += `
+                                    <div class="card">
+                                        <div class="title">
+                                            <p>Title: ${path.title}</p>
+                                        </div>
+                                `;
+                            }
+                            let caption = path.videoItem.caption;
+                            if (caption) {
+                                template += `
+                                        <div class="description"> 
+                                            <p>${caption}</p>
+                                        </div>
+                                `;
+                            }
+                            if (path.videoItem.video) {
+                                let youtubeUri = path.videoItem.video.youtubeUri;
+                                console.log(youtubeUri);
+                                template += `
+                                    <a href="https://www.youtube.com/watch?v=dXl2NdlmeIE" target="_blank" rel="noopener noreferrer">
+                                        Watch this video on YouTube
+                                    </a>
+
+                                `;
+                            }
+
+                        } 
+                        else if (path.imageItem) {
+                            // it is a image
+                            let title = path.title // we have the image title
+                            if (title) {
+                                template += `
+                                    <div class="card">
+                                        <div class="title">
+                                            <p>Title: ${title}</p>
+                                        </div>
+                                `;
+                            }
+                            
+                            if (path.imageItem.image) {
+                                let altText = path.imageItem.image.altText;
+                                if (altText) {
+                                    template += `
+                                        <div class="description"> 
+                                            <p>${altText}</p>
+                                        </div>
+                                    `;
+                                }
+                                let contentUri = path.imageItem.image.contentUri;
+                                if (contentUri) {
+                                    template += `
+                                        <div class="image">
+                                            <img src="${contentUri}" style="max-width: 100%; height: auto;">
+                                        </div>
+                                    `;
+                                }
+                            }
+
+                        } 
+                        else {
+                            // default case
+                        }
+
+                        template += `        
+                            </div>
+                        `;
+
+                    appList.innerHTML += template;
+
+                    const prevbtn = document.getElementById('prev-btn');
+                    const nextbtn = document.getElementById('next-btn');
+
+                    if (data.PrevId != "" || (data.PrevId != "" && data.NextId != "")) {
+                        prevbtn.style.display = 'block';
+
+                        prevbtn.onclick = function() {
+                            nextQuestion(data.PrevId);
+                        }; 
+                    }  
+                    if (data.NextId != "" || (data.NextId != "" && data.PrevId != "")) {
+                        nextbtn.style.display = 'block';
+
+                        nextbtn.onclick = function() {
+                            nextQuestion(data.NextId);
+                        };
+                    }
+                    document.getElementById('navigator').style.display = 'flex';
+                })
+                .catch(error => console.error('Error fetching question:', error));
+        }
+
+        // Next and Previous functions
+        function nextQuestion(itemID) {
+            fetchQuestion(itemID)
+        }
+
+        function prevQuestion(itemID) {
+            fetchQuestion(itemID)
+        }
+
+        function showSpinner() {
+            document.getElementById('spinner').style.display = 'block'; 
+        }
+
+        // Function to hide the spinner
+        function hideSpinner() {
+            document.getElementById('spinner').style.display = 'none'; 
+        }
+
+        function metaData() {
+            appList.innerHTML = '';
+            let template = ``;
+
+            template += `
+                <div id="card" class="card">
+                    <div id="title" class="title">
+                        <label>{{.TestName}}</label><br>
+                    </div>
+                    <br>
+                    <div id="description" class="details">
+                        <label>{{.TestDescription}}</label><br>
+                    </div>
+                    <br>
+                    <div id="details" class="details">
+                        <label id="d">Duration: {{.TestDuration}}</label><br>
+                        <label id="d">No. of Questions: {{.QCount}}</label><br>
+                        <label id="d">End Date: {{.TestEndDate}}</label><br>
+                        <label id="d">End Time: {{.TestEndTime}}</label><br>
+                        <label id="d">Type: {{.TestType}}</label><br>
+                    </div>
+                    <br>
+                    <button id="prev-btn" class="apply-btn" onclick="fetchQuestion('cover')">Start Test</button>
+                </div>
+            `;
+            appList.innerHTML += template;
+        }
+
+        // initialize the metadata view
+        metaData();
+        safetyLocks(); // TODO:
+
+
+        function safetyLocks() {
+            window.addEventListener("beforeunload", (event) => {
+                event.preventDefault(); // Prevent the default action
+                if (confirm("The test will be submitted on reloading.")) {
+                    console.log("submitTest();")
+                }
+            });
+        }
+
+
+
+
+
+    </script>
+</body>
+</html>

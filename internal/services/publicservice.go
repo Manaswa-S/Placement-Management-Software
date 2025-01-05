@@ -104,10 +104,12 @@ func (s *PublicService) SendConfirmEmail(ctx *gin.Context, email string) (error)
 		Email: userData.Email,
 		Signup_Confirmation_Link: confirmationLink,
 		Resend_Email_Link: resendLink,
-		PathToTemplate: "./template/emails/confirmsignup.html",
-		To_Email: []string{userData.Email},
 	}
-	go utils.SendEmailHTML(emailData)
+	template, err := utils.DynamicHTML("./template/emails/confirmsignup.html", emailData)
+	if err != nil {
+		return err
+	}
+	go utils.SendEmailHTML(template, []string{userData.Email})
 
 	return nil
 }
@@ -172,10 +174,12 @@ func (s *PublicService) SendResetPassEmail(ctx *gin.Context, email string) (erro
 	emailData := utils.EmailData{
 		Email: userData.Email,
 		Password_Reset_Link: resetpassLink,
-		PathToTemplate: "./template/emails/resetpass.html",
-		To_Email: []string{userData.Email},
 	}
-	go utils.SendEmailHTML(emailData)
+	template, err := utils.DynamicHTML("./template/emails/resetpass.html", emailData)
+	if err != nil {
+		return err
+	}
+	go utils.SendEmailHTML(template, []string{userData.Email})
 
 	// add token as SetEx to redis db to avoid multiple requests 
 	err = s.redis.SetEx(ctx, reset_token, userData.UserID, time.Minute * 15).Err()
