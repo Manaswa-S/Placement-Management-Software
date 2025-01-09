@@ -1,23 +1,30 @@
 package middlewares
 
 import (
-	"fmt"
+	"errors"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
+	"go.mod/internal/config"
+	"go.mod/internal/dto"
 	"go.mod/internal/utils"
 )
 
 
 func Authenticator() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		fmt.Println("in authenticator")
-		// parse token string from cookie in the request
+		// parse access token string from cookie in the request
 		access_token, err := c.Cookie("access_token")
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-				"error": "invalid access_token. log in again",
-			})
+			c.Redirect(http.StatusSeeOther, "/public/login")
+			return
+		}
+		// parse refresh token string from cookie in the request
+		refresh_token, err := c.Cookie("refresh_token")
+		if err != nil {
+			c.Redirect(http.StatusSeeOther, "/public/login")
 			return
 		}
 
@@ -25,18 +32,59 @@ func Authenticator() gin.HandlerFunc {
 		// returns mapped claims or error
 		claims, err := utils.ParseJWT(access_token)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-				"error": "invalid access_token. log in again",
-			})
-			return
+			// if token expired
+			if (errors.Is(err, jwt.ErrTokenExpired)) {
+				// parse refresh token to get claims
+				mapClaims, err := utils.ParseJWT(refresh_token)
+				if err != nil {
+					c.Redirect(http.StatusSeeOther, "/public/login")
+					return
+				}
+				// generate new access token using refresh token claims
+				new_access_token, err := utils.GenerateJWT(dto.Token{
+					Issuer: "loginFunc@PMS",
+					Subject: "access_token",
+					ExpiresAt: time.Now().Add(config.JWTAccessExpiration * time.Minute).Unix(),
+					IssuedAt: time.Now().Unix(),
+					Role: int64(mapClaims["role"].(float64)),
+					ID: int64(mapClaims["id"].(float64)),
+				})
+				if err != nil {
+					c.Redirect(http.StatusSeeOther, "/public/login")
+					return
+				}
+				// generate new refresh token using refresh token claims
+				new_refresh_token, err := utils.GenerateJWT(dto.Token{
+					Issuer: "loginFunc@PMS",
+					Subject: "refresh_token",
+					ExpiresAt: time.Now().Add(config.JWTRefreshExpiration * time.Hour).Unix(),
+					IssuedAt: time.Now().Unix(),
+					Role: int64(mapClaims["role"].(float64)),
+					ID: int64(mapClaims["id"].(float64)),
+				})
+				if err != nil {
+					c.Redirect(http.StatusSeeOther, "/public/login")
+					return
+				}
+				// set cookies for tokens
+				c.SetSameSite(http.SameSiteStrictMode)
+				c.SetCookie("access_token", new_access_token, 0, "", "", true, true)
+				c.SetSameSite(http.SameSiteStrictMode)
+				c.SetCookie("refresh_token", new_refresh_token, 0, "", "", true, true)
+				// redirect to the same url to reload and send tokens
+				c.Redirect(http.StatusFound, c.Request.URL.String())
+			} else {
+				c.Redirect(http.StatusSeeOther, "/public/login")
+			}	
+			// abort to prevent further middlewares from acting
+			c.AbortWithStatus(http.StatusFound)
+		} else {
+			// token is NOT expired
+			// set values in context for downstream users
+			c.Set("ID", int64(claims["id"].(float64)))
+			c.Set("role", int64(claims["role"].(float64)))
+			//proceed
+			c.Next()
 		}
-
-		// if valid token
-		// set values in context for downstream users
-		c.Set("ID", int64(claims["id"].(float64)))
-		c.Set("role", int64(claims["role"].(float64)))
-
-		//proceed
-		c.Next()
 	}
 }

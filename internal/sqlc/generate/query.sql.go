@@ -989,6 +989,34 @@ func (q *Queries) InterviewStatusTo(ctx context.Context, arg InterviewStatusToPa
 	return err
 }
 
+const isTestGiven = `-- name: IsTestGiven :one
+SELECT 
+    testresults.test_id,
+    testresults.start_time,
+    testresults.end_time
+FROM testresults
+WHERE testresults.test_id = $1 
+AND testresults.user_id = $2
+`
+
+type IsTestGivenParams struct {
+	TestID int64
+	UserID int64
+}
+
+type IsTestGivenRow struct {
+	TestID    int64
+	StartTime pgtype.Timestamptz
+	EndTime   pgtype.Timestamptz
+}
+
+func (q *Queries) IsTestGiven(ctx context.Context, arg IsTestGivenParams) (IsTestGivenRow, error) {
+	row := q.db.QueryRow(ctx, isTestGiven, arg.TestID, arg.UserID)
+	var i IsTestGivenRow
+	err := row.Scan(&i.TestID, &i.StartTime, &i.EndTime)
+	return i, err
+}
+
 const newTest = `-- name: NewTest :exec
 INSERT INTO tests (test_name, description, duration, q_count, end_time, type, upload_method, job_id, company_id, file_id)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, (SELECT company_id FROM companies WHERE user_id = $9), $10)
@@ -1024,17 +1052,18 @@ func (q *Queries) NewTest(ctx context.Context, arg NewTestParams) error {
 }
 
 const newTestResult = `-- name: NewTestResult :exec
-INSERT INTO testResults (test_id, user_id)
-VALUES ($1, $2)
+INSERT INTO testresults (test_id, user_id, start_time)
+VALUES ($1, $2, $3)
 `
 
 type NewTestResultParams struct {
-	TestID int64
-	UserID int64
+	TestID    int64
+	UserID    int64
+	StartTime pgtype.Timestamptz
 }
 
 func (q *Queries) NewTestResult(ctx context.Context, arg NewTestResultParams) error {
-	_, err := q.db.Exec(ctx, newTestResult, arg.TestID, arg.UserID)
+	_, err := q.db.Exec(ctx, newTestResult, arg.TestID, arg.UserID, arg.StartTime)
 	return err
 }
 

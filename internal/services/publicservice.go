@@ -12,6 +12,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/redis/go-redis/v9"
+	"go.mod/internal/config"
 	"go.mod/internal/dto"
 	sqlc "go.mod/internal/sqlc/generate"
 	"go.mod/internal/utils"
@@ -32,10 +33,7 @@ type UserInputData struct {
 	Email string
 	Password string
 }
-type JWTTokens struct {
-	JWTAccess string
-	JWTRefresh string
-}
+
 type ResetPass struct {
 	Token string
 	NewPass string
@@ -81,10 +79,10 @@ func (s *PublicService) SendConfirmEmail(ctx *gin.Context, email string) (error)
 	}
 
 	// generate confirmation token
-	confirmtokenData := utils.Token{
+	confirmtokenData := dto.Token{
 		Issuer: "signupFunc@PMS",	
 		Subject: "confirm_token",
-		ExpiresAt: time.Now().Add(15 * time.Minute).Unix(),
+		ExpiresAt: time.Now().Add(config.SignupConfirmLinkTokenExpiration * time.Minute).Unix(),
 		IssuedAt: time.Now().Unix(),
 		Email: userData.Email,
 		Role: userData.Role,
@@ -155,10 +153,10 @@ func (s *PublicService) SendResetPassEmail(ctx *gin.Context, email string) (erro
 	}
 
 	// generate confirmation token
-	resettokenData := utils.Token{
+	resettokenData := dto.Token{
 		Issuer: "resetpassFunc@PMS",	
 		Subject: "reset_token",
-		ExpiresAt: time.Now().Add(15 * time.Minute).Unix(),
+		ExpiresAt: time.Now().Add(config.ResetLinkTokenExpiration * time.Minute).Unix(),
 		IssuedAt: time.Now().Unix(),
 		Email: userData.Email,
 	}
@@ -255,61 +253,63 @@ func (s *PublicService) ResetPass(ctx *gin.Context, data ResetPass) (error) {
 	return nil
 }
 
-func (s *PublicService) LoginPost(ctx *gin.Context, loginData UserInputData) (int64, JWTTokens, error) {
-
+func (s *PublicService) LoginPost(ctx *gin.Context, loginData UserInputData) (int64, *dto.JWTTokens, error) {
+	tokens := &dto.JWTTokens{}
 	// check if user in database
 	// if present, get all data from database
 	userData, err := s.queries.GetUserData(ctx, loginData.Email)
 	if err != nil {
-		return 0, JWTTokens{}, errors.New("user does not exist. signup first")
+		return 0, nil, errors.New("user does not exist. signup first")
 	}
 
 	if !userData.Confirmed {
-		return 0, JWTTokens{}, errors.New("please verify email first")
+		return 0, nil, errors.New("please verify email first")
 	}
 
 	if !userData.IsVerified {
-		return 0, JWTTokens{}, errors.New("user verification is pending")
+		return 0, nil, errors.New("user verification is pending")
 	}
 
 	// compare passwords
 	err = bcrypt.CompareHashAndPassword([]byte(userData.Password), []byte(loginData.Password))
 	if err != nil {
-		return 0, JWTTokens{}, errors.New("password does not match. try again")
+		return 0, nil, errors.New("password does not match. try again")
 	}
 
 
 	// generate JWT access token and refresh token
-	accesstokenData := utils.Token{
+	accesstokenData := dto.Token{
 			Issuer: "loginFunc@PMS",	
 			Subject: "access_token",
-			ExpiresAt: time.Now().Add(60 * time.Minute).Unix(),
+			ExpiresAt: time.Now().Add(config.JWTAccessExpiration * time.Minute).Unix(),
 			IssuedAt: time.Now().Unix(),
 			Role: userData.Role,
 			ID: userData.UserID,
 	}
 	access_token, err := utils.GenerateJWT(accesstokenData)
 	if err != nil {
-		return 0, JWTTokens{}, errors.New("error generating access token. try again")
+		return 0, nil, errors.New("error generating access token. try again")
 	}
 
 	// generate JWT access token and refresh token
-	refreshtokenData := utils.Token{
+	refreshtokenData := dto.Token{
 		Issuer: "loginFunc@PMS",	
 		Subject: "refresh_token",
-		ExpiresAt: time.Now().Add(7 * 24 * time.Hour).Unix(),
+		ExpiresAt: time.Now().Add(config.JWTRefreshExpiration * time.Hour).Unix(),
 		IssuedAt: time.Now().Unix(),
 		Role: userData.Role,
 		ID: userData.UserID,
 	}
 	refresh_token, err := utils.GenerateJWT(refreshtokenData)
 	if err != nil {
-		return 0, JWTTokens{}, errors.New("error generating refresh token. try again")
+		return 0, nil, errors.New("error generating refresh token. try again")
 	}
 
+	tokens.JWTAccess = access_token
+	tokens.JWTRefresh = refresh_token
 
 	// return the jwt tokens and any errors
-	return userData.Role, JWTTokens{JWTAccess: access_token, JWTRefresh: refresh_token}, nil
+	return userData.Role, tokens, nil
 }
 
 func (s *PublicService) ExtraInfoPostStudent(ctx *gin.Context, claims jwt.MapClaims) (sqlc.Student, error) {

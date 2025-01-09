@@ -113,10 +113,12 @@ CREATE TABLE tests (
     CONSTRAINT jobs_pkey FOREIGN KEY (jod_id) REFERENCES jobs(job_id)
 );
 
-CREATE TABLE testResults(
-    result_id BIGINT NOT NULL DEFAULT nextval('"testResults_result_id_seq"'::regclass),
+CREATE TABLE testresults(
+    result_id BIGINT NOT NULL DEFAULT nextval('"testresults_result_id_seq"'::regclass),
     test_id BIGINT NOT NULL,
     user_id BIGINT NOT NULL,
-    responses JSOn NOT NULL,
-    CONSTRAINT "testResults_result_id_pkey" PRIMARY KEY (result_id)
+    responses JSON,
+    start_time TIMESTAMP WITH TIME ZONE ,
+    end_time TIMESTAMP WITH TIME ZONE ,
+    CONSTRAINT "testresults_result_id_pkey" PRIMARY KEY (result_id)
 )

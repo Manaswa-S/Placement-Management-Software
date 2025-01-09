@@ -7,6 +7,7 @@ const (
 	PreconditionFailed = "PRECONDITION_FAILED"
 	InvalidState = "INVALID_STATE"
 	ObjectExists = "OBJECT_EXISTS"
+	Unauthorized = "UNAUTHORIZED"
 
 	// Postgres error codes
 	UniqueViolation = "23505"

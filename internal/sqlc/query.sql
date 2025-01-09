@@ -340,5 +340,14 @@ WHERE applications.student_id = (SELECT student_id FROM students WHERE user_id =
 AND tests.test_id = $2;
 
 -- name: NewTestResult :exec
-INSERT INTO testResults (test_id, user_id)
-VALUES ($1, $2);
+INSERT INTO testresults (test_id, user_id, start_time)
+VALUES ($1, $2, $3);
+
+-- name: IsTestGiven :one
+SELECT 
+    testresults.test_id,
+    testresults.start_time,
+    testresults.end_time
+FROM testresults
+WHERE testresults.test_id = $1 
+AND testresults.user_id = $2;

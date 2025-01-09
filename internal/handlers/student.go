@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	errs "go.mod/internal/const"
 	"go.mod/internal/services"
 )
 
@@ -25,21 +26,27 @@ func (h *StudentHandler) RegisterRoute(studentRoute *gin.RouterGroup) {
 	studentRoute.GET("/jobslist", h.JobsList)
 	// get list of applicable jobs as JSON
 	studentRoute.GET("/alljobs", h.ApplicableJobs)
+
 	// post and apply to a job
 	studentRoute.POST("/applytojob", h.ApplyToJob)
 	studentRoute.GET("/cancelapplication", h.CancelApplication)
+
 	// get template
 	studentRoute.GET("/myappsstatic", h.MyAppsStatic)
 	// get applied job list
 	studentRoute.GET("/myapplications", h.MyApplications)
+
 	// get upcoming events template
 	studentRoute.GET("/upcoming", h.UpcomingStatic)
 	// upcoming events data with a filter
 	studentRoute.GET("/upcomingdata", h.UpcomingData)
+
 	// get take test template
 	studentRoute.GET("/taketest", h.TakeTestStatic)
 	// sends data for a question given the testid, and itemid
 	studentRoute.GET("/taketestdata", h.TakeTest)
+	// submit test responses
+	studentRoute.POST("/submittest", h.SubmitTest)
 }
 
 
@@ -236,14 +243,22 @@ func (h *StudentHandler) TakeTest(ctx *gin.Context) {
 		return
 	}
 
-	result, err := h.StudentService.TakeTest(ctx, userid.(int64), testid, currentItemId)
-	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
-		fmt.Println(err)
+	result, errf := h.StudentService.TakeTest(ctx, userid.(int64), testid, currentItemId)
+	if errf != nil {
+		if (errf.Type != errs.Internal) {
+			ctx.JSON(http.StatusBadRequest, errf)
+		} else {
+			ctx.Set("error", errf.Message)
+			ctx.JSON(http.StatusInternalServerError, errf)
+		}
 		return
 	}
 
-	ctx.JSON(200, result)
+	ctx.JSON(http.StatusOK, result)
+}
+
+func (h *StudentHandler) SubmitTest(ctx *gin.Context) {
+
+	
+
 }

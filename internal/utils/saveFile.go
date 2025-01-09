@@ -14,5 +14,6 @@ func SaveFile(ctx *gin.Context, path string, file *multipart.FileHeader) (string
 	if err != nil {
 		return "", err
 	}
+
 	return path, nil
 }

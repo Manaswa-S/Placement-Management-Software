@@ -93,6 +93,8 @@ type Testresult struct {
 	TestID    int64
 	UserID    int64
 	Responses []byte
+	StartTime pgtype.Timestamptz
+	EndTime   pgtype.Timestamptz
 }
 
 type User struct {

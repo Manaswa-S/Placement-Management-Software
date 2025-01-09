@@ -107,72 +107,30 @@
             background: #8E94F2;
         }
 
-
-        .overlay {
-            display: none; /* Hidden by default */
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 999;
-        }
-
-        .semi-modal {
-            display: none; /* Hidden by default */
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 80%;
-            max-width: 600px;
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-            z-index: 1000;
-            box-sizing: border-box;
-        }
-
-        .semi-modal-header {
-            font-size: 1.2em;
-            font-weight: bold;
-            margin-bottom: 20px;
-        }
-
-        .semi-modal input,
-        .semi-modal select,
-        .semi-modal button {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 15px;
-            border-radius: 5px;
-            border: 1px solid #ddd;
-            box-sizing: border-box;
-        }
-
-        .semi-modal button {
-            background-color: #6C63FF;
-            color: white;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-
-        .semi-modal button:hover {
-            background-color: #8e94f2;
-        }
-
-        /* Close Button */
-        .close-btn {
+        .paging {
             position:static;
-            top: 10px;
-            right: 10px;
-            background-color: transparent;
-            border: none;
-            font-size: 20px;
+            bottom: 2%;
+            width: 100%;
+        }
+
+        .nav-btn {
+            position:relative;
+            background: #6C63FF;
+            color: #fff;
+            font-size: 14px;
+            padding: 10px 15px;
+            border-radius: 5px;
             cursor: pointer;
+            border: none;
+        }
+        .prev-btn {
+            left: 50%;
+            transform: translateX(-100%); 
+        }
+
+        .next-btn {
+            left: 50%;
+            transform: translateX(-100%); 
         }
 
 
@@ -224,6 +182,24 @@
             font-size: 0.8em;
             color: #555;
         }
+        .spinner {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            border: 6px solid #f3f3f3;  
+            border-top: 6px solid #6C63FF;  
+            border-radius: 50%;        
+            width: 60px;                
+            height: 60px;               
+            animation: spin 2s linear infinite; 
+        }
+
+        /* Keyframes for the spinning animation */
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
 
     </style>
 </head>
@@ -244,6 +220,14 @@
         </div>
 
         <div id="appList"></div>
+
+        <div class="spinner" id="spinner" style="display: none;">
+        </div>
+
+        <div id="paging" class="paging"> 
+            <button id="prev-btn" class="nav-btn prev-btn"> < Prev </button>
+            <button id="next-btn" class="nav-btn next-btn"> Next > </button>
+        </div>
     </div>
 
     <script>
@@ -257,73 +241,170 @@
             }, timeout);
         }
 
+        const appList = document.getElementById('appList');
+        let intsData = [];
+        let testsData = [];
+
+        let lastInt = 0;
+        let lastTest = 0;
+        let pageSize;
+        let currPage = 0;
+        let savedPages = {};
+
+        let ilen;
+        let tlen;
 
         // Function to fetch job listings from the backend
         function fetchJobs(eventtype = 'all') {
+            appList.innerHTML = ''; // Clear existing jobs
+            showSpinner();
             const url = `/laa/student/upcomingdata?eventtype=${eventtype}`;
             fetch(url)
                 .then(response => response.json())
                 .then(data => {
-                    const appList = document.getElementById('appList');
-                    appList.innerHTML = ''; // Clear existing jobs
-                    
-                    const { InterviewsData, TestsData } = data;
-                    if (InterviewsData != null) {
-                        InterviewsData.forEach(job => {
-                            const intCard = `
-                                <div class="card">
-                                    <div class="title">${job.Title}</div>
-                                    <div class="details">
-                                            <p>Interview ID: ${job.InterviewID}</p>
-                                            <p>Company: ${job.CompanyName}</p>
-                                            <p>Date: ${job.Date}</p>
-                                            <p>Time: ${job.Time}</p>
-                                            <p>Type: ${job.InterviewsType}</p>
-                                            <p>Location: ${job.Location}</p>
-                                            <p>Notes: ${job.Notes}</p>
-                                    </div>
-                                </div>
-                            `;
-                            appList.innerHTML += intCard;
-                        });
-                    }
-                    if (TestsData != null) {
-                        TestsData.forEach(job => {
-                            const testCard = `
-                                <div class="card">
-                                    <div class="title">${job.TestName}</div>
-                                    <div class="details">
-                                            <p>Test ID: ${job.TestID}</p>
-                                            <p title="${job.Description}">Description: ${job.Description}</p>
-                                            <p>Company Name: ${job.CompanyName}</p>
-                                            <p>Duration: ${job.Duration} mins.</p>
-                                            <p>Job Title: ${job.Title}</p>
-                                            <p>No. of Questions: ${job.QCount}</p>
-                                            <p>Last Date: ${job.EndTime}</p>
-                                            <p>Type: ${job.Type}</p>
-                                        <div>
-                                            <button class="apply-btn" onclick="takeTest(${job.TestID}, this)"> Take Test </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            `;
-                            appList.innerHTML += testCard;
-                        });
-                    }
 
-                    if (InterviewsData === null && TestsData === null) {
-                        appList.innerHTML = `
-                            <div class="no-cards">
-                                No upcoming events. Relax !
-                            </div>
-                        `;
-                        return;
-                    }
+                    const { InterviewsData, TestsData } = data;
+                    intsData = InterviewsData;
+                    testsData = TestsData;
+
+                    lastInt = lastTest = currPage = 0;
+                    savedPages = {};
+                    hideSpinner();
+                    pagination();
+                    document.getElementById('next-btn').click();
                 })
                 .catch(error => console.error('Error fetching events:', error));
         }
 
 
+        function listInt() {
+            if (intsData != null) {
+                let i = 0;
+                for (i = lastInt; i < ilen; i++) {
+                    if (pageSize == 0) {
+                        break;
+                    }
+                    let job = intsData[i];
+                    const intCard = `
+                        <div class="card">
+                            <div class="title">${job.Title}</div>
+                            <div class="details">
+                                    <p>Interview ID: ${job.InterviewID}</p>
+                                    <p>Company: ${job.CompanyName}</p>
+                                    <p>Date: ${job.Date}</p>
+                                    <p>Time: ${job.Time}</p>
+                                    <p>Type: ${job.InterviewsType}</p>
+                                    <p>Location: ${job.Location}</p>
+                                    <p>Notes: ${job.Notes}</p>
+                            </div>
+                        </div>
+                    `;
+                    appList.innerHTML += intCard;
+                    pageSize--;
+                };
+                lastInt = i;
+            }
+        }
+        function listTest() {
+            if (testsData != null) {
+                let i = 0;
+                for (i = lastTest; i < tlen; i++) {
+                    if (pageSize == 0) {
+                        break;
+                    }
+                    let job = testsData[i];
+                    const testCard = `
+                        <div class="card">
+                            <div class="title">${job.TestName}</div>
+                            <div class="details">
+                                    <p>Test ID: ${job.TestID}</p>
+                                    <p title="${job.Description}">Description: ${job.Description}</p>
+                                    <p>Company Name: ${job.CompanyName}</p>
+                                    <p>Duration: ${job.Duration} mins.</p>
+                                    <p>Job Title: ${job.Title}</p>
+                                    <p>No. of Questions: ${job.QCount}</p>
+                                    <p>Last Date: ${job.EndTime}</p>
+                                    <p>Type: ${job.Type}</p>
+                                <div>
+                                    <button class="apply-btn" onclick="takeTest(${job.TestID}, this)"> Take Test </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    appList.innerHTML += testCard;
+                    pageSize--;
+                };
+                lastTest = i;
+            }
+        }
+
+
+        function pagination() {
+
+            const prevbtn = document.getElementById('prev-btn');
+            const nextbtn = document.getElementById('next-btn');
+
+            if (intsData != null) {
+                ilen = intsData.length;
+            }
+            if (testsData != null) {
+                tlen = testsData.length;
+            }
+
+            prevbtn.onclick = function () {
+                currPage -= 1;
+                appList.innerHTML = ``;
+                appList.innerHTML += savedPages[currPage].Template;
+
+                prevbtn.style.visibility = currPage <= 1 ? 'hidden' : 'visible';
+                nextbtn.style.visibility = 'visible';
+            }
+
+            nextbtn.onclick = function () {
+                currPage += 1;
+                pageSize = 10; // this defines the number of cards per page
+
+                prevbtn.style.visibility = currPage <= 1 ? 'hidden' : 'visible';
+
+                appList.innerHTML = ``;
+
+                if (intsData === null && testsData === null) {
+                    appList.innerHTML = `
+                        <div class="no-cards">
+                            No upcoming events. Relax !
+                        </div>
+                    `;
+                    nextbtn.style.visibility = 'hidden';
+                    return;
+                } else if (savedPages[currPage] != null)  {
+                    appList.innerHTML += savedPages[currPage].Template;
+                    pageSize = 10 - savedPages[currPage].Length;
+                } else {
+                    let flag = false;
+                    if ((intsData != null || (testsData != null && intsData != null)) && ilen > lastInt) {
+                        listInt();
+                        flag = true;
+                    }
+                    if ((testsData != null || (testsData != null && intsData != null)) && tlen > lastTest) {
+                        listTest();
+                        flag = true;
+                    }
+                    if (flag) {
+                        savedPages[currPage] = {
+                            Template: appList.innerHTML,
+                            Length: (10 - pageSize)
+                        }
+                    } 
+                }
+                
+                if (pageSize > 0) {
+                    nextbtn.style.visibility = 'hidden';
+                } else {
+                    nextbtn.style.visibility = 'visible';
+                }
+            }
+
+        }
 
         function takeTest(testID) {
             const URL = `/laa/student/taketest?testid=${testID}`;
@@ -334,6 +415,15 @@
         function filterJobs() {
             const eventtype = document.getElementById('eventtype').value;
             fetchJobs(eventtype);
+        }
+
+        function showSpinner() {
+            document.getElementById('spinner').style.display = 'block'; 
+        }
+
+        // Function to hide the spinner
+        function hideSpinner() {
+            document.getElementById('spinner').style.display = 'none'; 
         }
 
         // Initial load

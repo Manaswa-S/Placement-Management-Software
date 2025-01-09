@@ -123,4 +123,20 @@ type TestQuestion struct {
 	Item *forms.Item
 	PrevId string
 	NextId string
+	TTL time.Duration
+}
+
+type JWTTokens struct {
+	JWTAccess string
+	JWTRefresh string
+}
+
+type Token struct {
+	Issuer string
+	Subject string
+	ExpiresAt int64
+	IssuedAt int64
+	Role int64
+	ID int64
+	Email string	
 }

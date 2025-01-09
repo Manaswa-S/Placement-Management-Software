@@ -15,6 +15,8 @@ handler functions are structed wrong, need to use gin.HandlerFunc
 point to data man, dont juggle it all around
 
 
+refactor the get resume/result to use utils.GetFile
+
 in logger if 'explicit_error' is true, log it as CRITICAL error in a separate area
 
 custom 'alert' ui

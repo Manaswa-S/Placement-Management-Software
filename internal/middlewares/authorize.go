@@ -1,7 +1,6 @@
 package middlewares
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -10,13 +9,12 @@ import (
 
 func Authorizer() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		fmt.Println("in authorizer...")
 
 		// get role of the context
 		role, exists := ctx.Get("role")
 		if !exists {
 			ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-				"error": "invalid token. login again",
+				"error": "invalid token without 'role'. login again",
 			})
 			return
 		}

@@ -21,7 +21,6 @@ type LoggerFormat struct {
 
 func Logger() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		fmt.Println("in logger")
 
 		before := LoggerFormat {
 			StartTime: time.Now(),
@@ -71,6 +70,5 @@ func Logger() gin.HandlerFunc {
 			fmt.Println("Error writing log: ", err.Error())
 			return
 		}
-		fmt.Println("end of logger")
 	}
 }

@@ -5,20 +5,10 @@ import (
 	"os"
 
 	"github.com/golang-jwt/jwt/v5"
+	"go.mod/internal/dto"
 )
 
-type Token struct {
-	Issuer string
-	Subject string
-	ExpiresAt int64
-	IssuedAt int64
-	Role int64
-	ID int64
-	Email string	
-}
-
-
-func GenerateJWT(tokenData Token) (string, error) {
+func GenerateJWT(tokenData dto.Token) (string, error) {
 
 	//
 	fmt.Println("Generating JWT...")
