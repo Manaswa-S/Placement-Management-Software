@@ -315,7 +315,7 @@ SELECT
     tests.description,
     tests.duration,
     tests.q_count,
-    TO_CHAR(tests.end_time, 'YYYY-MM-DD HH24:MI:SS') AS end_time,
+    TO_CHAR(tests.end_time, 'DD-MM-YYYY HH12:MI AM') AS end_time,
     tests.type,    
     companies.company_name,
     cte.title
@@ -351,3 +351,117 @@ SELECT
 FROM testresults
 WHERE testresults.test_id = $1 
 AND testresults.user_id = $2;
+
+-- name: UpdateResponse :exec
+UPDATE testresults 
+SET responses = responses || $1::jsonb
+WHERE user_id = $2 
+AND test_id = $3;
+
+-- name: SubmitTest :one
+UPDATE testresults 
+SET end_time = $1
+WHERE user_id = $2 
+AND test_id = $3
+RETURNING result_id;
+
+
+-- name: CompletedTests :many
+SELECT 
+    testresults.result_id,
+    TO_CHAR(testresults.start_time, 'DD-MM-YYYY HH12:MI AM') AS start_time,
+    TO_CHAR(testresults.end_time, 'DD-MM-YYYY HH12:MI AM') AS end_time,
+    companies.company_name,
+    jobs.title
+FROM testresults
+JOIN tests ON testresults.test_id = tests.test_id
+JOIN companies ON tests.company_id = companies.company_id
+JOIN jobs ON tests.job_id = jobs.job_id
+WHERE testresults.user_id = $1
+ORDER BY testresults.result_id;
+
+-- name: CompletedInterviews :many
+SELECT 
+    jobs.title,
+    companies.company_name,
+    interviews.interview_id,
+    interviews.application_id,
+    TO_CHAR(interviews.date_time, 'DD-MM-YYYY HH12:MI AM') AS date_time,
+    interviews.extras
+FROM interviews
+JOIN applications ON interviews.application_id = applications.application_id
+JOIN jobs ON applications.job_id = jobs.job_id
+JOIN companies ON jobs.company_id = companies.company_id
+WHERE applications.student_id = (SELECT student_id FROM students WHERE students.user_id = $1);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-- name: ProfileData :one
+SELECT 
+    students.student_name,
+    students.roll_number,
+    students.student_dob,
+    students.gender,
+    students.course,
+    students.department,
+    students.year_of_study,
+    students.cgpa,
+    students.contact_no,
+    students.student_email,
+    students.address,
+    students.skills,
+    students.extras
+FROM students
+WHERE students.user_id = $1;
+
+-- name: TestHistory :many
+SELECT 
+    tests.test_name,
+    testresults.start_time
+FROM testresults
+JOIN tests ON testresults.test_id = tests.test_id
+WHERE testresults.user_id = $1;
+
+-- name: ApplicationHistory :many
+SELECT 
+    applications.application_id,
+    applications.created_at,
+    jobs.title,
+    companies.company_name
+FROM applications
+JOIN jobs ON jobs.job_id = applications.job_id
+JOIN companies ON jobs.company_id = companies.company_id
+WHERE applications.student_id = (SELECT students.student_id FROM students WHERE students.user_id = $1);
+
+-- name: InterviewHistory :many
+SELECT 
+    interviews.interview_id,
+    interviews.created_at,
+    jobs.title
+FROM interviews
+JOIN applications ON applications.application_id = interviews.application_id
+JOIN jobs ON jobs.job_id = applications.job_id
+WHERE applications.student_id = (SELECT students.student_id FROM students WHERE students.user_id = $1);
+
+
+-- name: GetResponses :one
+SELECT responses 
+FROM testresults
+WHERE user_id = $1;

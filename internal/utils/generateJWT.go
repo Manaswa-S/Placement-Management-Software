@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -9,11 +8,6 @@ import (
 )
 
 func GenerateJWT(tokenData dto.Token) (string, error) {
-
-	//
-	fmt.Println("Generating JWT...")
-
-
 	// generate a jwt token
 	_t_unsigned := jwt.NewWithClaims(jwt.SigningMethodHS256,
 		jwt.MapClaims{

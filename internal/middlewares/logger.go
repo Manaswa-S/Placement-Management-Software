@@ -28,7 +28,6 @@ func Logger() gin.HandlerFunc {
 			Method: c.Request.Method,
 			Path: c.Request.URL.Path,
 		}
-
 		c.Next()
 
 		statusCode := c.Writer.Status()

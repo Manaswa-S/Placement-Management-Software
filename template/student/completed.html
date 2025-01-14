@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Completed</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #ece9e6, #ffffff);
+            color: #333;
+        }
+        .container {
+            width: 90%;
+            margin: 20px auto;
+            max-width: 1200px;
+        }
+        
+        h1 {
+            font-size: 1.5em;
+            text-align: center;
+            color: #6C63FF;
+            margin-bottom: 10px;
+        }
+        .card {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            transition: box-shadow 0.3s;
+        }
+        .card:hover {
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+        }
+        .title {
+            font-size: 1.0em;
+            color: #6C63FF;
+            margin-bottom: 4px;
+        }
+        .details {
+            display:grid; 
+            grid-template-columns: repeat(2, 1fr); 
+            font-size: 0.8em;
+            color: #555;
+        }
+        .details p {
+            margin: 3px 0; 
+            line-height: 1.4;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .apply-btn {
+            margin-top: 8px;
+            margin-bottom: 8px;
+            background: #6C63FF;
+            color: #fff;
+            font-size: 14px;
+            font-weight:500;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 15px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background-color 0.3s;
+        }
+        .apply-btn:hover {
+            background: #8E94F2;
+        }
+
+        .top-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        .filterbar {
+            padding: 10px;
+            font-size: 14px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            background-color: #fff;
+        }
+        .searchbar input {
+            padding: 10px;
+            font-size: 14px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .paging {
+            position:static;
+            bottom: 2%;
+            width: 100%;
+        }
+        .nav-btn {
+            visibility:hidden;
+            position:relative;
+            background: #6C63FF;
+            color: #fff;
+            font-size: 14px;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            border: none;
+        }
+        .prev-btn {
+            left: 50%;
+            transform: translateX(-100%); 
+        }
+        .next-btn {
+            left: 50%;
+            transform: translateX(-100%); 
+        }
+
+        .spinner {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            border: 6px solid #f3f3f3;  
+            border-top: 6px solid #6C63FF;  
+            border-radius: 50%;        
+            width: 60px;                
+            height: 60px;               
+            animation: spin 2s linear infinite; 
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .tabs {
+            display: flex;
+            justify-content: center;
+            margin-top: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            background-color:transparent;
+            font-size: 16px;
+            font-weight: 500;
+            transition: background-color 0.3s ease;
+        }
+
+        .tab:hover {
+            background-color: #e0e0e0;
+        }
+
+        .tab.active {
+            border-bottom: 3px solid #6C63FF;
+            color: #6C63FF;
+        }
+
+        .no-data {
+            display:block;
+            top:50%; 
+            text-align: center;
+            font-size: 0.8em;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 id="pageHeading">Completed Tests</h1>
+
+        <div class="tabs">
+            <button id="testsTab" class="tab active">Tests</button>
+            <button id="interviewsTab" class="tab">Interviews</button>
+        </div>
+
+        <!-- <div class="top-nav">
+            <select onchange="middle()" class="filterbar" name="eventtype" id="filter">
+                <option value="all">All</option>
+                <option value="interview">Interview</option>
+                <option value="test">Test</option>
+                <option value="lecture">#Lecture</option>
+            </select>
+            <div class="searchbar">
+                <input type="text" id="searchBox" placeholder="Search..." />
+            </div>
+        </div> -->
+
+        <div id="dataList"></div>
+
+        <div class="spinner" id="spinner" style="display: none;">
+        </div>
+
+        <div id="paging" class="paging"> 
+            <button id="prev-btn" class="nav-btn prev-btn"> < Prev </button>
+            <button id="next-btn" class="nav-btn next-btn"> Next > </button>
+        </div>
+    </div>
+<script>
+
+    let alldata = [];
+    let savedPages = {};
+    let searched = [];
+
+    let dlen = 0;
+    let pageSize = 0;
+    let lastIndex = 0;
+    let currPage = 0;
+
+    let activeTemp = testTemp;
+    
+    const dataList = document.getElementById('dataList');
+
+    const prevbtn = document.getElementById('prev-btn');
+    const nextbtn = document.getElementById('next-btn');
+
+    const tabs = document.querySelectorAll('.tab');
+    const testTb = document.getElementById('testsTab');
+    const intTb = document.getElementById('interviewsTab');
+
+    const heading = document.getElementById('pageHeading');
+
+    // Function to fetch job listings from the backend
+    function fetchData(tab = 'tests') {
+        showSpinner();
+        const url = `/laa/student/completeddata?tab=${tab}`;
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                const {Data} = data;
+                alldata = Data;
+                hideSpinner();
+                if (alldata == null) {
+                    dataList.innerHTML = `
+                        <div class="no-data">
+                            No completed events at the moment. Please check back later.
+                        </div>
+                    `;
+                    return;
+                } else {
+                    searched = alldata;
+                    middle();
+                }
+            })
+            .catch(error => console.error('Error fetching data:', error));
+    }
+
+    function intTemp(job) {
+        return `
+            <div class="card">
+                <div class="title">Interview ID : ${job.InterviewID}</div>
+                <div class="details"><strong>${job.Title} @ ${job.CompanyName}</strong></div>
+                <div class="details">
+                    <p><strong>Application ID:</strong> ${job.ApplicationID}</p>
+                    <p><strong>Time:</strong> ${job.DateTime}</p>
+                    <p><strong>Extras(Feedback):</strong> ${job.Extras}</p>
+                </div>
+            </div>
+        `;
+    }
+    function testTemp(job) {
+        return `
+            <div class="card">
+                <div class="title">Result ID : ${job.ResultID}</div>
+                <div class="details"><strong>${job.Title} @ ${job.CompanyName}</strong></div>
+
+                <div class="details">
+                    <p><strong>Start Time:</strong> ${job.StartTime}</p>
+                    <p><strong>End Time:</strong> ${job.EndTime}</p>
+                </div>
+                <button class="apply-btn" 
+                    onclick="applyToJob(${job.JobID}, this)" 
+                    ${job.ActiveStatus ? '' : 'disabled'} 
+                    style="background-color: ${job.ActiveStatus ? '#6C63FF' : '#d3d3d3'}; color: ${job.ActiveStatus ? '#fff' : '#000'};">
+                    ${job.ActiveStatus ? 'Result' : 'Result will be available soon!'}
+                </button>
+            </div>
+        `;
+    }
+
+    function setActiveTemplate(template) {
+        activeTemp = template;
+    }
+
+
+    function listdata() {
+        if (searched.length != 0) {
+            let i = 0;
+            for (i = lastIndex; i < dlen; i++) {
+                if (pageSize == 0) {
+                    break;
+                }
+
+                let job = searched[i]; 
+                const card = activeTemp(job);
+                dataList.innerHTML += card;
+                pageSize--;
+            }
+            lastIndex = i;
+        }
+    }
+
+    function pagination() {
+    
+        if (searched != null) {
+            dlen = searched.length;
+        }
+
+        prevbtn.onclick = function () {
+            currPage -= 1;
+            dataList.innerHTML = savedPages[currPage].Template;
+            pageSize = 10 - savedPages[currPage].Length;
+            displaybtn();
+        }
+
+        nextbtn.onclick = function () {
+            currPage += 1;
+            pageSize = 10; // this defines the number of cards per page
+            
+            if (savedPages[currPage] != null)  {
+                dataList.innerHTML = savedPages[currPage].Template;
+                pageSize = 10 - savedPages[currPage].Length;
+            } else {
+                dataList.innerHTML = ``;
+
+                if (searched != null && dlen > lastIndex) {
+                    listdata();
+                    savedPages[currPage] = {
+                        Template: dataList.innerHTML,
+                        Length: (10 - pageSize)
+                    }
+                }
+            }
+            displaybtn();
+        }
+
+    }
+
+    function displaybtn() {
+        prevbtn.style.visibility = currPage <= 1 ? 'hidden' : 'visible';
+
+        if (pageSize > 0) {
+            nextbtn.style.visibility = 'hidden';
+            dataList.innerHTML += `
+                <div class="no-data">
+                    Thats all for now !
+                </div>
+            `;
+        } else {
+            nextbtn.style.visibility = 'visible';
+        }
+    }
+
+
+    function showSpinner() {
+        document.getElementById('spinner').style.display = 'block'; 
+    }
+
+    // Function to hide the spinner
+    function hideSpinner() {
+        document.getElementById('spinner').style.display = 'none'; 
+    }
+
+    // Function to apply filters
+    function middle() {
+        pagination();
+        lastIndex = currPage = 0;
+        savedPages = {};
+        nextbtn.click();
+    }
+
+    fetchData();
+
+
+    testTb.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        testTb.classList.add('active');
+        setActiveTemplate(testTemp);
+        fetchData('tests');
+        heading.innerHTML = `Completed Tests`;
+    });
+    intTb.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        intTb.classList.add('active');
+        setActiveTemplate(intTemp);
+        fetchData('interviews');
+        heading.innerHTML = `Completed Interviews`;
+    });
+</script>
+
+</body>
+</html>

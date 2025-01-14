@@ -46,6 +46,8 @@ func main() {
 	router.Use(middlewares.Logger())
 	routes(router)
 
+	router.Static("/static", "./template/static")
+
 	router.LoadHTMLFiles("./template/company/newtest.html", "./template/student/takeTest.html")
 	go func() {
 		err := router.Run(os.Getenv("PORT"))

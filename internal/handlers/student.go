@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	errs "go.mod/internal/const"
+	"go.mod/internal/dto"
 	"go.mod/internal/services"
 )
 
@@ -44,9 +45,19 @@ func (h *StudentHandler) RegisterRoute(studentRoute *gin.RouterGroup) {
 	// get take test template
 	studentRoute.GET("/taketest", h.TakeTestStatic)
 	// sends data for a question given the testid, and itemid
-	studentRoute.GET("/taketestdata", h.TakeTest)
+	studentRoute.POST("/taketestdata", h.TakeTest)
 	// submit test responses
-	studentRoute.POST("/submittest", h.SubmitTest)
+	studentRoute.GET("/submittest", h.SubmitTest) // TODO:
+
+	// get the completed page template
+	studentRoute.GET("/completed", h.CompletedStatic)
+	studentRoute.GET("/completeddata", h.Completed)
+
+	
+	// get profile template
+	studentRoute.GET("/profile", h.GetProfile)
+	// get the complete profile data
+	studentRoute.GET("/profiledata", h.ProfileData) 
 }
 
 
@@ -79,7 +90,9 @@ func (h *StudentHandler) ApplicableJobs(ctx *gin.Context) {
 		return
 	}
 	// return
-	ctx.JSON(http.StatusOK, alljobs)
+	ctx.JSON(http.StatusOK, gin.H{
+		"JobsList": alljobs,
+	})
 }
 func (h *StudentHandler) ApplyToJob(ctx *gin.Context) {
 
@@ -150,7 +163,6 @@ func (h *StudentHandler) MyApplications(ctx *gin.Context) {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 			"error": "no status specified in request body",
 		})
-		fmt.Println("error")
 		return
 	}
 
@@ -159,7 +171,6 @@ func (h *StudentHandler) MyApplications(ctx *gin.Context) {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 			"error": "user ID not found in token",
 		})
-		fmt.Println("erro")
 		return
 	}
 
@@ -169,11 +180,12 @@ func (h *StudentHandler) MyApplications(ctx *gin.Context) {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
-		fmt.Println(err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, applicationsData)
+	ctx.JSON(http.StatusOK, gin.H{
+		"Applications": applicationsData,
+	})
 }
 func (h *StudentHandler) UpcomingStatic(ctx *gin.Context) {
 	ctx.File("./template/student/upcoming.html")
@@ -232,6 +244,14 @@ func (h *StudentHandler) TakeTestStatic(ctx *gin.Context) {
 	})
 }
 func (h *StudentHandler) TakeTest(ctx *gin.Context) {
+	var data dto.TestResponse
+	err := ctx.Bind(&data)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error": "response data not found",
+		})
+		return
+	}
 
 	userid, exists := ctx.Get("ID")
 	testid := ctx.Query("testid")
@@ -243,7 +263,7 @@ func (h *StudentHandler) TakeTest(ctx *gin.Context) {
 		return
 	}
 
-	result, errf := h.StudentService.TakeTest(ctx, userid.(int64), testid, currentItemId)
+	result, errf := h.StudentService.TakeTest(ctx, userid.(int64), testid, currentItemId, data)
 	if errf != nil {
 		if (errf.Type != errs.Internal) {
 			ctx.JSON(http.StatusBadRequest, errf)
@@ -258,7 +278,66 @@ func (h *StudentHandler) TakeTest(ctx *gin.Context) {
 }
 
 func (h *StudentHandler) SubmitTest(ctx *gin.Context) {
+	// get the userid and testid from request
+	userid, exists := ctx.Get("ID")
+	testid := ctx.Query("testid")
+	if testid == "" || !exists {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"Message": "Bad Request : Missing userid or testid ",
+		})
+		return
+	}
+	// service delegation
+	errf := h.StudentService.SubmitTest(ctx, userid.(int64), testid)
+	if errf != nil {
+		ctx.JSON(http.StatusInternalServerError, errf)
+		return 
+	}
+	// all good
+	ctx.Status(http.StatusOK)
+}
 
+func (h *StudentHandler) CompletedStatic(ctx *gin.Context) {
+	ctx.File("./template/student/completed.html")
+}
+func (h *StudentHandler) Completed(ctx *gin.Context) {
+	// get user id from request
+	userid, exists := ctx.Get("ID")
+	tab := ctx.Query("tab")
+	if !exists || tab == "" {
+		fmt.Println("user id or tab value not found")
+		return
+	}	
 	
+	// service delegation
+	cData, err := h.StudentService.Completed(ctx, userid.(int64), tab)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
+	// send data
+	ctx.JSON(http.StatusOK, cData)
+
+}
+
+func (h *StudentHandler) GetProfile(ctx *gin.Context) {
+	ctx.File("./template/student/myProfile.html")
+}
+
+func (h *StudentHandler) ProfileData(ctx *gin.Context) {
+
+	userid, exists := ctx.Get("ID")
+	if (!exists) {
+		fmt.Println("Please provide user ID")
+		return
+	}
+
+	data, err := h.StudentService.ProfileData(ctx, userid.(int64))
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	ctx.JSON(200, data)
 }

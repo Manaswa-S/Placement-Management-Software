@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Job Listins</title>
+    <title>My Job Listings</title>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -30,8 +30,8 @@
             background: #fff;
             border: 1px solid #ddd;
             border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 20px;
+            padding: 10px 15px;
+            margin-bottom: 10px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
             transition: box-shadow 0.3s;
         }
@@ -46,12 +46,6 @@
             margin-bottom: 4px;
         }
 
-        .job-company {
-            font-size: 1.0em;
-            color: #333;
-            margin-bottom: 4px;
-        }
-
         .job-details {
             display:grid; 
             grid-template-columns: repeat(2, 1fr); 
@@ -61,64 +55,26 @@
 
         .job-details p {
             margin: 3px 0; 
-            line-height: 1.4;
+            line-height: 1.2;
         }
-        .apply-btn {
-            margin: auto;
+
+        .btn {
+            margin-top: 10px;
+            margin-bottom: 10px;
+
             background: #6C63FF;
             color: #fff;
-            font-size: 14px;
+            font-size: 12px;
             font-weight: bold;
             border: none;
             border-radius: 5px;
-            padding: 10px 15px;
+            padding: 8px 8px;
             cursor: pointer;
             text-decoration: none;
             transition: background-color 0.3s;
         }
-
-        .apply-btn:hover {
+        .btn:hover {
             background: #8E94F2;
-        }
-
-        .filters {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 20px;
-            align-items: center;
-        }
-
-        .filters select {
-            padding: 10px;
-            font-size: 14px;
-            border-radius: 5px;
-            border: 1px solid #ddd;
-        }
-
-        .filters button {
-            background: #6C63FF;
-            color: #fff;
-            font-size: 14px;
-            padding: 10px 15px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-
-        .filters button:hover {
-            background: #8E94F2;
-        }
-
-        @media (max-width: 768px) {
-            .filters {
-                flex-direction: column;
-                gap: 10px;
-            }
-
-            .filters select {
-                width: 100%;
-            }
         }
 
         .no-jobs {
@@ -128,6 +84,70 @@
             font-size: 0.8em;
             color: #555;
         }
+
+        .spinner {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            border: 6px solid #f3f3f3;  
+            border-top: 6px solid #6C63FF;  
+            border-radius: 50%;        
+            width: 60px;                
+            height: 60px;               
+            animation: spin 2s linear infinite; 
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .paging {
+            position:static;
+            bottom: 2%;
+            width: 100%;
+        }
+        .nav-btn {
+            visibility:hidden;
+            position:relative;
+            background: #6C63FF;
+            color: #fff;
+            font-size: 14px;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            border: none;
+        }
+        .prev-btn {
+            left: 50%;
+            transform: translateX(-100%); 
+        }
+        .next-btn {
+            left: 50%;
+            transform: translateX(-100%); 
+        }
+
+        .top-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        .filterbar {
+            padding: 10px;
+            font-size: 14px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            background-color: #fff;
+        }
+        .searchbar input {
+            padding: 10px;
+            font-size: 14px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
     </style>
 </head>
 
@@ -135,92 +155,229 @@
     <div class="container">
         <h1>My Job Listings</h1>
 
-        <!-- Filters Section -->
-        <div class="filters">
-            <select name="jobType" id="jobType">
-                <option value="">All Job Types</option>
-                <option value="full-time">Full-Time</option>
-                <option value="internship">Internship</option>
-                <option value="part-time">Part-Time</option>
+        <div class="top-nav">
+            <select onchange="filterJobs()" class="filterbar" id="appType">
+                <option value="All">All</option>
+                <option value="Full-time">Full-time</option>
+                <option value="Part-time">Part-time</option>
+                <option value="Internship">Internship</option>
+                <option value="Contract">Contract</option>
             </select>
 
-            <select name="location" id="location">
-                <option value="">All Locations</option>
-                <option value="remote">Remote</option>
-                <option value="onsite">On-Site</option>
-                <option value="hybrid">Hybrid</option>
-            </select>
-
-            <button onclick="filterJobs()">Apply Filters</button>
+            <div class="searchbar">
+                <input type="text" id="searchBox" placeholder="Search..." />
+            </div>
         </div>
 
-        <!-- Job Listings -->
-        <div id="jobList"></div>
+        <div id="dataList"></div>
+
+        <div class="spinner" id="spinner" style="display: none;">
+        </div>
+
+        <div id="paging" class="paging"> 
+            <button id="prev-btn" class="nav-btn prev-btn"> < Prev </button>
+            <button id="next-btn" class="nav-btn next-btn"> Next > </button>
+        </div>
     </div>
 
     <script>
+        let alldata = [];
+        let savedPages = {};
+        let searched = [];
+
+        let dlen = 0;
+        let pageSize = 0;
+        let lastIndex = 0;
+        let currPage = 0;   
+
+        const dataList = document.getElementById('dataList');
+        const filter = document.getElementById('appType');
+        const prevbtn = document.getElementById('prev-btn');
+        const nextbtn = document.getElementById('next-btn');
+
+
         // Function to fetch job listings from the backend
-        function fetchJobs(jobType = '', location = '') {
-            const url = `/laa/company/myjoblistings?jobType=${jobType}&location=${location}`;
+        function fetchJobs() {
+            showSpinner();
+            const url = `/laa/company/myjoblistings`;
             fetch(url)
                 .then(response => response.json())
                 .then(data => {
-                    const jobList = document.getElementById('jobList');
-
-                    if (data === null) {
-                        jobList.innerHTML = `
+                    const {Listings} = data;
+                    alldata = Listings;
+                    console.log(alldata);
+                    hideSpinner();
+                    if (alldata == null) {
+                        dataList.innerHTML = `
                             <div class="no-jobs">
                                 No listings. Go to New Job to create one.
                             </div>
                         `;
                         return;
                     } else {
-                        jobList.innerHTML = ''; // Clear existing jobs
+                        searched = alldata;
+                        middle();
                     }
-
-                    data.forEach(job => {
-                        const jobCard = `
-                            <div class="job-card">
-                                <div class="job-title">${job.JobID} : ${job.Title}</div>
-                                <div class="job-details">
-                                    <p><strong>Created On:</strong> ${job.CreatedAt}</p>
-                                    <p><strong>Location:</strong> ${job.Location}</p>
-                                    <p><strong>Type:</strong> ${job.Type}</p>
-                                    <p><strong>CTC:</strong> ${job.Salary}</p>
-                                    <p><strong>Position:</strong> ${job.Position}</p>
-                                    <p><strong>Skills:</strong> ${job.Skills.join(', ')}</p>
-                                    <p><strong>No of Applications:</strong> ${job.NoOfApplications}</p>
-                                    <p><strong>Status:</strong> ${job.ActiveStatus ? 'Active' : 'Closed'}</p>
-                                </div>
-                                <button class="apply-btn" 
-                                    onclick="closePosting(${job.JobID}, this)" 
-                                    ${job.ActiveStatus ? '' : 'disabled'} 
-                                    style="background-color: ${job.ActiveStatus ? '#6C63FF' : '#d3d3d3'}; color: ${job.ActiveStatus ? '#fff' : '#000'};">
-                                    ${job.ActiveStatus ? 'Close' : 'Closed'}
-                                </button>
-                                <button class="apply-btn" 
-                                    onclick="abcdfunctionname(${job.JobID}, this)" 
-                                    ${job.ActiveStatus ? '' : 'disabled'} 
-                                    style="background-color: ${job.ActiveStatus ? '#6C63FF' : '#d3d3d3'}; color: ${job.ActiveStatus ? '#fff' : '#000'};">
-                                    ${job.ActiveStatus ? 'Edit' : 'Edit Posting'}
-                                </button>
-                                <button class="apply-btn" onclick="deletePosting(${job.JobID}, this)">Delete</button>
-                                
-                                <button class="apply-btn" onclick="redirectTo(${job.JobID}, this)">Applicants</button>
-                            </div>
-                        `;
-                        jobList.innerHTML += jobCard;
-                    });
                 })
                 .catch(error => console.error('Error fetching jobs:', error));
         }
+        
+        // lists the cards one by one for the given pageSize
+        function listdata() {
+            if (searched.length != 0) {
+                let i = 0;
+                for (i = lastIndex; i < dlen; i++) {
+                    if (pageSize == 0) {
+                        break;
+                    }
 
-
-        function redirectTo(jobID) {
-            window.location.href = `/laa/company/myappsstatic?jobid=${jobID}`;
+                    let job = searched[i]; 
+                    const card = `
+                        <div class="job-card">
+                            <div class="job-title">${job.JobID} : ${job.Title}</div>
+                            <div class="job-details">
+                                <p><strong>Created On:</strong> ${job.CreatedAt}</p>
+                                <p><strong>Location:</strong> ${job.Location}</p>
+                                <p><strong>Type:</strong> ${job.Type}</p>
+                                <p><strong>CTC:</strong> ${job.Salary}</p>
+                                <p><strong>Position:</strong> ${job.Position}</p>
+                                <p><strong>Skills:</strong> ${job.Skills.join(', ')}</p>
+                                <p><strong>No of Applications:</strong> ${job.NoOfApplications}</p>
+                                <p><strong>Status:</strong> ${job.ActiveStatus ? 'Active' : 'Closed'}</p>
+                            </div>
+                            <button class="btn" 
+                                onclick="closePosting(${job.JobID}, this)" 
+                                ${job.ActiveStatus ? '' : 'disabled'} 
+                                style="background-color: ${job.ActiveStatus ? '#6C63FF' : '#d3d3d3'}; color: ${job.ActiveStatus ? '#fff' : '#000'};">
+                                ${job.ActiveStatus ? 'Close' : 'Closed'}
+                            </button>
+                            <button class="btn" 
+                                onclick="abcdfunctionname(${job.JobID}, this)" 
+                                ${job.ActiveStatus ? '' : 'disabled'} 
+                                style="background-color: ${job.ActiveStatus ? '#6C63FF' : '#d3d3d3'}; color: ${job.ActiveStatus ? '#fff' : '#000'};">
+                                ${job.ActiveStatus ? 'Edit' : 'Edit Posting'}
+                            </button>
+                            <button class="btn" onclick="deletePosting(${job.JobID}, this)">Delete</button>
+                            
+                            <button class="btn" onclick="window.location.href = '/laa/company/myappsstatic?jobid=${job.JobID}'">Applicants</button>
+                        </div>
+                    `;
+                    dataList.innerHTML += card;
+                    pageSize--;
+                };
+                lastIndex = i;
+            }
         }
 
-        // Function to close posting
+        // houses the next and prev button actions
+        // triggers listdata() when needed
+        // or applies the saved page if present in savedPages{}
+        function pagination() {
+            console.log("pagination");
+            if (searched != null) {
+                dlen = searched.length;
+            }
+
+            prevbtn.onclick = function () {
+                currPage -= 1;
+                dataList.innerHTML = savedPages[currPage].Template;
+                pageSize = 10 - savedPages[currPage].Length;
+                displaybtn();
+            }
+
+            nextbtn.onclick = function () {
+                currPage += 1;
+                pageSize = 10; // this defines the number of cards per page
+                
+                if (savedPages[currPage] != null)  {
+                    dataList.innerHTML = savedPages[currPage].Template;
+                    pageSize = 10 - savedPages[currPage].Length;
+                } else {
+                    dataList.innerHTML = ``;
+
+                    if (searched != null && dlen > lastIndex) {
+                        listdata();
+                        savedPages[currPage] = {
+                            Template: dataList.innerHTML,
+                            Length: (10 - pageSize)
+                        }
+                    }
+                }
+                displaybtn();
+            }
+        }
+
+        // displays appropriate next/prev buttons
+        function displaybtn() {
+            prevbtn.style.visibility = currPage <= 1 ? 'hidden' : 'visible';
+
+            if (pageSize > 0) {
+                nextbtn.style.visibility = 'hidden';
+                dataList.innerHTML += `
+                    <div class="no-jobs">
+                        Thats all for now !
+                    </div>
+                `;
+            } else {
+                nextbtn.style.visibility = 'visible';
+            }
+        }
+        
+        // acts as a converging point for the pagination functions
+        function middle() {
+            pagination();
+            lastIndex = currPage = 0;
+            savedPages = {};
+            nextbtn.click();
+        }
+        
+        // searches for match in all fields of all objects
+        // no specific field matching for now
+        function search() {
+            const query = searchbar.value.toLowerCase();
+            if (query == "") {
+                searched = alldata;
+                middle();
+                return;
+            }
+            const result = alldata.filter(job =>
+            Object.values(job).some(val => val.toString().toLowerCase().includes(query)));
+            searched = result;
+            middle();
+        }
+        
+        // scans entire alldata 
+        // only one filter can be used for now
+        function filterJobs() {
+            let query = filter.value;
+
+            if (query == "All") {
+                searched = alldata;
+            } else {
+                const result = alldata.filter(val => val.Type.includes(query));
+                searched = result;
+            }
+            middle();
+        }
+
+        // starts a listener for the search bar, triggers search() every time a character is changed 
+        const searchbar = document.getElementById('searchBox');
+        searchbar.addEventListener('input', search);
+
+       // shows the 'loading' spinner
+        function showSpinner() {
+            document.getElementById('spinner').style.display = 'block'; 
+        }
+        // hides the 'loading' spinner
+        function hideSpinner() {
+            document.getElementById('spinner').style.display = 'none'; 
+        }
+
+
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// PAGE SPECIFIC FUNCTIONS
+
+        // closes the job listing, without confirmation
         function closePosting(jobID, button) {
             const url = `/laa/company/closejob?jobid=${jobID}`;
             fetch(url, { method: 'GET' })
@@ -236,7 +393,7 @@
                 .catch(error => console.error('Error applying to job:', error));
         }
         
-        // Function to delete posting with confirmation
+        // deletes the job posting, once the user confirms
         function deletePosting(jobID, button) {
             if (confirm("Are you sure you want to delete this job posting?\nAll corresponding interviews will also be cancelled.\nThis action cannot be undone.")) {
                 const url = `/laa/company/deletejob?jobid=${jobID}`;
@@ -256,14 +413,6 @@
             } else {
                 alert("Job deletion canceled.");
             }
-        }
-
-
-        // Function to apply filters
-        function filterJobs() {
-            const jobType = document.getElementById('jobType').value;
-            const location = document.getElementById('location').value;
-            fetchJobs(jobType, location);
         }
 
         // Initial load

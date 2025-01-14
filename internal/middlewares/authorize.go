@@ -13,25 +13,19 @@ func Authorizer() gin.HandlerFunc {
 		// get role of the context
 		role, exists := ctx.Get("role")
 		if !exists {
-			ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-				"error": "invalid token without 'role'. login again",
-			})
+			ctx.Redirect(http.StatusSeeOther, "/public/login")
 			return
 		}
 		// get full path of the request of context
 		reqPath := ctx.FullPath()
 		if reqPath == "" {
-			ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-				"error": "invalid token. login again",
-			})
+			ctx.Redirect(http.StatusSeeOther, "/public/login")
 			return
 		}
 		// split in array
 		splitPath := strings.Split(reqPath, "/")
 		if len(splitPath) < 3 {
-			ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-				"error": "invalid path structure",
-			})
+			ctx.Redirect(http.StatusSeeOther, "/public/login")
 			return
 		}
 
@@ -46,15 +40,11 @@ func Authorizer() gin.HandlerFunc {
 		// check if role and requested path match authority
 		if expectedPath, ok := rolePathMapping[role.(int64)]; ok {
 			if splitPath[2] != expectedPath {
-				ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-					"error": "unauthorized request made",
-				})
+				ctx.Redirect(http.StatusSeeOther, "/public/login")
 				return
 			}
 		} else {
-			ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-				"error": "undefined role. returning from authorizer",
-			})
+			ctx.Redirect(http.StatusSeeOther, "/public/login")
 			return
 		}
 

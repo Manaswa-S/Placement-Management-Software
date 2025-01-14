@@ -1,9 +1,13 @@
 package services
 
 import (
+	"encoding/json"
+	"fmt"
+
+	"github.com/gin-gonic/gin"
 	"go.mod/internal/apicalls"
+	"go.mod/internal/dto"
 	sqlc "go.mod/internal/sqlc/generate"
-	"google.golang.org/api/drive/v3"
 )
 
 type AdminService struct {
@@ -17,11 +21,18 @@ func NewAdminService(queriespool *sqlc.Queries, gapiService *apicalls.Caller) *A
 	}
 }
 
-func (a *AdminService) AdminFunc() (*drive.ChangeList, error) {
-	changeList, err := a.GAPIService.DriveChanges()
+func (a *AdminService) AdminFunc(ctx *gin.Context) (any, error) {
+	changeList, err := a.queries.GetResponses(ctx, 172)
 	if err != nil {
-		return nil, err
+		fmt.Println(err)
 	}
+	fmt.Println(changeList)
+	var data map[string]dto.TestResponse
+	err = json.Unmarshal(changeList, &data)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(data)
 
-	return changeList, nil
+	return data["4efc75e1"], nil
 }

@@ -94,25 +94,84 @@
         .extra-links a:hover {
             text-decoration: underline;
         }
+        .alert {
+            margin-top: 10px;
+            margin-bottom: 10px;
+
+            display:block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: red;
+        }
     </style>
 </head>
 
 <body>
     <div class="login-container">
         <h2>Reset Password</h2>
-        <form action="/public/resetpasspostpass" method="post">
-            <input type="hidden" name="Token" value="{{.Token}}">
-            <div class="form-group">
-                <label for="password">New Password</label>
-                <input type="password" id="NewPass" name="NewPass" placeholder="Enter your new password" required>
+        <div id="clear">
+            <div class="alert">
+                <li>This is a one time use link.</li>
+                <li>Do not close or reload this site before changing password.</li>
             </div>
-            <div class="form-group">
-                <label for="password">Confirm Password</label>
-                <input type="password" id="ConfirmPass" name="ConfirmPass" placeholder="Confirm your new password" required>
+
+            <form onsubmit="submitF(event)" id="Form">
+                <input type="hidden" name="Token" value="{{.Token}}">
+                <div class="form-group">
+                    <label for="password">New Password</label>
+                    <input type="password" id="NewPass" name="NewPass" placeholder="Enter your new password" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Confirm Password</label>
+                    <input type="password" id="ConfirmPass" name="ConfirmPass" placeholder="Confirm your new password" required>
+                </div>
+                <button type="submit" class="login-btn">Reset Password</button>
+            </form>
+
+            <div class="alert">
+                <label id="alert"></label>
             </div>
-            <button type="submit" class="login-btn">Reset Password</button>
-        </form>
+        </div>
     </div>
+
+    <script>
+        function submitF(event) {
+            event.preventDefault();
+            const alert = document.getElementById("alert");
+
+            if (document.getElementById("NewPass").value != document.getElementById("ConfirmPass").value) {
+                alert.innerHTML = "Passwords do not match.";
+                return;
+            }
+
+            const c = document.getElementById("clear");
+
+            const form = event.target; 
+            const url = "/public/resetpasspostpass"; 
+            const formData = new FormData(form); 
+            fetch(url, {
+                method: "POST",
+                body: formData,
+            })
+            .then(response => {
+                if (response.ok) {
+                   c.innerHTML = `<label>Password Reset! You can now close this page.</label>        
+                                    <div class="extra-links">
+                                        <a href="/public/login">Login</a> | <a href="/public/signup">Sign Up</a>
+                                    </div>
+                            `; 
+                } else {
+                    alert('Something went wrong. Try Again!.');
+                    window.location.href = "/public/login";
+                }
+            })
+            .catch(error => {
+                // Handle errors
+                console.error("Error:", error);
+            });
+        };
+    </script>
+
 </body>
 </html>
 

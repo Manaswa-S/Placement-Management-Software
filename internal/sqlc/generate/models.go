@@ -37,6 +37,7 @@ type Interview struct {
 	Notes         pgtype.Text
 	Location      string
 	CreatedAt     pgtype.Timestamp
+	Extras        []byte
 }
 
 type Job struct {

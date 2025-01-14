@@ -21,29 +21,29 @@ func NewPublicHandler(publicService *services.PublicService) *PublicHandler {
 
 func (h *PublicHandler) RegisterRoute(publicRoute *gin.RouterGroup) {
 	// get the login static page, direct
-	publicRoute.GET("/login", h.LoginStatic)
+	publicRoute.GET("/login", h.LoginStatic) //
 	// get the login static page, direct
-	publicRoute.GET("/signup", h.SignupStatic)
+	publicRoute.GET("/signup", h.SignupStatic) //
 
 	// get the reset pass static page, direct
-	publicRoute.GET("/resetpassgetemail", h.ResetPassGetEmail)
+	publicRoute.GET("/resetpassgetemail", h.ResetPassGetEmail) //
 	// get the reset pass static page, direct
-	publicRoute.GET("/resetpassgetpass", h.ResetPassGetPass)
+	publicRoute.GET("/resetpassgetpass", h.ResetPassGetPass) //
 	// get the login static page, direct
-	publicRoute.POST("/resetpasspostemail", h.ResetPassPostEmail)
+	publicRoute.POST("/resetpasspostemail", h.ResetPassPostEmail) //
 	// get the login static page, direct
-	publicRoute.POST("/resetpasspostpass", h.ResetPassPostPass)
+	publicRoute.POST("/resetpasspostpass", h.ResetPassPostPass) //
 
 	// post the data from login page, indirect
-	publicRoute.POST("/postlogindata", h.LoginPost)
+	publicRoute.POST("/postlogindata", h.LoginPost) //
 	// post the data from signup page, indirect
-	publicRoute.POST("/postsignupdata", h.SignupPost)
+	publicRoute.POST("/postsignupdata", h.SignupPost) //
 	// send email for email id confirmation
-	publicRoute.GET("/sendconfirmemail", h.SendConfirmationEmail)
+	publicRoute.GET("/sendconfirmemail", h.SendConfirmationEmail) //
 	// confirm email id, validate
-	publicRoute.GET("/confirmsignup", h.ConfirmSignup)
+	publicRoute.GET("/confirmsignup", h.ConfirmSignup) //
 	// post the data from extra info page, indirect
-	publicRoute.POST("/extrainfopost", h.ExtraInfoPost)
+	publicRoute.POST("/extrainfopost", h.ExtraInfoPost) //
 }
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -61,32 +61,25 @@ func (h *PublicHandler) ResetPassGetEmail(ctx *gin.Context) {
 }
 
 func (h *PublicHandler) ResetPassPostEmail(ctx *gin.Context) {
-	
 	// get email of request
 	var email struct {
 		Email string
 	} // bind
 	err := ctx.Bind(&email)
 	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+		ctx.Status(http.StatusBadRequest)
 		return
 	}
 
 	// call service
 	err = h.PublicService.SendResetPassEmail(ctx, email.Email)
 	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+		ctx.Status(http.StatusBadRequest)
 		return
 	}
 
 	// respond
-	ctx.JSON(http.StatusOK, gin.H{
-		"status": "pass reset email sent successfully",
-	})
+	ctx.Status(http.StatusOK)
 }
 
 func (h *PublicHandler) ResetPassGetPass(ctx *gin.Context) {
@@ -94,9 +87,8 @@ func (h *PublicHandler) ResetPassGetPass(ctx *gin.Context) {
 	// call service
 	body, err := h.PublicService.GetPass(ctx)
 	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+		ctx.Redirect(http.StatusSeeOther, "/public/resetpassgetemail")
+		return
 	}
 
 	// respond
@@ -104,7 +96,6 @@ func (h *PublicHandler) ResetPassGetPass(ctx *gin.Context) {
 }
 
 func (h *PublicHandler) ResetPassPostPass(ctx *gin.Context) {
-	
 	var data services.ResetPass
 
 	// bind data

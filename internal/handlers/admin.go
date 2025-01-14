@@ -29,29 +29,14 @@ func (h *AdminHandler) AdminDashboard(ctx *gin.Context) {
 
 func (h *AdminHandler) TestResponsesGetDataCloud(ctx *gin.Context) {
 	
-	// query := "mimeType='application/vnd.google-apps.form' and sharedWithMe=true"
-
-	// allFormsData, err := driveService.Files.List().Q(query).Fields("files(id, webViewLink, name)").Do()
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	return
-	// }
-
-	// respondersURL := "https://docs.google.com/forms/d/e/1FAIpQLSfHcaoaaMcCNTWNY83bccAFcG2mhG4izHtKu5aODu8lwTeB7A/viewform"
-
-	// form, err := formsService.Forms.Get(file.Id).Fields("responderUri", "formId").Context(ctx).Do()
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	return
-	// }
-
-	changeList, err := h.AdminService.AdminFunc()
+	
+	changeList, err := h.AdminService.AdminFunc(ctx)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 	
 
-	ctx.JSON(200, changeList.Changes)
+	ctx.JSON(200, changeList)
 
 }

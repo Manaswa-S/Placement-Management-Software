@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Available Jobs</title>
     <style>
-        body {
+         body {
             font-family: 'Arial', sans-serif;
             margin: 0;
             padding: 0;
@@ -30,8 +30,8 @@
             background: #fff;
             border: 1px solid #ddd;
             border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 20px;
+            padding: 10px 15px;
+            margin-bottom: 10px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
             transition: box-shadow 0.3s;
         }
@@ -41,9 +41,11 @@
         }
 
         .job-title {
+            display: inline-block;
             font-size: 1.2em;
             color: #6C63FF;
             margin-bottom: 4px;
+            cursor: pointer;
         }
 
         .job-company {
@@ -61,64 +63,26 @@
 
         .job-details p {
             margin: 3px 0; 
-            line-height: 1.4;
+            line-height: 1.2;
         }
-        .apply-btn {
-            margin: auto;
+
+        .btn {
+            margin-top: 10px;
+            margin-bottom: 10px;
+
             background: #6C63FF;
             color: #fff;
-            font-size: 14px;
+            font-size: 12px;
             font-weight: bold;
             border: none;
             border-radius: 5px;
-            padding: 10px 15px;
+            padding: 8px 8px;
             cursor: pointer;
             text-decoration: none;
             transition: background-color 0.3s;
         }
-
-        .apply-btn:hover {
+        .btn:hover {
             background: #8E94F2;
-        }
-
-        .filters {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 20px;
-            align-items: center;
-        }
-
-        .filters select {
-            padding: 10px;
-            font-size: 14px;
-            border-radius: 5px;
-            border: 1px solid #ddd;
-        }
-
-        .filters button {
-            background: #6C63FF;
-            color: #fff;
-            font-size: 14px;
-            padding: 10px 15px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-
-        .filters button:hover {
-            background: #8E94F2;
-        }
-
-        @media (max-width: 768px) {
-            .filters {
-                flex-direction: column;
-                gap: 10px;
-            }
-
-            .filters select {
-                width: 100%;
-            }
         }
 
         .no-jobs {
@@ -128,6 +92,81 @@
             font-size: 0.8em;
             color: #555;
         }
+
+        .spinner {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            border: 6px solid #f3f3f3;  
+            border-top: 6px solid #6C63FF;  
+            border-radius: 50%;        
+            width: 60px;                
+            height: 60px;               
+            animation: spin 2s linear infinite; 
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .paging {
+            position:static;
+            bottom: 2%;
+            width: 100%;
+        }
+        .nav-btn {
+            visibility:hidden;
+            position:relative;
+            background: #6C63FF;
+            color: #fff;
+            font-size: 14px;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            border: none;
+        }
+        .prev-btn {
+            left: 50%;
+            transform: translateX(-100%); 
+        }
+        .next-btn {
+            left: 50%;
+            transform: translateX(-100%); 
+        }
+
+        .no-jobs {
+            display:block;
+            top:50%; 
+            text-align: center;
+            font-size: 0.8em;
+            color: #555;
+        }
+
+
+        .top-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            margin-bottom: 15px;
+        }
+        .filterbar {
+            padding: 10px;
+            font-size: 14px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            background-color: #fff;
+            margin-right: 5px;
+        }
+        .searchbar input {
+            padding: 10px;
+            font-size: 14px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-left: 5px;
+        }
+
     </style>
 </head>
 
@@ -135,80 +174,232 @@
     <div class="container">
         <h1>My Job Applications</h1>
 
-        <!-- Filters Section -->
-        <div class="filters">
-            <select name="status" id="status">
+        <div class="top-nav">
+            <select onchange="filterStatus()" class="filterbar" id="appStatus">
                 <option value="All">All</option>
                 <option value="Applied">Applied</option>
-                <option value="UnderReview">UnderReview</option>
-                <option value="ShortListed">ShortListed</option>
+                <option value="UnderReview">Under Review</option>
+                <option value="ShortListed">Shortlisted</option>
                 <option value="Rejected">Rejected</option>
                 <option value="Offered">Offered</option>
+                <option value="Hired">Hired</option>
             </select>
-            <button onclick="filterJobs()">Apply Filters</button>
+            <div class="searchbar">
+                <input type="text" id="searchBox" placeholder="Search..." />
+            </div>
         </div>
 
+        <div id="dataList"></div>
 
-        <!-- Job Listings -->
-        <div id="appList"></div>
+        <div class="spinner" id="spinner" style="display: none;">
+        </div>
+
+        <div id="paging" class="paging"> 
+            <button id="prev-btn" class="nav-btn prev-btn"> < Prev </button>
+            <button id="next-btn" class="nav-btn next-btn"> Next > </button>
+        </div>
     </div>
 
     <script>
+        let alldata = [];   
+        let savedPages = {};
+        let searched = [];
+
+        let dlen = 0;
+        let pageSize = 0;
+        let lastIndex = 0;
+        let currPage = 0;   
+
+        const dataList = document.getElementById('dataList');
+        const filter = document.getElementById('appStatus');
+        const prevbtn = document.getElementById('prev-btn');
+        const nextbtn = document.getElementById('next-btn');
+
         // Function to fetch job listings from the backend
         function fetchJobs(status = 'All') {
+            showSpinner();
             const url = `/laa/student/myapplications?status=${status}`;
             fetch(url)
                 .then(response => response.json())
                 .then(data => {
-                    const appList = document.getElementById('appList');
-
-                    if (data === null) {
+                    const {Applications} = data;
+                    alldata = Applications;
+                    console.log(data);
+                    hideSpinner();
+                    if (alldata === null) {
                         appList.innerHTML = `
                             <div class="no-jobs">
-                                No applications at the moment. Apply to jobs to see them here.
+                                No applications at the moment. Go to 'Apply to Jobs'.
                             </div>
                         `;
                         return;
                     } else {
-                        appList.innerHTML = ''; // Clear existing jobs
-                    }
-
-                    data.forEach(job => {
-                        const jobCard = `
-                            <div class="job-card">
-                                <div class="job-title">${job.JobID} : ${job.Title}</div>
-                                <div class="job-company">${job.CompanyName}</div>
-                                <div class="job-details">
-                                    <p><strong>Location:</strong> ${job.Location}</p>
-                                    <p><strong>Type:</strong> ${job.Type}</p>
-                                    <p><strong>CTC:</strong> ${job.Salary}</p>
-                                    <p><strong>Position:</strong> ${job.Position}</p>
-                                    <p><strong>Skills:</strong> ${job.Skills.join(', ')}</p>
-                                    <p><strong>Status: ${job.Status}</strong></p>
-                                    <p><strong>Representative Name:</strong> ${job.RepresentativeName}</p>
-                                    <p><strong>Representative Email:</strong> ${job.RepresentativeEmail}</p>
-                                </div>
-                                    ${generateActionButton(job.Status, job.JobID)}
-                            </div>
-                        `;
-                        appList.innerHTML += jobCard;
-                    });
+                        searched = alldata;
+                        middle();                    }
                 })
                 .catch(error => console.error('Error fetching jobs:', error));
         }
+
+
+        // lists the cards one by one for the given pageSize
+        function listdata() {
+            if (searched.length != 0) {
+                let i = 0;
+                for (i = lastIndex; i < dlen; i++) {
+                    if (pageSize == 0) {
+                        break;
+                    }
+
+                    let job = searched[i]; 
+                    const card = `
+                        <div class="job-card">
+                            <div class="job-title">${job.JobID} : ${job.Title}</div>
+                            <div class="job-company">${job.CompanyName}</div>
+                            <div class="job-details">
+                                <p><strong>Location:</strong> ${job.Location}</p>
+                                <p><strong>Type:</strong> ${job.Type}</p>
+                                <p><strong>CTC:</strong> ${job.Salary}</p>
+                                <p><strong>Position:</strong> ${job.Position}</p>
+                                <p><strong>Skills:</strong> ${job.Skills.join(', ')}</p>
+                                <p><strong>Status: ${job.Status}</strong></p>
+                                <p><strong>Representative Name:</strong> ${job.RepresentativeName}</p>
+                                <p><strong>Representative Email:</strong> ${job.RepresentativeEmail}</p>
+                            </div>
+                                ${generateActionButton(job.Status, job.JobID)}
+                        </div>
+                    `;
+                    dataList.innerHTML += card;
+                    pageSize--;
+                };
+                lastIndex = i;
+            }
+        }
+
+        // houses the next and prev button actions
+        // triggers listdata() when needed
+        // or applies the saved page if present in savedPages{}
+        function pagination() {
+            if (searched != null) {
+                dlen = searched.length;
+            }
+
+            prevbtn.onclick = function () {
+                currPage -= 1;
+                dataList.innerHTML = savedPages[currPage].Template;
+                pageSize = 10 - savedPages[currPage].Length;
+                displaybtn();
+            }
+
+            nextbtn.onclick = function () {
+                currPage += 1;
+                pageSize = 10; // this defines the number of cards per page
+                
+                if (savedPages[currPage] != null)  {
+                    dataList.innerHTML = savedPages[currPage].Template;
+                    pageSize = 10 - savedPages[currPage].Length;
+                } else {
+                    dataList.innerHTML = ``;
+
+                    if (searched != null && dlen > lastIndex) {
+                        listdata();
+                        savedPages[currPage] = {
+                            Template: dataList.innerHTML,
+                            Length: (10 - pageSize)
+                        }
+                    }
+                }
+                displaybtn();
+            }
+        }
+
+        // displays appropriate next/prev buttons
+        function displaybtn() {
+            prevbtn.style.visibility = currPage <= 1 ? 'hidden' : 'visible';
+
+            if (pageSize > 0) {
+                nextbtn.style.visibility = 'hidden';
+                dataList.innerHTML += `
+                    <div class="no-jobs">
+                        Thats all for now !
+                    </div>
+                `;
+            } else {
+                nextbtn.style.visibility = 'visible';
+            }
+        }
+        
+        // acts as a converging point for the pagination functions
+        function middle() {
+            pagination();
+            lastIndex = currPage = 0;
+            savedPages = {};
+            nextbtn.click();
+        }
+        
+        // searches for match in all fields of all objects
+        // no specific field matching for now
+        function search() {
+            const query = searchbar.value.toLowerCase();
+            if (query == "") {
+                searched = alldata;
+                middle();
+                return;
+            }
+            const result = alldata.filter(job =>
+            Object.values(job).some(val => val.toString().toLowerCase().includes(query)));
+            searched = result;
+            middle();
+        }
+        
+        // scans entire alldata 
+        // only one filter can be used for now
+        function filterStatus() {
+            let query = filter.value;
+
+            if (query == "All") {
+                searched = alldata;
+            } else {
+                const result = alldata.filter(val => val.Status.includes(query));
+                searched = result;
+            }
+            middle();
+        }
+
+        // starts a listener for the search bar, triggers search() every time a character is changed 
+        const searchbar = document.getElementById('searchBox');
+        searchbar.addEventListener('input', search);
+
+       // shows the 'loading' spinner
+        function showSpinner() {
+            document.getElementById('spinner').style.display = 'block'; 
+        }
+        // hides the 'loading' spinner
+        function hideSpinner() {
+            document.getElementById('spinner').style.display = 'none'; 
+        }
+        // shows toast for 'message' , 'red/green', 'timeout(ms)'
+        function showToast(message, type, timeout = 3000) {
+            const toast = document.getElementById("toast");
+            toast.innerText = message;
+            toast.className = `toast show ${type}`;
+            setTimeout(() => {
+                toast.className = toast.className.replace("show", "");
+            }, timeout);
+        }
+
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// PAGE SPECIFIC FUNCTIONS
 
         function generateActionButton(jobStatus, jobID) {
             if (jobStatus === 'Rejected') {
                 return `<p class="job-details">The application will be auto deleted after 7 days.</p>`;
             } else if (jobStatus === 'Applied' || jobStatus === 'UnderReview') {
-                return `<button class="apply-btn" onclick="cancelApplication(${jobID}, this)">Cancel Application</button>`;
+                return `<button class="btn" onclick="cancelApplication(${jobID}, this)">Cancel</button>`;
             } else if (jobStatus === 'Offered') {
                 return `<p class="job-details"><strong>Offered !</strong></p>`;
             }
-
             return '';
         }
-
 
         // Function to cancel application
         function cancelApplication(jobID, button) {
@@ -224,12 +415,6 @@
                     }
                 })
                 .catch(error => console.error('Error applying to job:', error));
-        }
-
-        // Function to apply filters
-        function filterJobs() {
-            const status = document.getElementById('status').value;
-            fetchJobs(status);
         }
 
         // Initial load

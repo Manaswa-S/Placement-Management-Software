@@ -204,7 +204,7 @@
 
     <div class="r-container" id="right-nav">
         <div class="card">
-            <button id="submit-btn" class="submit-btn">Submit</button>
+            <button id="submit-btn" onclick="submitTest()" class="submit-btn">Submit</button>
         </div>
     </div>
     <div class="l-container" id="left-nav">
@@ -216,13 +216,34 @@
 
     <script>
         const appList = document.getElementById('q-container');
+        const prevbtn = document.getElementById('prev-btn');
+        const nextbtn = document.getElementById('next-btn');
+        
+        prevbtn.onclick = function() {
+            recordResponce();
+            fetchQuestion(prevId);
+        }; 
+
+        nextbtn.onclick = function() {
+            recordResponce();
+            fetchQuestion(nextId);
+        };
 
         let secLeft = -1;
         let errorMessage = false;        
+
+        let nextId = "cover";
+        let prevId = "";
+        let currId = "";
+
         function fetchQuestion(itemID) {
             showSpinner();
             const url = `/laa/student/taketestdata?testid={{.TestID}}&itemid=${itemID}`;
-            return fetch(url)
+            return fetch(url, {
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json' // Specify that you're sending JSON
+                },
+                body: JSON.stringify(response)})
                 .then(response => {
                     return response.json();
                 }) 
@@ -235,10 +256,17 @@
                         errorMessage = true;
                         return;
                     }
-
+                    response = {};
+                    
                     appList.innerHTML = ''; // Clear existing html
                     const item = data.Item;
-                        
+                    
+                    nextId = data.NextId;
+                    prevId = data.PrevId;
+                    currId = item.itemId;
+                    
+                    console.log(item);
+                    
                     let path = item;
                     let template = ``;
                     template += `
@@ -274,7 +302,7 @@
                             `;
                         }
                         
-                        const temp = getTemplate(itemID);
+                        const temp = getTemplate();
                         if (temp) {
                             template += temp;
                         } else {
@@ -331,8 +359,7 @@
                                     `;
                                 for (const option of options) {
                                     template += `
-                                            <option value="${option.value}">${option.value}</option>
-                                            <br>
+                                            <option value="${option.value}">${option.value}</option>                                            
                                     `;
                                 }
                                 template += `
@@ -414,19 +441,8 @@
 
                     appList.innerHTML += template;
 
-                    const prevbtn = document.getElementById('prev-btn');
-                    const nextbtn = document.getElementById('next-btn');
-                    
-                    prevbtn.onclick = function() {
-                        recordResponce(item.itemId);
-                        nextQuestion(data.PrevId);
-                    }; 
 
-                    nextbtn.onclick = function() {
-                        recordResponce(item.itemId);
-                        nextQuestion(data.NextId);
-                    };
-                    
+
                     if (!data.NextId && data.PrevId) {
                         nextbtn.style.display = 'none';
                         prevbtn.style.display = 'block';
@@ -443,15 +459,6 @@
                     return;
                 })
                 .catch(error => console.error('Error fetching question:', error));
-        }
-
-        // Next and Previous functions
-        function nextQuestion(itemID) {
-            fetchQuestion(itemID)
-        }
-
-        function prevQuestion(itemID) {
-            fetchQuestion(itemID)
         }
 
         function showSpinner() {
@@ -479,7 +486,6 @@
                     </div>
                     <div id="details" class="instructions">
                         <label>1) Do not refresh or leave the page during the test. Doing so will submit the test immediately.</label><br>
-                        <label>1) Proceeding to the next or previous question erases the answer for current question for you but is recorded for us.</label><br>
                         <label>2) Time will begin as soon as you click the "Start Test" button.</label><br>
                         <label>3) Click "Submit" after completing the test.</label><br>
                     </div>
@@ -494,12 +500,11 @@
         // record response for each question individually
         let response = {};
         let savedTemplate = {};
-        function recordResponce(itemID) {
+        function recordResponce() {
 
             let answers = [];
             const d = document.getElementById('ans');
             if (d) {
-
                 const inputs = d.querySelectorAll('input');
                 if (inputs) {
                     inputs.forEach(inp => {
@@ -528,19 +533,19 @@
                     answers.push(text);
                 }
 
-                response[itemID] = {
-                    ItemID: itemID,
+                response = {
+                    ItemID: currId,
                     Response: answers
                 }
                 
-                savedTemplate[itemID] = {
+                savedTemplate[currId] = {
                     Template: d.outerHTML
                 };
             }
         }
 
-        function getTemplate(itemID) {
-            const temp = savedTemplate[itemID];
+        function getTemplate() {
+            const temp = savedTemplate[currId];
             if (temp) {
                 return temp.Template;
             }
@@ -570,8 +575,8 @@
                 if (secLeft <= 0) {
                     clearInterval(int);
                     removeLocks();
-                    alert("Time-up. Test is auto-submitted.");
-                    window.location.href = "/laa/student/dashboard";
+                    submitTest();
+                    // window.location.href = "/laa/student/dashboard";
                 }
                 else {
                     mins = Math.floor(secLeft / 60);
@@ -587,10 +592,43 @@
 
         // submit the recorded responses
         function submitTest() { 
-            
+            recordResponce();
+
+            if (secLeft != 0) {
+                if (!confirm("Submit test. This cannot be undone.")) {
+                    return;
+                }
+            }
+
+            showSpinner();
+            const url = `/laa/student/taketestdata?testid={{.TestID}}&itemid=${currId}`;
+            fetch(url, {
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(response)})
+                .then(response => {
+                    return response.json();
+                }) 
+                .then(data => {
+                    if (data.Type == "OBJECT_EXISTS") {
+                        alert(data.Message);
+                    }
+                })
+                .then(() => {
+                    const url = "/laa/student/submittest?testid={{.TestID}}";
+                    fetch(url)
+                    .then(response => { 
+                        if (response.ok) {
+                            alert("The test has been submitted. The result ID will be sent via email.")
+                            window.location.href = "/laa/student/dashboard";
+                        } else {
+                            alert("Error: " + response.json().Message);
+                        }
+                    })
+                    .catch(error => alert(error.message));
+                });
         }
-
-
 
 
         function safetyLocks() {

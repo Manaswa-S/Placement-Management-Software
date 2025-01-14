@@ -3,35 +3,246 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PMS Dashboard</title>
+    <title>Completed</title>
     <style>
-        * {
+        body {
+            font-family: 'Arial', sans-serif;
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-            font-family: 'Arial', sans-serif;
-        }
-
-        body {
-            min-height: 100vh;
-            background: linear-gradient(135deg, #5951f5, #abafea);
+            background: linear-gradient(135deg, #ece9e6, #ffffff);
             color: #333;
+        }
+        .container {
+            width: 90%;
+            margin: 20px auto;
+            max-width: 1200px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #6C63FF;
+            margin-bottom: 20px;
+        }
+        .card {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            transition: box-shadow 0.3s;
+        }
+        .card:hover {
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+        }
+        .title {
+            font-size: 1.2em;
+            color: #6C63FF;
+            margin-bottom: 4px;
+        }
+        .details {
+            display:grid; 
+            grid-template-columns: repeat(2, 1fr); 
+            font-size: 0.8em;
+            color: #555;
+        }
+        .details p {
+            margin: 3px 0; 
+            line-height: 1.4;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .apply-btn {
+            margin: auto;
+            background: #6C63FF;
+            color: #fff;
+            font-size: 14px;
+            font-weight: bold;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 15px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background-color 0.3s;
+        }
+        .apply-btn:hover {
+            background: #8E94F2;
+        }
+
+        .top-nav {
             display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        .filterbar {
+            padding: 10px;
+            font-size: 14px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            background-color: #fff;
+        }
+        .searchbar input {
+            padding: 10px;
+            font-size: 14px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
         }
 
-        .main-content {
-            flex: auto;
-            width:auto;
-            height:auto;
+        .paging {
+            position:static;
+            bottom: 2%;
+            width: 100%;
+        }
+        .nav-btn {
+            visibility:hidden;
+            position:relative;
+            background: #6C63FF;
+            color: #fff;
+            font-size: 14px;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            border: none;
+        }
+        .prev-btn {
+            left: 50%;
+            transform: translateX(-100%); 
+        }
+        .next-btn {
+            left: 50%;
+            transform: translateX(-100%); 
         }
 
- 
+        .spinner {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            border: 6px solid #f3f3f3;  
+            border-top: 6px solid #6C63FF;  
+            border-radius: 50%;        
+            width: 60px;                
+            height: 60px;               
+            animation: spin 2s linear infinite; 
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .tabs {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+            border-bottom: 2px solid #ddd;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            outline: none;
+            background-color: #f4f4f9;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+
+        .tab:hover {
+            background-color: #e0e0e0;
+        }
+
+        .tab.active {
+            border-bottom: 2px solid #007bff;
+            color: #007bff;
+        }
+
+        .content {
+            display: none;
+            padding: 20px;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-top: none;
+        }
+
+        .content.active {
+            display: block;
+        }
     </style>
 </head>
 <body>
+    <div class="container">
+        <h1 id="pageHeading">Upcoming Events</h1>
 
-    <iframe class="main-content" src="https://docs.google.com/forms/d/e/1FAIpQLSf8af4io_3Da3Pt9klqer8ZM2ycwQZHQ86vFh65tnkxwtODzA/viewform?embedded=true">Loading…</iframe>
+        <div class="tabs">
+            <button class="tab active" data-target="tests">Tests</button>
+            <button class="tab" data-target="interviews">Interviews</button>
+            <button class="tab" data-target="all">All Activities</button>
+        </div>
+
+        <!-- <div class="top-nav">
+            <select onchange="middle()" class="filterbar" name="eventtype" id="filter">
+                <option value="all">All</option>
+                <option value="interview">Interview</option>
+                <option value="test">Test</option>
+                <option value="lecture">#Lecture</option>
+            </select>
+            <div class="searchbar">
+                <input type="text" id="searchBox" placeholder="Search..." />
+            </div>
+        </div> -->
+
+        <div id="appList"></div>
+
+        <div class="spinner" id="spinner" style="display: none;">
+        </div>
+
+        <!-- <div id="paging" class="paging"> 
+            <button id="prev-btn" class="nav-btn prev-btn"> < Prev </button>
+            <button id="next-btn" class="nav-btn next-btn"> Next > </button>
+        </div> -->
+    </div>
+
+
+
+<div id="tests" class="content active">
+    <h2>Tests</h2>
+    <p>Here is the content for the Tests section.</p>
+</div>
+<div id="interviews" class="content">
+    <h2>Interviews</h2>
+    <p>Here is the content for the Interviews section.</p>
+</div>
+<div id="all" class="content">
+    <h2>All Activities</h2>
+    <p>Here is the content for the All Activities section.</p>
+</div>
+
+<script>
+    const tabs = document.querySelectorAll('.tab');
+    const contents = document.querySelectorAll('.content');
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            // Remove active class from all tabs
+            tabs.forEach(t => t.classList.remove('active'));
+
+            // Add active class to clicked tab
+            tab.classList.add('active');
+
+            // Hide all content
+            contents.forEach(content => content.classList.remove('active'));
+
+            // Show the target content
+            const target = document.getElementById(tab.dataset.target);
+            target.classList.add('active');
+        });
+    });
+</script>
 
 </body>
 </html>
-

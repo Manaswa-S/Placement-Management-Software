@@ -140,7 +140,6 @@ func (s *PublicService) ConfirmEmail(ctx *gin.Context, confirmToken string) (byt
 		return bytes.Buffer{}, errors.New("failed to generate dynamic html")
 	}
 
-
 	return body, nil
 }
 
@@ -149,7 +148,7 @@ func (s *PublicService) SendResetPassEmail(ctx *gin.Context, email string) (erro
 	// get user data from database
 	userData, err := s.queries.GetUserData(ctx, email)
 	if err != nil {
-		return errors.New("not able to fetch user data from database. enter valid email address")
+		return err
 	}
 
 	// generate confirmation token
@@ -160,9 +159,10 @@ func (s *PublicService) SendResetPassEmail(ctx *gin.Context, email string) (erro
 		IssuedAt: time.Now().Unix(),
 		Email: userData.Email,
 	}
+
 	reset_token, err := utils.GenerateJWT(resettokenData)
 	if err != nil {
-		return errors.New("error generating confirm token. try again")
+		return err
 	}
 
 	// generate confirmation link
@@ -182,7 +182,7 @@ func (s *PublicService) SendResetPassEmail(ctx *gin.Context, email string) (erro
 	// add token as SetEx to redis db to avoid multiple requests 
 	err = s.redis.SetEx(ctx, reset_token, userData.UserID, time.Minute * 15).Err()
 	if err != nil {
-		return errors.New("failed to add token to redis")
+		return err
 	}
 
 	return nil

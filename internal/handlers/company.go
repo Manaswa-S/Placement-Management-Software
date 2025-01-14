@@ -128,7 +128,9 @@ func (h *CompanyHandler) MyApplicants(ctx *gin.Context) {
 	}
 
 	// respond with 200
-	ctx.JSON(http.StatusOK, applicantsData)
+	ctx.JSON(http.StatusOK, gin.H{
+		"Applicants": applicantsData,
+	})
 }
 
 func (h *CompanyHandler) GetResumeOrResultFile(ctx *gin.Context) {
@@ -184,7 +186,9 @@ func (h *CompanyHandler) MyJobListings(ctx *gin.Context) {
 	}
 
 	// 200OK response
-	ctx.JSON(http.StatusOK, jobListings)
+	ctx.JSON(http.StatusOK, gin.H{
+		"Listings": jobListings,
+	})
 }
 
 

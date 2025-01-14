@@ -38,12 +38,12 @@ func (s *StudentService) StudentFunc() {
 }
 
 
-func (s *StudentService) GetApplicableJobs(ctx *gin.Context, jobType string) ([]sqlc.GetApplicableJobsTypeFilterRow, error) {
+func (s *StudentService) GetApplicableJobs(ctx *gin.Context, jobType string) (*[]sqlc.GetApplicableJobsTypeFilterRow, error) {
 
 	// TODO: apply all filters here
 	userID, exists := ctx.Get("ID")
 	if !exists {
-		return []sqlc.GetApplicableJobsTypeFilterRow{}, errors.New("error getting user ID")
+		return nil, errors.New("error getting user ID")
 	}
 
 	allapplicablejobsData, err := s.queries.GetApplicableJobsTypeFilter(ctx, sqlc.GetApplicableJobsTypeFilterParams{
@@ -51,10 +51,10 @@ func (s *StudentService) GetApplicableJobs(ctx *gin.Context, jobType string) ([]
 		Type: jobType,
 	})
 	if err != nil {
-		return []sqlc.GetApplicableJobsTypeFilterRow{}, errors.New("unable to get all jobs from database")
+		return nil, errors.New("unable to get all jobs from database")
 	}
 
-	return allapplicablejobsData, nil
+	return &allapplicablejobsData, nil
 }
 
 func (s *StudentService) NewApplication(ctx *gin.Context, userId int64, jobid string) (error) {
@@ -154,12 +154,13 @@ func (s *StudentService) TestMetadata(ctx *gin.Context, userID int64, testid str
 	return testMetadata[0], nil
 }
 
-func (s *StudentService) TakeTest(ctx *gin.Context, userID int64, testid string, currentItemId string) (dto.TestQuestion, *errs.Error) {
+// TODO: This function seems too inefficient, too much in one func and too many redundant db calls.
+func (s *StudentService) TakeTest(ctx *gin.Context, userID int64, testid string, currentItemId string, response dto.TestResponse) (*dto.TestQuestion, *errs.Error) {
 
 	// parse the test ID
 	testID, err := strconv.ParseInt(testid, 10, 64)
 	if err != nil {
-		return dto.TestQuestion{}, &errs.Error{
+		return nil, &errs.Error{
 			Type: errs.Internal,
 			Message: fmt.Sprintf("error parsing test ID : %v", err),
 		}
@@ -181,13 +182,13 @@ func (s *StudentService) TakeTest(ctx *gin.Context, userID int64, testid string,
 				StartTime: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 			})
 			if err != nil {
-				return dto.TestQuestion{}, &errs.Error{
+				return nil, &errs.Error{
 					Type: errs.Internal,
 					Message: fmt.Sprintf("failed to update test result : %v", err),
 				}
 			}
 		} else {
-			return dto.TestQuestion{}, &errs.Error{
+			return nil, &errs.Error{
 				Type: errs.Internal,
 				Message: fmt.Sprintf("failed to check if entry exists in testresult : %v", err),
 			}
@@ -195,7 +196,7 @@ func (s *StudentService) TakeTest(ctx *gin.Context, userID int64, testid string,
 	}
 	// the user has started the test, check if finished
 	if (resultData.EndTime.Valid) {
-		return dto.TestQuestion{}, &errs.Error{
+		return nil, &errs.Error{
 			Type: errs.ObjectExists,
 			Message: "The user has already given the test.",
 		}	
@@ -214,13 +215,13 @@ func (s *StudentService) TakeTest(ctx *gin.Context, userID int64, testid string,
 	if err != nil {
 		// if it returns zero rows, that means the userID cannot give the requested test ie. he needs to first apply to the job  
 		if err.Error() == errs.NoRowsMatch {
-			return dto.TestQuestion{}, &errs.Error{
+			return nil, &errs.Error{
 				Type: errs.Unauthorized,
 				Message: "You are not authorized to access this Test. Apply to the job first.",
 			}
 		}
 		// random error
-		return dto.TestQuestion{}, &errs.Error{
+		return nil, &errs.Error{
 			Type: errs.Internal,
 			Message: fmt.Sprintf("failed to get test metadata : %v", err),
 		}
@@ -230,7 +231,7 @@ func (s *StudentService) TakeTest(ctx *gin.Context, userID int64, testid string,
 	// so check if the test data exists in cache
 	exists, err := s.RedisClient.Exists(ctx, itemIdData).Result()
 	if err != nil {
-		return dto.TestQuestion{}, &errs.Error{
+		return nil, &errs.Error{
 			Type: errs.Internal,
 			Message: fmt.Sprintf("failed to check cache for test data existence : %v", err),
 		}
@@ -239,7 +240,7 @@ func (s *StudentService) TakeTest(ctx *gin.Context, userID int64, testid string,
 		// call the test api to get complete form data
 		gForm, err := s.ApiCalls.GetCompleteForm(testData.FileID)
 		if err != nil {
-			return dto.TestQuestion{}, &errs.Error{
+			return nil, &errs.Error{
 				Type: errs.Internal,
 				Message: fmt.Sprintf("failed during API calls : %v", err),
 			}
@@ -259,7 +260,7 @@ func (s *StudentService) TakeTest(ctx *gin.Context, userID int64, testid string,
 				}
 				fileByte, err := utils.GetFileFromPath(attr.ContentUri , config.TempFileStorage)
 				if err != nil {
-					return dto.TestQuestion{}, &errs.Error{
+					return nil, &errs.Error{
 						Type: errs.Internal,
 						Message: fmt.Sprintf("failed to get file from url : %v", err),
 					}
@@ -279,7 +280,7 @@ func (s *StudentService) TakeTest(ctx *gin.Context, userID int64, testid string,
 			// push the current items id to the list
 			err = s.RedisClient.RPush(ctx, itemIdOrder, b.ItemId).Err()
 			if err != nil {
-				return dto.TestQuestion{}, &errs.Error{
+				return nil, &errs.Error{
 					Type: errs.Internal,
 					Message: fmt.Sprintf("failed to push itemid to cache list : %v", err),
 				}
@@ -288,7 +289,7 @@ func (s *StudentService) TakeTest(ctx *gin.Context, userID int64, testid string,
 			// marshal the item
 			values, err := json.Marshal(b)
 			if err != nil {
-				return dto.TestQuestion{}, &errs.Error{
+				return nil, &errs.Error{
 					Type: errs.Internal,
 					Message: fmt.Sprintf("failed to marshal item : %v", err),
 				}
@@ -297,7 +298,7 @@ func (s *StudentService) TakeTest(ctx *gin.Context, userID int64, testid string,
 			// set the marshalled in the hash
 			err = s.RedisClient.HSet(ctx, itemIdData, b.ItemId, values).Err()
 			if err != nil {
-				return dto.TestQuestion{}, &errs.Error{
+				return nil, &errs.Error{
 					Type: errs.Internal,
 					Message: fmt.Sprintf("failed to set item in hash in cache : %v", err),
 				}
@@ -310,7 +311,7 @@ func (s *StudentService) TakeTest(ctx *gin.Context, userID int64, testid string,
 	// get the entire order list
 	keysArray, err := s.RedisClient.LRange(ctx, itemIdOrder, 0, -1).Result()
 	if err != nil {
-		return dto.TestQuestion{}, &errs.Error{
+		return nil, &errs.Error{
 			Type: errs.Internal,
 			Message: fmt.Sprintf("failed to get list of itemid : %v", err),
 		}
@@ -321,6 +322,31 @@ func (s *StudentService) TakeTest(ctx *gin.Context, userID int64, testid string,
 	var key string
 	// get the index of the itemid requested
 	if currentItemId != "cover" {
+		// marshal the struct into json and update the responses in the db
+		if (response.ItemID != "") {
+			respByte, err := json.Marshal(gin.H{
+				response.ItemID: response.Response,
+			})
+
+			if err != nil {
+				return nil, &errs.Error{
+					Type: errs.Internal,
+					Message: fmt.Sprintf("failed to marshal response body : %v", err),
+				}
+			}
+			err = s.queries.UpdateResponse(ctx, sqlc.UpdateResponseParams{
+				Column1: respByte,
+				UserID: userID,
+				TestID: testID,
+			})
+			if err != nil {
+				return nil, &errs.Error{
+					Type: errs.Internal,
+					Message: fmt.Sprintf("failed to update test result in db : %v", err),
+				}
+			}
+		}
+
 		for index, key = range keysArray {
 			if key == currentItemId {
 				break
@@ -330,7 +356,7 @@ func (s *StudentService) TakeTest(ctx *gin.Context, userID int64, testid string,
 	// get the entire item data from cache in bytes
 	result, err := s.RedisClient.HGet(ctx, itemIdData, keysArray[index]).Bytes()
 	if err != nil {
-		return dto.TestQuestion{}, &errs.Error{
+		return nil, &errs.Error{
 			Type: errs.Internal,
 			Message: fmt.Sprintf("failed to get item data from cache : %v", err),
 		}
@@ -338,7 +364,7 @@ func (s *StudentService) TakeTest(ctx *gin.Context, userID int64, testid string,
 	// unmarshal it to json (deserial)
 	err = json.Unmarshal(result, &deserial)
 	if err != nil {
-		return dto.TestQuestion{}, &errs.Error{
+		return nil, &errs.Error{
 			Type: errs.Internal,
 			Message: fmt.Sprintf("failed to unMarshal item : %v", err),
 		}
@@ -361,7 +387,7 @@ func (s *StudentService) TakeTest(ctx *gin.Context, userID int64, testid string,
 	// to avoid submissions/item requests after timeout if the user messed with frontend
 	ttlExists, err := s.RedisClient.Exists(ctx, itemIdExpire).Result()
 	if err != nil {
-		return dto.TestQuestion{}, &errs.Error{
+		return nil, &errs.Error{
 			Type: errs.Internal,
 			Message: fmt.Sprintf("failed to check if timer exists : %v", err),
 		}
@@ -376,7 +402,7 @@ func (s *StudentService) TakeTest(ctx *gin.Context, userID int64, testid string,
 		// ie. something went wrong on the frontend or the user messed up
 		if (!resultData.EndTime.Valid && resultData.StartTime.Valid) {
 			// we submit the test, return an error, and probably redirect to dashboard to prevent further requests
-			return dto.TestQuestion{}, &errs.Error{
+			return nil, &errs.Error{
 				Type: errs.ObjectExists,
 				Message: "The time is up for the test. The test will now be auto-submitted",
 			}
@@ -386,7 +412,7 @@ func (s *StudentService) TakeTest(ctx *gin.Context, userID int64, testid string,
 			sec := (testData.Duration * 60) * int64(time.Second)	
 			err = s.RedisClient.SetEx(ctx, itemIdExpire, "", time.Duration(sec)).Err()
 			if err != nil {
-				return dto.TestQuestion{}, &errs.Error{
+				return nil, &errs.Error{
 					Type: errs.Internal,
 					Message: fmt.Sprintf("failed to set timer for test : %v", err),
 				}
@@ -397,7 +423,7 @@ func (s *StudentService) TakeTest(ctx *gin.Context, userID int64, testid string,
 	// get it
 	ttl, err := s.RedisClient.TTL(ctx, itemIdExpire).Result()
 	if err != nil {
-		return dto.TestQuestion{}, &errs.Error{
+		return nil, &errs.Error{
 			Type: errs.Internal,
 			Message: fmt.Sprintf("failed to get timer for test : %v", err),
 		}
@@ -406,5 +432,100 @@ func (s *StudentService) TakeTest(ctx *gin.Context, userID int64, testid string,
 	toSend.TTL = ttl / 1e9
 
 	// no error, send response
-	return toSend, nil
+	return &toSend, nil
 }
+
+func (s *StudentService) SubmitTest(ctx *gin.Context, userID int64, testid string) (*errs.Error) {
+	// parse test id from string to int64
+	testID, err := strconv.ParseInt(testid, 10, 64)
+	if err != nil {
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: "Failed to parse Test Id from string",
+		}
+	}
+	// update the endtime of the result from null to time.now()
+	result_id, err := s.queries.SubmitTest(ctx, sqlc.SubmitTestParams{
+		EndTime: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UserID: userID,
+		TestID: testID,
+	})
+	if err != nil {
+		if (err.Error() == errs.NoRowsMatch) {
+			return &errs.Error{
+				Type: errs.InvalidState,
+				Message: "The user has not started the test yet.",
+			}
+		} else {
+			return &errs.Error{
+				Type: errs.Internal,
+				Message: err.Error(),
+			}
+		}
+	}
+	// send an email of confirmation of test submission with the result id for future reference
+	// and it also goes into the 'Completed' page
+	// TODO:
+	fmt.Println(result_id)
+
+	// return
+	return nil
+}
+
+func (s *StudentService) Completed(ctx *gin.Context, userID int64, tab string) (*dto.Completed, error) {
+
+	switch tab {
+	case "tests":
+		cTests, err := s.queries.CompletedTests(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+		return &dto.Completed{
+			Data: cTests,
+		}, nil
+	case "interviews":
+		cInts, err := s.queries.CompletedInterviews(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+		return &dto.Completed{
+			Data: cInts,
+		}, nil
+	default:
+		return nil, nil
+	}
+}
+
+
+
+func (s *StudentService) ProfileData(ctx *gin.Context, userID int64) (*dto.History, error) {
+	
+	data, err := s.queries.ProfileData(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	appsHistory, err := s.queries.ApplicationHistory(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	intsHistory, err := s.queries.InterviewHistory(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	testHistory, err := s.queries.TestHistory(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+
+	return &dto.History{
+		Data: &data,
+		Applications: &appsHistory,
+		Interviews: &intsHistory,
+		Tests: &testHistory,
+	}, nil
+}
+

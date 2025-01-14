@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Completed</title>
+    <title>My Profile</title>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -12,18 +12,36 @@
             background: linear-gradient(135deg, #ece9e6, #ffffff);
             color: #333;
         }
+
         .container {
-            width: 90%;
-            margin: 20px auto;
-            max-width: 1200px;
+            position: static;
+            left: 0;
+            top: 0;
+            width: 94%;
+
+            margin-left: 3%;
+            margin-right: 3%;
+            margin-top: 15px;
+            margin-bottom: 20px;
         }
-        
+
+        /* .r-container {
+            position:fixed;
+            right: 0;
+            top: 0;
+            width: 14%;
+            height: 100vh;
+            margin-right: 3%;
+            margin-left: 1%;
+            padding: 15px;
+        }  */
+
         h1 {
-            font-size: 1.5em;
             text-align: center;
             color: #6C63FF;
-            margin-bottom: 10px;
+            margin-bottom: 20px;
         }
+
         .card {
             background: #fff;
             border: 1px solid #ddd;
@@ -33,20 +51,33 @@
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
             transition: box-shadow 0.3s;
         }
+
         .card:hover {
             box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
         }
+
+        .info {
+            width: 100%;
+            padding: 10px;
+        }
+
+        .info label {
+            display: block;
+        }
+
         .title {
             font-size: 1.2em;
             color: #6C63FF;
             margin-bottom: 4px;
         }
+
         .details {
-            display:grid; 
-            grid-template-columns: repeat(2, 1fr); 
+            display:block; 
             font-size: 0.8em;
             color: #555;
+            margin-bottom: 8px;
         }
+
         .details p {
             margin: 3px 0; 
             line-height: 1.4;
@@ -54,7 +85,6 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
-
         .apply-btn {
             margin: auto;
             background: #6C63FF;
@@ -68,17 +98,19 @@
             text-decoration: none;
             transition: background-color 0.3s;
         }
+
         .apply-btn:hover {
             background: #8E94F2;
         }
 
-        .top-nav {
+        .left-nav {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            width: 100%;
+            width: 10%;
             margin-bottom: 20px;
         }
+
         .filterbar {
             padding: 10px;
             font-size: 14px;
@@ -86,6 +118,7 @@
             border: 1px solid #ddd;
             background-color: #fff;
         }
+
         .searchbar input {
             padding: 10px;
             font-size: 14px;
@@ -98,6 +131,7 @@
             bottom: 2%;
             width: 100%;
         }
+
         .nav-btn {
             visibility:hidden;
             position:relative;
@@ -113,6 +147,7 @@
             left: 50%;
             transform: translateX(-100%); 
         }
+
         .next-btn {
             left: 50%;
             transform: translateX(-100%); 
@@ -130,102 +165,43 @@
             height: 60px;               
             animation: spin 2s linear infinite; 
         }
+
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
 
-        .tabs {
-            display: flex;
-            justify-content: center;
-            margin-top: 10px;
-        }
-
-        .tab {
-            padding: 10px 20px;
-            cursor: pointer;
-            border: none;
-            background-color: #f4f4f9;
-            font-size: 16px;
-            font-weight: bold;
-            transition: background-color 0.3s ease;
-        }
-
-        .tab:hover {
-            background-color: #e0e0e0;
-        }
-
-        .tab.active {
-            border-bottom: 3px solid #6C63FF;
-            color: #6C63FF;
-        }
-
-        .content {
-            display: none;
-            padding: 20px;
-            background-color: white;
-            border: 1px solid #ddd;
-            border-top: none;
-        }
-
-        .content.active {
-            display: block;
-        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1 id="pageHeading">Completed XXXXX</h1>
+        <h2>My Profile</h2>
 
-        <div class="tabs">
-            <button class="tab active" data-target="tests">Tests</button>
-            <button class="tab" data-target="interviews">Interviews</button>
-            <button class="tab" data-target="all">All Activities</button>
-        </div>
-
-        <!-- <div class="top-nav">
-            <select onchange="middle()" class="filterbar" name="eventtype" id="filter">
-                <option value="all">All</option>
-                <option value="interview">Interview</option>
-                <option value="test">Test</option>
-                <option value="lecture">#Lecture</option>
-            </select>
-            <div class="searchbar">
-                <input type="text" id="searchBox" placeholder="Search..." />
+        <!-- Profile Information -->
+        <div class="card">
+            <div class="details">
+                <label for="name">Name: John Doe</label>
             </div>
-        </div> -->
-
-        <div id="appList"></div>
-
-        <div class="spinner" id="spinner" style="display: none;">
+            <div class="details">
+                <label for="email">Email: john.doe@example.com</label>
+            </div>
+            <div class="details"> 
+                <label for="bio">Bio: I am a software engineer passionate about backend development</label>
+            </div>
         </div>
-
-        <!-- <div id="paging" class="paging"> 
-            <button id="prev-btn" class="nav-btn prev-btn"> < Prev </button>
-            <button id="next-btn" class="nav-btn next-btn"> Next > </button>
-        </div> -->
     </div>
-<script>
-    const tabs = document.querySelectorAll('.tab');
-    const contents = document.querySelectorAll('.content');
-
-    tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            // Remove active class from all tabs
-            tabs.forEach(t => t.classList.remove('active'));
-
-            // Add active class to clicked tab
-            tab.classList.add('active');
-
-            // Hide all content
-            contents.forEach(content => content.classList.remove('active'));
-
-            // Show the target content
-            const target = document.getElementById(tab.dataset.target);
-            target.classList.add('active');
-        });
-    });
-</script>
-
+    <div class="container">
+        <div class="card">
+            <button class="profile-btn">Update Info</button>
+            <button class="profile-btn">Upload Media</button>
+    
+            <h3>History</h3>
+            <ul>
+                <li>Updated profile info on 2025-01-08</li>
+                <li>Uploaded profile picture on 2024-12-15</li>
+                <li>Viewed placement results on 2024-11-10</li>
+            </ul>
+        </div>
+    </div>
 </body>
 </html>

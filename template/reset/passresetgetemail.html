@@ -5,14 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PMS Login Page</title>
     <style>
-        /* General Reset */
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
             font-family: 'Arial', sans-serif;
         }
-
         body {
             display: flex;
             justify-content: center;
@@ -94,21 +92,63 @@
         .extra-links a:hover {
             text-decoration: underline;
         }
+        .alert {
+            margin-top: 10px;
+            margin-bottom: 10px;
+
+            display:flex;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: red;
+        }
     </style>
 </head>
 <body>
     <div class="login-container">
-        <h2>Reset Password</h2>
-        <form action="/public/resetpasspostemail" method="post">
+        <h2>Email to Reset Password </h2>
+        <form id="Form" onsubmit="submitF(event)">
             <div class="form-group">
-                <label for="email">Email</label>
-                <input type="email" id="Email" name="Email" placeholder="Enter your email" required>
+                <label for="Email">Email</label>
+                <input autocomplete="email" type="email" id="Email" name="Email" placeholder="Enter your email" required>
             </div>
-            <button type="submit" class="login-btn">Submit</button>
+            <button class="login-btn">Submit</button>
         </form>
+
+        <div class="alert">
+            <label id="alert"></label>
+        </div>
+
         <div class="extra-links">
             <a href="/public/login">Login</a> | <a href="/public/signup">Sign Up</a>
         </div>
     </div>
+
+    <script>
+        function submitF(event) {
+            event.preventDefault();
+
+            const alert = document.getElementById("alert");
+            const form = event.target; 
+            const url = "/public/resetpasspostemail"; 
+            const formData = new FormData(form); 
+            fetch(url, {
+                method: "POST",
+                body: formData,
+            })
+            .then(response => {
+                if (response.ok) {
+                    
+                    alert.innerHTML = 'Reset link has been sent successfully!';
+                } else {
+                    alert.innerHTML = 'Enter valid email address.';
+                }
+            })
+            .catch(error => {
+                // Handle errors
+                console.error("Error:", error);
+            });
+        };
+    </script>
+
 </body>
 </html>

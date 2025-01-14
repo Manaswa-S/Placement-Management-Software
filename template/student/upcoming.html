@@ -78,33 +78,27 @@
             background: #8E94F2;
         }
 
-        .filters {
+        .top-nav {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 20px;
             align-items: center;
+            width: 100%;
+            margin-bottom: 20px;
         }
 
-        .filters select {
+        .filterbar {
             padding: 10px;
             font-size: 14px;
             border-radius: 5px;
             border: 1px solid #ddd;
+            background-color: #fff;
         }
 
-        .filters button {
-            background: #6C63FF;
-            color: #fff;
+        .searchbar input {
+            padding: 10px;
             font-size: 14px;
-            padding: 10px 15px;
-            border: none;
+            border: 1px solid #ddd;
             border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-
-        .filters button:hover {
-            background: #8E94F2;
         }
 
         .paging {
@@ -114,6 +108,7 @@
         }
 
         .nav-btn {
+            visibility:hidden;
             position:relative;
             background: #6C63FF;
             color: #fff;
@@ -133,55 +128,6 @@
             transform: translateX(-100%); 
         }
 
-
-        @media (max-width: 768px) {
-            .filters {
-                flex-direction: column;
-                gap: 10px;
-            }
-
-            .filters select {
-                width: 100%;
-            }
-        }
-
-        .toast {
-            visibility: hidden;
-            color: #fff;
-            text-align: center;
-            border-radius: 5px;
-            padding: 10px;
-            position:fixed;
-            z-index: 1;
-            right: 5%;
-            bottom: 5%;
-            font-size:smaller;
-        }
-        .toast.show {
-            visibility: visible;
-            animation: fadein 0.5s, fadeout 0.5s 2.5s;
-        }
-        .toast.green {
-            background-color: #4CAF50; /* Green for success */
-        }
-        .toast.red {
-            background-color: #f44336; /* Red for error */
-        }
-        @keyframes fadein {
-            from {bottom: 0; opacity: 0;}
-            to {bottom: 5%; opacity: 1;}
-        }
-        @keyframes fadeout {
-            from {bottom: 5%; opacity: 1;}
-            to {bottom: 0; opacity: 0;}
-        }
-        .no-cards {
-            display:block;
-            top:50%; 
-            text-align: center;
-            font-size: 0.8em;
-            color: #555;
-        }
         .spinner {
             display: none;
             position: fixed;
@@ -195,10 +141,17 @@
             animation: spin 2s linear infinite; 
         }
 
-        /* Keyframes for the spinning animation */
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+        }
+
+        .no-data {
+            display:block;
+            top:50%; 
+            text-align: center;
+            font-size: 0.8em;
+            color: #555;
         }
 
     </style>
@@ -209,14 +162,16 @@
         <h1 id="pageHeading">Upcoming Events</h1>
 
         <!-- Filters Section -->
-        <div class="filters">
-            <select name="eventtype" id="eventtype">
+        <div class="top-nav">
+            <select onchange="middle()" class="filterbar" name="eventtype" id="filter">
                 <option value="all">All</option>
                 <option value="interview">Interview</option>
                 <option value="test">Test</option>
                 <option value="lecture">#Lecture</option>
             </select>
-            <button onclick="filterJobs()">Apply Filters</button>
+            <div class="searchbar">
+                <input type="text" id="searchBox" placeholder="Search..." />
+            </div>
         </div>
 
         <div id="appList"></div>
@@ -232,16 +187,11 @@
 
     <script>
 
-        function showToast(message, type, timeout = 3000) {
-            const toast = document.getElementById("toast");
-            toast.innerText = message; // Set dynamic text
-            toast.className = `toast show ${type}`;
-            setTimeout(() => {
-                toast.className = toast.className.replace("show", "");
-            }, timeout);
-        }
-
         const appList = document.getElementById('appList');
+        const filter = document.getElementById('filter');
+        const prevbtn = document.getElementById('prev-btn');
+        const nextbtn = document.getElementById('next-btn');
+
         let intsData = [];
         let testsData = [];
 
@@ -251,8 +201,8 @@
         let currPage = 0;
         let savedPages = {};
 
-        let ilen;
-        let tlen;
+        let ilen = 0;
+        let tlen = 0;
 
         // Function to fetch job listings from the backend
         function fetchJobs(eventtype = 'all') {
@@ -267,15 +217,21 @@
                     intsData = InterviewsData;
                     testsData = TestsData;
 
-                    lastInt = lastTest = currPage = 0;
-                    savedPages = {};
                     hideSpinner();
-                    pagination();
-                    document.getElementById('next-btn').click();
+
+                    if (intsData == null && testsData == null) {
+                        appList.innerHTML = `
+                            <div class="no-data">
+                                No upcoming events. Relax !
+                            </div>
+                        `;
+                    } else {
+                        pagination();
+                        middle();
+                    }
                 })
                 .catch(error => console.error('Error fetching events:', error));
         }
-
 
         function listInt() {
             if (intsData != null) {
@@ -338,11 +294,7 @@
             }
         }
 
-
         function pagination() {
-
-            const prevbtn = document.getElementById('prev-btn');
-            const nextbtn = document.getElementById('next-btn');
 
             if (intsData != null) {
                 ilen = intsData.length;
@@ -353,41 +305,39 @@
 
             prevbtn.onclick = function () {
                 currPage -= 1;
-                appList.innerHTML = ``;
-                appList.innerHTML += savedPages[currPage].Template;
-
-                prevbtn.style.visibility = currPage <= 1 ? 'hidden' : 'visible';
-                nextbtn.style.visibility = 'visible';
+                appList.innerHTML = savedPages[currPage].Template;
+                pageSize = 10 - savedPages[currPage].Length;
+                displaybtn();
             }
 
             nextbtn.onclick = function () {
                 currPage += 1;
                 pageSize = 10; // this defines the number of cards per page
-
-                prevbtn.style.visibility = currPage <= 1 ? 'hidden' : 'visible';
-
-                appList.innerHTML = ``;
-
-                if (intsData === null && testsData === null) {
-                    appList.innerHTML = `
-                        <div class="no-cards">
-                            No upcoming events. Relax !
-                        </div>
-                    `;
-                    nextbtn.style.visibility = 'hidden';
-                    return;
-                } else if (savedPages[currPage] != null)  {
-                    appList.innerHTML += savedPages[currPage].Template;
+                
+                if (savedPages[currPage] != null)  {
+                    appList.innerHTML = savedPages[currPage].Template;
                     pageSize = 10 - savedPages[currPage].Length;
                 } else {
+                    appList.innerHTML = ``;
                     let flag = false;
-                    if ((intsData != null || (testsData != null && intsData != null)) && ilen > lastInt) {
-                        listInt();
-                        flag = true;
+                    const fval = filter.value;
+
+                    if (fval == 'all' || fval == 'interview') {
+                        if (intsData != null) {
+                            if (ilen > lastInt) {
+                                listInt();
+                                flag = true;
+                            }                        
+                        }
                     }
-                    if ((testsData != null || (testsData != null && intsData != null)) && tlen > lastTest) {
-                        listTest();
-                        flag = true;
+
+                    if (fval == 'all' || fval == 'test') {
+                        if (testsData != null) {
+                            if (tlen > lastTest) {
+                                listTest();
+                                flag = true;
+                            }                      
+                        }
                     }
                     if (flag) {
                         savedPages[currPage] = {
@@ -396,12 +346,23 @@
                         }
                     } 
                 }
-                
-                if (pageSize > 0) {
-                    nextbtn.style.visibility = 'hidden';
-                } else {
-                    nextbtn.style.visibility = 'visible';
-                }
+                displaybtn();
+            }
+
+        }
+
+        function displaybtn() {
+            prevbtn.style.visibility = currPage <= 1 ? 'hidden' : 'visible';
+    
+            if (pageSize > 0) {
+                nextbtn.style.visibility = 'hidden';
+                appList.innerHTML += `
+                    <div class="no-data">
+                        Thats all for now !
+                    </div>
+                `;
+            } else {
+                nextbtn.style.visibility = 'visible';
             }
 
         }
@@ -412,19 +373,43 @@
         }
 
         // Function to apply filters
-        function filterJobs() {
-            const eventtype = document.getElementById('eventtype').value;
-            fetchJobs(eventtype);
+        function middle() {
+            lastInt = lastTest = currPage = 0;
+            savedPages = {};
+            nextbtn.click();
         }
 
         function showSpinner() {
             document.getElementById('spinner').style.display = 'block'; 
         }
 
-        // Function to hide the spinner
         function hideSpinner() {
             document.getElementById('spinner').style.display = 'none'; 
         }
+        // TODO: 
+        function search() {
+            const query = searchbar.value.toLowerCase();
+            if (query == "") {
+                searched = alldata;
+                middle();
+                return;
+            }
+            const fval = filter.value;
+            if (fval == "all" || fval == "interview") {
+                const result = alldata.filter(job =>
+                Object.values(job).some(val => val.toString().toLowerCase().includes(query)));
+            }
+            if (fval == 'all' || fval == 'test') {
+                const result = alldata.filter(job =>
+                Object.values(job).some(val => val.toString().toLowerCase().includes(query)));
+            }
+
+            
+            searched = result;
+            middle();
+        }
+        const searchbar = document.getElementById('searchBox');
+        searchbar.addEventListener('input', search);
 
         // Initial load
         fetchJobs();

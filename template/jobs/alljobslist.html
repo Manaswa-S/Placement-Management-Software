@@ -81,34 +81,28 @@
             background: #8E94F2;
         }
 
-        .filters {
+        .top-nav {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 20px;
             align-items: center;
+            width: 100%;
+            margin-bottom: 20px;
         }
 
-        .filters select {
+        .filterbar {
             padding: 10px;
             font-size: 14px;
             border-radius: 5px;
             border: 1px solid #ddd;
         }
 
-        .filters button {
-            background: #6C63FF;
-            color: #fff;
+        .searchbar input {
+            padding: 10px;
             font-size: 14px;
-            padding: 10px 15px;
-            border: none;
+            border: 1px solid #ddd;
             border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s;
         }
 
-        .filters button:hover {
-            background: #8E94F2;
-        }
 
         .job-card .upload-section {
             display: none;
@@ -147,6 +141,52 @@
             font-size: 0.8em;
             color: #555;
         }
+
+        .spinner {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            border: 6px solid #f3f3f3;  
+            border-top: 6px solid #6C63FF;  
+            border-radius: 50%;        
+            width: 60px;                
+            height: 60px;               
+            animation: spin 2s linear infinite; 
+        }
+
+        /* Keyframes for the spinning animation */
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .paging {
+            position:static;
+            bottom: 2%;
+            width: 100%;
+        }
+
+        .nav-btn {
+            visibility:hidden;
+            position:relative;
+            background: #6C63FF;
+            color: #fff;
+            font-size: 14px;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            border: none;
+        }
+        .prev-btn {
+            left: 50%;
+            transform: translateX(-100%); 
+        }
+
+        .next-btn {
+            left: 50%;
+            transform: translateX(-100%); 
+        }
+
     </style>
 </head>
 
@@ -154,9 +194,8 @@
     <div class="container">
         <h1>Available Jobs</h1>
 
-        <!-- Filters Section -->
-        <div class="filters">
-            <select name="jobType" id="jobType">
+        <div class="top-nav">
+            <select onchange="filterJobs()" class="filterbar" name="jobType" id="jobType">
                 <option value="All">All</option>
                 <option value="Full-time">Full-time</option>
                 <option value="Part-time">Part-time</option>
@@ -164,67 +203,164 @@
                 <option value="Contract">Contract</option>
             </select>
 
-            <button onclick="filterJobs()">Apply Filters</button>
+            <div class="searchbar">
+                <input type="text" id="searchBox" placeholder="Search..." />
+            </div>
         </div>
 
-        <!-- Job Listings -->
-        <div id="jobList"></div>
+        <div id="dataList"></div>
+
+        <div class="spinner" id="spinner" style="display: none;">
+        </div>
+
+        <div id="paging" class="paging"> 
+            <button id="prev-btn" class="nav-btn prev-btn"> < Prev </button>
+            <button id="next-btn" class="nav-btn next-btn"> Next > </button>
+        </div>
     </div>
 
     <script>
+        let alljobs = [];
+        let savedPages = {};
+        let searched = [];
+
+        let dlen = 0;
+        let pageSize = 0;
+        let lastIndex = 0;
+        let currPage = 0;
+
+        const dataList = document.getElementById('dataList');
+        const filter = document.getElementById('jobType');
+        const prevbtn = document.getElementById('prev-btn');
+        const nextbtn = document.getElementById('next-btn');
+
         // Function to fetch job listings from the backend
         function fetchJobs(jobType = 'All') {
+            showSpinner();
             const url = `/laa/student/alljobs?jobType=${jobType}`;
             fetch(url)
                 .then(response => response.json())
                 .then(data => {
-                    const jobList = document.getElementById('jobList');
 
-                    if (data === null) {
-                        jobList.innerHTML = `
+                    const {JobsList} = data;
+                    alljobs = JobsList;
+                    hideSpinner();
+                    if (alljobs == null) {
+                        dataList.innerHTML = `
                             <div class="no-jobs">
                                 No jobs available at the moment. Please check back later.
                             </div>
                         `;
                         return;
                     } else {
-                        jobList.innerHTML = ''; // Clear existing jobs
+                        searched = alljobs;
+                        middle();
                     }
-
-                    data.forEach(job => {
-                        const jobCard = `
-                            <div class="job-card">
-                                <div class="job-title">${job.JobID} : ${job.Title}</div>
-                                <div class="job-company">${job.CompanyName}</div>
-                                <div class="job-details">
-                                    <p><strong>Location:</strong> ${job.Location}</p>
-                                    <p><strong>Type:</strong> ${job.Type}</p>
-                                    <p><strong>CTC:</strong> ${job.Salary}</p>
-                                    <p><strong>Position:</strong> ${job.Position}</p>
-                                    <p><strong>Skills:</strong> ${job.Skills.join(', ')}</p>
-                                    <p><strong>Status:</strong> ${job.ActiveStatus ? 'Active' : 'Closed'}</p>
-                                </div>
-                                <button class="apply-btn" 
-                                    onclick="applyToJob(${job.JobID}, this)" 
-                                    ${job.ActiveStatus ? '' : 'disabled'} 
-                                    style="background-color: ${job.ActiveStatus ? '#6C63FF' : '#d3d3d3'}; color: ${job.ActiveStatus ? '#fff' : '#000'};">
-                                    ${job.ActiveStatus ? 'Apply Now' : 'Closed'}
-                                </button>
-
-                                <div class="upload-section">
-                                    <input type="file" id="resume-upload-${job.JobID}" accept=".pdf,.doc,.docx" />
-                                    <button class="apply-btn" onclick="uploadResume(${job.JobID}, this)">Submit</button>
-                                </div>
-
-
-                            </div>
-                        `;
-                        jobList.innerHTML += jobCard;
-                    });
                 })
                 .catch(error => console.error('Error fetching jobs:', error));
         }
 
+        function listjobs() {
+            if (searched.length != 0) {
+                let i = 0;
+                for (i = lastIndex; i < dlen; i++) {
+                    if (pageSize == 0) {
+                        break;
+                    }
+
+                    let job = searched[i]; 
+                    const card = `
+                        <div class="job-card">
+                            <div class="job-title">${job.JobID} : ${job.Title}</div>
+                            <div class="job-company">${job.CompanyName}</div>
+                            <div class="job-details">
+                                <p><strong>Location:</strong> ${job.Location}</p>
+                                <p><strong>Type:</strong> ${job.Type}</p>
+                                <p><strong>CTC:</strong> ${job.Salary}</p>
+                                <p><strong>Position:</strong> ${job.Position}</p>
+                                <p><strong>Skills:</strong> ${job.Skills.join(', ')}</p>
+                                <p><strong>Status:</strong> ${job.ActiveStatus ? 'Active' : 'Closed'}</p>
+                            </div>
+                            <button class="apply-btn" 
+                                onclick="applyToJob(${job.JobID}, this)" 
+                                ${job.ActiveStatus ? '' : 'disabled'} 
+                                style="background-color: ${job.ActiveStatus ? '#6C63FF' : '#d3d3d3'}; color: ${job.ActiveStatus ? '#fff' : '#000'};">
+                                ${job.ActiveStatus ? 'Apply Now' : 'Closed'}
+                            </button>
+
+                            <div class="upload-section">
+                                <input type="file" id="resume-upload-${job.JobID}" accept=".pdf,.doc,.docx" />
+                                <button class="apply-btn" onclick="uploadResume(${job.JobID}, this)">Submit</button>
+                            </div>
+                        </div>
+                    `;
+                    dataList.innerHTML += card;
+                    pageSize--;
+                }
+                lastIndex = i;
+            }
+        }
+
+        function pagination() {
+        
+            if (searched != null) {
+                dlen = searched.length;
+            }
+
+            prevbtn.onclick = function () {
+                currPage -= 1;
+                dataList.innerHTML = savedPages[currPage].Template;
+                pageSize = 10 - savedPages[currPage].Length;
+                displaybtn();
+            }
+
+            nextbtn.onclick = function () {
+                currPage += 1;
+                pageSize = 10; // this defines the number of cards per page
+                
+                if (savedPages[currPage] != null)  {
+                    dataList.innerHTML = savedPages[currPage].Template;
+                    pageSize = 10 - savedPages[currPage].Length;
+                } else {
+                    dataList.innerHTML = ``;
+
+                    if (searched != null && dlen > lastIndex) {
+                        listjobs();
+                        savedPages[currPage] = {
+                            Template: dataList.innerHTML,
+                            Length: (10 - pageSize)
+                        }
+                    }
+                }
+                displaybtn();
+            }
+
+        }
+
+        function displaybtn() {
+            prevbtn.style.visibility = currPage <= 1 ? 'hidden' : 'visible';
+
+            if (pageSize > 0) {
+                nextbtn.style.visibility = 'hidden';
+                dataList.innerHTML += `
+                    <div class="job-details">
+                        Thats all for now !
+                    </div>
+                `;
+            } else {
+                nextbtn.style.visibility = 'visible';
+            }
+        }
+
+
+        function showSpinner() {
+            document.getElementById('spinner').style.display = 'block'; 
+        }
+
+        // Function to hide the spinner
+        function hideSpinner() {
+            document.getElementById('spinner').style.display = 'none'; 
+        }
 
         // Function to apply to a job
         function applyToJob(jobID, button) {
@@ -242,52 +378,41 @@
                 .catch(error => console.error('Error applying to job:', error));
         }
 
-        // function applyToJob(jobID, button) {
-        //     const jobCard = button.closest('.job-card');
-        //     const uploadSection = jobCard.querySelector('.upload-section');
-            
-        //     if (uploadSection.style.display === 'none' || !uploadSection.style.display) {
-        //         uploadSection.style.display = 'block';
-        //     } else {
-        //         uploadSection.style.display = 'none';
-        //     }
-        // }
-
-        // function uploadResume(jobID, button) {
-        //     const fileInput = document.getElementById(`resume-upload-${jobID}`);
-        //     const file = fileInput.files[0];
-        //     if (!file) {
-        //         alert('Please select a file to upload.');
-        //         return;
-        //     }
-
-        //     const formData = new FormData();
-        //     formData.append('jobid', jobID);
-        //     formData.append('resume', file);
-
-        //     fetch('/laa/student/uploadresume', {
-        //         method: 'POST',
-        //         body: formData,
-        //     })
-        //         .then(response => {
-        //             if (response.ok) {
-        //                 alert('Resume submitted successfully!');
-        //                 button.textContent = 'Uploaded';
-        //                 button.disabled = true;
-        //             } else {
-        //                 alert('Failed to upload. Please try again.');
-        //             }
-        //         })
-        //         .catch(error => console.error('Error uploading resume:', error));
-        // }
-
-
         // Function to apply filters
-        
-        function filterJobs() {
-            const jobType = document.getElementById('jobType').value;
-            fetchJobs(jobType);
+        function middle() {
+            pagination();
+            lastIndex = currPage = 0;
+            savedPages = {};
+            nextbtn.click();
         }
+
+        function search() {
+            const query = searchbar.value.toLowerCase();
+            if (query == "") {
+                searched = alljobs;
+                middle();
+                return;
+            }
+            const result = alljobs.filter(job =>
+            Object.values(job).some(val => val.toString().toLowerCase().includes(query)));
+            searched = result;
+            middle();
+        }
+
+        function filterJobs() {
+            let query = filter.value;
+
+            if (query == "All") {
+                searched = alljobs;
+            } else {
+                const result = alljobs.filter(val => val.Type.includes(query));
+                searched = result;
+            }
+            middle();
+        }
+
+        const searchbar = document.getElementById('searchBox');
+        searchbar.addEventListener('input', search);
 
         // Initial load
         fetchJobs();

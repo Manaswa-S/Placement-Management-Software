@@ -15,11 +15,15 @@ handler functions are structed wrong, need to use gin.HandlerFunc
 point to data man, dont juggle it all around
 
 
+for everything there is not a check if the time for that event has gone by, i can still give tests that were meant to be over by yesterday
+
 refactor the get resume/result to use utils.GetFile
 
 in logger if 'explicit_error' is true, log it as CRITICAL error in a separate area
 
 custom 'alert' ui
+
+implement TTL to all data in redis for automatic cleanup
 
 export redis cache when shutting down
 
@@ -27,16 +31,26 @@ the test can be binded to an existing job listing or none
 
 add a safety measure that saves all redis cache data before shutting down
 
+none of our endpoints are type safe, you can send illegal data and it will still proceed, the checks are only for the client side
+
+add unique constraint on the testresults table (userid and testid)
+
+reduce font size of every h1
+
 restructure the template folder
+
+include profile pic feature for all
+
+nice and smaller (size) favicon  
+
+consider the fact that the browser caches test questions anyway, so whats the point of one-q-at a time
 
 new test email, results, etc
 
 Interview Conflict: Ensure that there is logic in place to check for conflicts before scheduling an interview.
 Rescheduling: Provide a way for the company to reschedule the interview in case of an issue 
 
-many filter s are not working
-
-have a 'empty' thing when len(result) == 0
+the myapplicants page refreshes EVERYTHING everytime an action is performed (shortlist/ etc)
 
 add search box wherever needed
 

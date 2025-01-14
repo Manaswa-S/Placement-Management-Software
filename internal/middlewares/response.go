@@ -24,11 +24,7 @@ func ResponseMiddleware() gin.HandlerFunc {
 		}
 
 		// If no error, check if there's a response to send (data, not error)
-		// You can customize the response data formatting as per your requirements
 		if c.Writer.Status() == http.StatusOK {
-			// Example of sending a success response with the data
-			// If the handler has set some data to be sent, you could use:
-			// c.JSON(http.StatusOK, c.Get("data"))
 			c.JSON(http.StatusOK, gin.H{
 				"status": "success",
 			})

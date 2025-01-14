@@ -125,6 +125,10 @@ type TestQuestion struct {
 	NextId string
 	TTL time.Duration
 }
+type TestResponse struct {
+	ItemID string
+	Response []string
+}
 
 type JWTTokens struct {
 	JWTAccess string
@@ -139,4 +143,23 @@ type Token struct {
 	Role int64
 	ID int64
 	Email string	
+}
+
+type Completed struct {
+	Data any
+}
+
+
+
+
+
+
+
+
+
+type History struct {
+	Data *sqlc.ProfileDataRow
+	Applications *[]sqlc.ApplicationHistoryRow
+	Interviews *[]sqlc.InterviewHistoryRow
+	Tests *[]sqlc.TestHistoryRow
 }

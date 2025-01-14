@@ -93,6 +93,7 @@ CREATE TABLE interviews (
     notes TEXT,
     location TEXT NOT NULL DEFAULT 'Campus',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    extras JSON,
     CONSTRAINT applications_interviews_pkey FOREIGN KEY (application_id) REFERENCES applications(application_id),
     CONSTRAINT companies_interviews_pkey FOREIGN KEY (company_id) REFERENCES companies(company_id)
 );
@@ -117,7 +118,7 @@ CREATE TABLE testresults(
     result_id BIGINT NOT NULL DEFAULT nextval('"testresults_result_id_seq"'::regclass),
     test_id BIGINT NOT NULL,
     user_id BIGINT NOT NULL,
-    responses JSON,
+    responses JSONB DEFAULT '{}' ,
     start_time TIMESTAMP WITH TIME ZONE ,
     end_time TIMESTAMP WITH TIME ZONE ,
     CONSTRAINT "testresults_result_id_pkey" PRIMARY KEY (result_id)

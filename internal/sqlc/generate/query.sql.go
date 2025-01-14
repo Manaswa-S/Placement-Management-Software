@@ -11,6 +11,50 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const applicationHistory = `-- name: ApplicationHistory :many
+SELECT 
+    applications.application_id,
+    applications.created_at,
+    jobs.title,
+    companies.company_name
+FROM applications
+JOIN jobs ON jobs.job_id = applications.job_id
+JOIN companies ON jobs.company_id = companies.company_id
+WHERE applications.student_id = (SELECT students.student_id FROM students WHERE students.user_id = $1)
+`
+
+type ApplicationHistoryRow struct {
+	ApplicationID int64
+	CreatedAt     pgtype.Timestamptz
+	Title         string
+	CompanyName   string
+}
+
+func (q *Queries) ApplicationHistory(ctx context.Context, userID int64) ([]ApplicationHistoryRow, error) {
+	rows, err := q.db.Query(ctx, applicationHistory, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ApplicationHistoryRow
+	for rows.Next() {
+		var i ApplicationHistoryRow
+		if err := rows.Scan(
+			&i.ApplicationID,
+			&i.CreatedAt,
+			&i.Title,
+			&i.CompanyName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const applicationStatusTo = `-- name: ApplicationStatusTo :exec
 UPDATE applications
 SET status = $1
@@ -123,6 +167,106 @@ type CloseJobParams struct {
 func (q *Queries) CloseJob(ctx context.Context, arg CloseJobParams) error {
 	_, err := q.db.Exec(ctx, closeJob, arg.JobID, arg.UserID)
 	return err
+}
+
+const completedInterviews = `-- name: CompletedInterviews :many
+SELECT 
+    jobs.title,
+    companies.company_name,
+    interviews.interview_id,
+    interviews.application_id,
+    TO_CHAR(interviews.date_time, 'DD-MM-YYYY HH12:MI AM') AS date_time,
+    interviews.extras
+FROM interviews
+JOIN applications ON interviews.application_id = applications.application_id
+JOIN jobs ON applications.job_id = jobs.job_id
+JOIN companies ON jobs.company_id = companies.company_id
+WHERE applications.student_id = (SELECT student_id FROM students WHERE students.user_id = $1)
+`
+
+type CompletedInterviewsRow struct {
+	Title         string
+	CompanyName   string
+	InterviewID   int64
+	ApplicationID int64
+	DateTime      string
+	Extras        []byte
+}
+
+func (q *Queries) CompletedInterviews(ctx context.Context, userID int64) ([]CompletedInterviewsRow, error) {
+	rows, err := q.db.Query(ctx, completedInterviews, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CompletedInterviewsRow
+	for rows.Next() {
+		var i CompletedInterviewsRow
+		if err := rows.Scan(
+			&i.Title,
+			&i.CompanyName,
+			&i.InterviewID,
+			&i.ApplicationID,
+			&i.DateTime,
+			&i.Extras,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const completedTests = `-- name: CompletedTests :many
+SELECT 
+    testresults.result_id,
+    TO_CHAR(testresults.start_time, 'DD-MM-YYYY HH12:MI AM') AS start_time,
+    TO_CHAR(testresults.end_time, 'DD-MM-YYYY HH12:MI AM') AS end_time,
+    companies.company_name,
+    jobs.title
+FROM testresults
+JOIN tests ON testresults.test_id = tests.test_id
+JOIN companies ON tests.company_id = companies.company_id
+JOIN jobs ON tests.job_id = jobs.job_id
+WHERE testresults.user_id = $1
+ORDER BY testresults.result_id
+`
+
+type CompletedTestsRow struct {
+	ResultID    int64
+	StartTime   string
+	EndTime     string
+	CompanyName string
+	Title       string
+}
+
+func (q *Queries) CompletedTests(ctx context.Context, userID int64) ([]CompletedTestsRow, error) {
+	rows, err := q.db.Query(ctx, completedTests, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CompletedTestsRow
+	for rows.Next() {
+		var i CompletedTestsRow
+		if err := rows.Scan(
+			&i.ResultID,
+			&i.StartTime,
+			&i.EndTime,
+			&i.CompanyName,
+			&i.Title,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const deleteInterview = `-- name: DeleteInterview :exec
@@ -737,6 +881,19 @@ func (q *Queries) GetOfferLetterData(ctx context.Context, applicationID int64) (
 	return i, err
 }
 
+const getResponses = `-- name: GetResponses :one
+SELECT responses 
+FROM testresults
+WHERE user_id = $1
+`
+
+func (q *Queries) GetResponses(ctx context.Context, userID int64) ([]byte, error) {
+	row := q.db.QueryRow(ctx, getResponses, userID)
+	var responses []byte
+	err := row.Scan(&responses)
+	return responses, err
+}
+
 const getResumeAndResultPath = `-- name: GetResumeAndResultPath :one
 SELECT 
     resume_url, 
@@ -813,7 +970,7 @@ SELECT
     tests.description,
     tests.duration,
     tests.q_count,
-    TO_CHAR(tests.end_time, 'YYYY-MM-DD HH24:MI:SS') AS end_time,
+    TO_CHAR(tests.end_time, 'DD-MM-YYYY HH12:MI AM') AS end_time,
     tests.type,    
     companies.company_name,
     cte.title
@@ -973,6 +1130,43 @@ func (q *Queries) InsertNewJob(ctx context.Context, arg InsertNewJobParams) (Job
 	return i, err
 }
 
+const interviewHistory = `-- name: InterviewHistory :many
+SELECT 
+    interviews.interview_id,
+    interviews.created_at,
+    jobs.title
+FROM interviews
+JOIN applications ON applications.application_id = interviews.application_id
+JOIN jobs ON jobs.job_id = applications.job_id
+WHERE applications.student_id = (SELECT students.student_id FROM students WHERE students.user_id = $1)
+`
+
+type InterviewHistoryRow struct {
+	InterviewID int64
+	CreatedAt   pgtype.Timestamp
+	Title       string
+}
+
+func (q *Queries) InterviewHistory(ctx context.Context, userID int64) ([]InterviewHistoryRow, error) {
+	rows, err := q.db.Query(ctx, interviewHistory, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []InterviewHistoryRow
+	for rows.Next() {
+		var i InterviewHistoryRow
+		if err := rows.Scan(&i.InterviewID, &i.CreatedAt, &i.Title); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const interviewStatusTo = `-- name: InterviewStatusTo :exec
 UPDATE interviews
 SET status = $1
@@ -1067,6 +1261,62 @@ func (q *Queries) NewTestResult(ctx context.Context, arg NewTestResultParams) er
 	return err
 }
 
+const profileData = `-- name: ProfileData :one
+SELECT 
+    students.student_name,
+    students.roll_number,
+    students.student_dob,
+    students.gender,
+    students.course,
+    students.department,
+    students.year_of_study,
+    students.cgpa,
+    students.contact_no,
+    students.student_email,
+    students.address,
+    students.skills,
+    students.extras
+FROM students
+WHERE students.user_id = $1
+`
+
+type ProfileDataRow struct {
+	StudentName  string
+	RollNumber   string
+	StudentDob   pgtype.Date
+	Gender       string
+	Course       string
+	Department   string
+	YearOfStudy  string
+	Cgpa         pgtype.Float8
+	ContactNo    string
+	StudentEmail string
+	Address      pgtype.Text
+	Skills       pgtype.Text
+	Extras       []byte
+}
+
+func (q *Queries) ProfileData(ctx context.Context, userID int64) (ProfileDataRow, error) {
+	row := q.db.QueryRow(ctx, profileData, userID)
+	var i ProfileDataRow
+	err := row.Scan(
+		&i.StudentName,
+		&i.RollNumber,
+		&i.StudentDob,
+		&i.Gender,
+		&i.Course,
+		&i.Department,
+		&i.YearOfStudy,
+		&i.Cgpa,
+		&i.ContactNo,
+		&i.StudentEmail,
+		&i.Address,
+		&i.Skills,
+		&i.Extras,
+	)
+	return i, err
+}
+
 const scheduleInterview = `-- name: ScheduleInterview :exec
 INSERT INTO interviews (application_id, company_id, date_time, type, notes, location)
 VALUES ($1, (SELECT company_id FROM companies WHERE user_id = $2), $3, $4, $5, $6)
@@ -1120,6 +1370,27 @@ func (q *Queries) SignupUser(ctx context.Context, arg SignupUserParams) (User, e
 	return i, err
 }
 
+const submitTest = `-- name: SubmitTest :one
+UPDATE testresults 
+SET end_time = $1
+WHERE user_id = $2 
+AND test_id = $3
+RETURNING result_id
+`
+
+type SubmitTestParams struct {
+	EndTime pgtype.Timestamptz
+	UserID  int64
+	TestID  int64
+}
+
+func (q *Queries) SubmitTest(ctx context.Context, arg SubmitTestParams) (int64, error) {
+	row := q.db.QueryRow(ctx, submitTest, arg.EndTime, arg.UserID, arg.TestID)
+	var result_id int64
+	err := row.Scan(&result_id)
+	return result_id, err
+}
+
 const takeTest = `-- name: TakeTest :one
 SELECT 
     tests.file_id,
@@ -1147,6 +1418,40 @@ func (q *Queries) TakeTest(ctx context.Context, arg TakeTestParams) (TakeTestRow
 	return i, err
 }
 
+const testHistory = `-- name: TestHistory :many
+SELECT 
+    tests.test_name,
+    testresults.start_time
+FROM testresults
+JOIN tests ON testresults.test_id = tests.test_id
+WHERE testresults.user_id = $1
+`
+
+type TestHistoryRow struct {
+	TestName  string
+	StartTime pgtype.Timestamptz
+}
+
+func (q *Queries) TestHistory(ctx context.Context, userID int64) ([]TestHistoryRow, error) {
+	rows, err := q.db.Query(ctx, testHistory, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []TestHistoryRow
+	for rows.Next() {
+		var i TestHistoryRow
+		if err := rows.Scan(&i.TestName, &i.StartTime); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateEmailConfirmation = `-- name: UpdateEmailConfirmation :exec
 UPDATE users
 SET confirmed = true
@@ -1171,5 +1476,23 @@ type UpdatePasswordParams struct {
 
 func (q *Queries) UpdatePassword(ctx context.Context, arg UpdatePasswordParams) error {
 	_, err := q.db.Exec(ctx, updatePassword, arg.Email, arg.Password)
+	return err
+}
+
+const updateResponse = `-- name: UpdateResponse :exec
+UPDATE testresults 
+SET responses = responses || $1::jsonb
+WHERE user_id = $2 
+AND test_id = $3
+`
+
+type UpdateResponseParams struct {
+	Column1 []byte
+	UserID  int64
+	TestID  int64
+}
+
+func (q *Queries) UpdateResponse(ctx context.Context, arg UpdateResponseParams) error {
+	_, err := q.db.Exec(ctx, updateResponse, arg.Column1, arg.UserID, arg.TestID)
 	return err
 }
