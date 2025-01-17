@@ -1,6 +1,7 @@
 package dto
 
 import (
+	"mime/multipart"
 	"time"
 
 	sqlc "go.mod/internal/sqlc/generate"
@@ -92,9 +93,11 @@ type CancelInterview struct {
 	RepresentativeName string
 }
 
-type AllUpcomingData struct {
-	InterviewsData []sqlc.GetInterviewsForUserIDRow
-	TestsData []sqlc.GetTestsForUserIDRow
+type Upcoming struct {
+	Data any
+}
+type Completed struct {
+	Data any
 }
 
 type NewTestPost struct {
@@ -145,21 +148,41 @@ type Token struct {
 	Email string	
 }
 
-type Completed struct {
-	Data any
+
+
+
+type ProfileData struct {
+	OverData *[]sqlc.ApplicationsStatusCountsRow
+	UsersData *sqlc.UsersTableDataRow
+	ProData *sqlc.ProfileDataRow
+	AppsHistory *[]sqlc.ApplicationHistoryRow
+	IntsHistory *[]sqlc.InterviewHistoryRow
+	TestsHistory *[]sqlc.TestHistoryRow
 }
 
+type UpdateStudentDetails struct {
+	Course string
+	Department string
+	YearOfStudy string
+	CGPA float64
+	ContactNumber string
+	Address string
+	Skills string
+}
 
+type Report struct {
+	UserId int64
+	Message string
+	ReportedAt time.Time
+	IpAddress string
+}
 
+type StudentFilesPost struct {
+	ResumeFile *multipart.FileHeader
+	ResultFile *multipart.FileHeader
+	ProfilePic *multipart.FileHeader
 
-
-
-
-
-
-type History struct {
-	Data *sqlc.ProfileDataRow
-	Applications *[]sqlc.ApplicationHistoryRow
-	Interviews *[]sqlc.InterviewHistoryRow
-	Tests *[]sqlc.TestHistoryRow
+	ResumePath string
+	ResultPath string
+	ProfilePicPath string	
 }

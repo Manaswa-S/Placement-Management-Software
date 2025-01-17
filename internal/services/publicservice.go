@@ -2,17 +2,22 @@ package services
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"mime/multipart"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/redis/go-redis/v9"
 	"go.mod/internal/config"
+	errs "go.mod/internal/const"
 	"go.mod/internal/dto"
 	sqlc "go.mod/internal/sqlc/generate"
 	"go.mod/internal/utils"
@@ -40,18 +45,24 @@ type ResetPass struct {
 	ConfirmPass string
 }
 
-func (s *PublicService) SignupPost(ctx *gin.Context, signupData sqlc.SignupUserParams) (error) {
+func (s *PublicService) SignupPost(ctx *gin.Context, signupData sqlc.SignupUserParams) (*errs.Error) {
 
 	// check if both email and password are valid
 	// implement better validation function later on
 	if signupData.Email == "" || signupData.Password == "" {
-		return errors.New("invalid email or password. try again")
+		return &errs.Error{
+			Type: errs.InvalidState,
+			Message: "The email and password cannot be empty. Try again!",
+		}
 	}
 
 	// hash the password
 	hashed_pass, err := bcrypt.GenerateFromPassword([]byte(signupData.Password), 10)
 	if err != nil {
-		return errors.New("invalid password. try again")
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: err.Error(),
+		}
 	}
 	signupData.Password = string(hashed_pass)
 
@@ -59,12 +70,27 @@ func (s *PublicService) SignupPost(ctx *gin.Context, signupData sqlc.SignupUserP
 	// if not register new user
 	_, err = s.queries.SignupUser(ctx, signupData)
 	if err != nil {
-		return errors.New("user with email id already exists. try with different id")
+		var pgerr *pgconn.PgError
+		if (errors.As(err, &pgerr)) {
+			if (pgerr.Code == errs.UniqueViolation) {
+				return &errs.Error{
+					Type: errs.UniqueViolation,
+					Message: "User with Email-Id already exists. Try with different Id.",
+				}		
+			}
+		}
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: err.Error(),
+		}
 	}
 
 	err = s.SendConfirmEmail(ctx, signupData.Email)
 	if err != nil {
-		return err
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: err.Error(),
+		}
 	}
 
 	return nil
@@ -77,6 +103,7 @@ func (s *PublicService) SendConfirmEmail(ctx *gin.Context, email string) (error)
 	if err != nil {
 		return errors.New("not able to fetch user data from database")
 	}
+	//fmt.Println(userData.UserID)
 
 	// generate confirmation token
 	confirmtokenData := dto.Token{
@@ -253,29 +280,40 @@ func (s *PublicService) ResetPass(ctx *gin.Context, data ResetPass) (error) {
 	return nil
 }
 
-func (s *PublicService) LoginPost(ctx *gin.Context, loginData UserInputData) (int64, *dto.JWTTokens, error) {
-	tokens := &dto.JWTTokens{}
+func (s *PublicService) LoginPost(ctx *gin.Context, loginData UserInputData) (int64, *dto.JWTTokens, *errs.Error) {
+	tokens := new(dto.JWTTokens)
 	// check if user in database
 	// if present, get all data from database
 	userData, err := s.queries.GetUserData(ctx, loginData.Email)
 	if err != nil {
-		return 0, nil, errors.New("user does not exist. signup first")
+		return 0, nil, &errs.Error{
+			Type: errs.NotFound,
+			Message: "User does not exist. Signup first.",
+		} 
 	}
 
 	if !userData.Confirmed {
-		return 0, nil, errors.New("please verify email first")
+		return 0, nil, &errs.Error{
+			Type: errs.NotFound,
+			Message: "Please verify email first.",
+		} 
 	}
 
 	if !userData.IsVerified {
-		return 0, nil, errors.New("user verification is pending")
+		return 0, nil, &errs.Error{
+			Type: errs.NotFound,
+			Message: "User verification from the Admin is still pending. Check back later or contact Admin.", 
+		}
 	}
 
 	// compare passwords
 	err = bcrypt.CompareHashAndPassword([]byte(userData.Password), []byte(loginData.Password))
 	if err != nil {
-		return 0, nil, errors.New("password does not match. try again")
+		return 0, nil, &errs.Error{
+			Type: errs.NotFound,
+			Message: "Password is incorrect. Try again or use 'Forgot Password'",
+		}
 	}
-
 
 	// generate JWT access token and refresh token
 	accesstokenData := dto.Token{
@@ -288,7 +326,10 @@ func (s *PublicService) LoginPost(ctx *gin.Context, loginData UserInputData) (in
 	}
 	access_token, err := utils.GenerateJWT(accesstokenData)
 	if err != nil {
-		return 0, nil, errors.New("error generating access token. try again")
+		return 0, nil, &errs.Error{
+			Type: errs.IncompleteAction,
+			Message: "Error generating token 1. Try again.",
+		}
 	}
 
 	// generate JWT access token and refresh token
@@ -302,7 +343,10 @@ func (s *PublicService) LoginPost(ctx *gin.Context, loginData UserInputData) (in
 	}
 	refresh_token, err := utils.GenerateJWT(refreshtokenData)
 	if err != nil {
-		return 0, nil, errors.New("error generating refresh token. try again")
+		return 0, nil, &errs.Error{
+			Type: errs.IncompleteAction,
+			Message: "Error generating token 2. Try again.",
+		}
 	}
 
 	tokens.JWTAccess = access_token
@@ -312,37 +356,78 @@ func (s *PublicService) LoginPost(ctx *gin.Context, loginData UserInputData) (in
 	return userData.Role, tokens, nil
 }
 
-func (s *PublicService) ExtraInfoPostStudent(ctx *gin.Context, claims jwt.MapClaims) (sqlc.Student, error) {
+func (s *PublicService) ExtraInfoPostStudent(ctx *gin.Context, claims jwt.MapClaims) (*sqlc.Student, *errs.Error) {
 	// bind data
-	var data dto.ExtraInfoStudent
-	err := ctx.Bind(&data)
+	data := new(dto.ExtraInfoStudent)
+	err := ctx.Bind(data)
 	if err != nil {
-		return sqlc.Student{}, err
+		return nil, &errs.Error{
+			Type: errs.Internal,
+			Message: err.Error(),
+		}
 	}
-	// get resume file
-	resumeFile, err := ctx.FormFile("Resume")
-	if err != nil {
-		return sqlc.Student{}, err
+
+	mp := []string{"Resume", "Result", "ProfilePic"}
+	savedFiles := map[string]*multipart.FileHeader{}
+	
+	for _, t := range mp {
+		// get resume file
+		file, err := ctx.FormFile(t)
+		if err != nil {
+			return nil, &errs.Error{
+				Type: errs.Internal,
+				Message: err.Error(),
+			}
+		}
+
+		// get the file size and content-type
+		fileSize := file.Size
+		ext := file.Header.Get("Content-Type")
+		// get the expected size for the content type 
+		expected := config.FileSizeForContentType[ext] 
+		if (expected == 0) {
+			// invalid file content type
+			return nil, &errs.Error{
+				Type: errs.PreconditionFailed,
+				Message: fmt.Sprintf("Invalid %s file type.", t),
+			}
+		} else if (expected < fileSize) {
+			// file size more than expected
+			return nil, &errs.Error{
+				Type: errs.PreconditionFailed,
+				Message: fmt.Sprintf("%s file size exceeds the limit.", t),
+			}
+		}
+		savedFiles[t] = file
 	}
-	// save resume file
-	resumeStoragePath := fmt.Sprintf("%s%s&%d%s", os.Getenv("ResumeStorageDir"), data.CollegeRollNumber, time.Now().Unix(), filepath.Ext(resumeFile.Filename))
-	resumeSavePath, err := utils.SaveFile(ctx, resumeStoragePath, resumeFile)
-	if err != nil {
-		return sqlc.Student{}, err
-	}
-	// get result file
-	resultFile, err := ctx.FormFile("Result")
-	if err != nil {
-		return sqlc.Student{}, errors.New("unable to get result file. try again")
-	}
-	// save result file
-	resultStoragePath := fmt.Sprintf("%s%s&%d%s", os.Getenv("ResultStorageDir"), data.CollegeRollNumber, time.Now().Unix(), filepath.Ext(resultFile.Filename))
-	resultSavePath, err := utils.SaveFile(ctx, resultStoragePath, resultFile)
-	if err != nil {
-		return sqlc.Student{}, errors.New("unable to save result file. try again")
-	}
-	// update data in db
+
 	data.StudentEmail = claims["email"].(string)
+	userUUID, err := s.queries.GetUserUUIDFromEmail(ctx, data.StudentEmail)
+	if err != nil {
+		return nil, &errs.Error{
+			Type: errs.Internal,
+			Message: err.Error(),
+		}
+	}
+	strUUID := hex.EncodeToString(userUUID.Bytes[:])
+
+	savedPaths := map[string]string{}
+
+	for _,t := range mp {
+		// save resume file
+		file := savedFiles[t]
+		fileStoragePath := fmt.Sprintf("%s%s&%d&%s%s", os.Getenv("ResumeStorageDir"), strUUID, time.Now().Unix(), strings.ToLower(t), filepath.Ext(file.Filename))
+		fileSavePath, err := utils.SaveFile(ctx, fileStoragePath, file)
+		if err != nil {
+			return nil, &errs.Error{
+				Type: errs.Internal,
+				Message: err.Error(),
+			}
+		}	
+		savedPaths[t] = fileSavePath
+	}
+
+	// update data in db
 	studentData, err := s.queries.ExtraInfoStudent(ctx, sqlc.ExtraInfoStudentParams{
 		StudentName: data.StudentName,
 		RollNumber: data.CollegeRollNumber,
@@ -351,29 +436,36 @@ func (s *PublicService) ExtraInfoPostStudent(ctx *gin.Context, claims jwt.MapCla
 		Course: data.Course,
 		Department: data.Department,
 		YearOfStudy: data.YearOfStudy,
-		ResumeUrl: pgtype.Text{String: resumeSavePath, Valid: true},
-		ResultUrl: resultSavePath,
+		ResumeUrl: pgtype.Text{String: savedPaths["Resume"], Valid: true},
+		ResultUrl: savedPaths["Result"],
 		Cgpa: pgtype.Float8{Float64: data.CGPA, Valid: true},
 		ContactNo: data.ContactNumber,
 		StudentEmail: data.StudentEmail,
 		Address: pgtype.Text{String: data.Address, Valid: true},
 		Skills: pgtype.Text{String: data.Skills, Valid: true},
 		Email: data.StudentEmail,
+		PictureUrl: pgtype.Text{String: savedPaths["ProfilePic"], Valid: true},
 	})
 	if err != nil {
-		return sqlc.Student{}, err
+		return nil, &errs.Error{
+			Type: errs.Internal,
+			Message: err.Error(),
+		}
 	}
 
 	// return
-	return studentData, nil
+	return &studentData, nil
 }
 
-func (s *PublicService) ExtraInfoPostCompany(ctx *gin.Context, claims jwt.MapClaims) (sqlc.Company, error) {
+func (s *PublicService) ExtraInfoPostCompany(ctx *gin.Context, claims jwt.MapClaims) (*sqlc.Company, *errs.Error) {
 	// bind incoming data
 	var data dto.ExtraInfoCompany
 	err := ctx.Bind(&data)
 	if err != nil {
-		return sqlc.Company{}, errors.New("unable to bind company data. try again")
+		return nil, &errs.Error{
+			Type: errs.Internal,
+			Message: "unable to bind company data. try again",
+		}
 	}
 	// update db
 	data.RepresentativeEmail = claims["email"].(string)
@@ -386,10 +478,13 @@ func (s *PublicService) ExtraInfoPostCompany(ctx *gin.Context, claims jwt.MapCla
 		Email: data.RepresentativeEmail,
 	})
 	if err != nil {
-		return sqlc.Company{}, errors.New("unable to update company data in database")
+		return nil, &errs.Error{
+			Type: errs.Internal,
+			Message: "unable to update company data in database",
+		}
 	}
 	// return
-	return companyData, nil
+	return &companyData, nil
 }
 
 

@@ -8,6 +8,7 @@ const (
 	InvalidState = "INVALID_STATE"
 	ObjectExists = "OBJECT_EXISTS"
 	Unauthorized = "UNAUTHORIZED"
+	NotFound = "NOT_FOUND"
 
 	// Postgres error codes
 	UniqueViolation = "23505"

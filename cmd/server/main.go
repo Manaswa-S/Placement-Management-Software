@@ -14,6 +14,7 @@ import (
 	"go.mod/internal/handlers"
 	"go.mod/internal/middlewares"
 	"go.mod/internal/services"
+	"go.mod/internal/utils"
 	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/forms/v1"
 	"google.golang.org/api/option"
@@ -82,6 +83,11 @@ func routes(router *gin.Engine) {
 	womid.GET("/favicon.ico", func(ctx *gin.Context) {
 		ctx.File("./favicon.ico")
 	})
+
+	wmid.POST("/report", func(ctx *gin.Context) {
+		utils.RecordReport(ctx)
+	})
+	
 
 	queries := config.QueriesPool
 	redis := config.RedisClient

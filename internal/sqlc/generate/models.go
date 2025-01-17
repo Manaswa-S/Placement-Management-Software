@@ -36,7 +36,7 @@ type Interview struct {
 	Status        interface{}
 	Notes         pgtype.Text
 	Location      string
-	CreatedAt     pgtype.Timestamp
+	CreatedAt     pgtype.Timestamptz
 	Extras        []byte
 }
 
@@ -73,6 +73,7 @@ type Student struct {
 	Skills       pgtype.Text
 	UserID       int64
 	Extras       []byte
+	PictureUrl   pgtype.Text
 }
 
 type Test struct {

@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Company Signup Form</title>
     <style>
-        /* General Reset */
         * {
             margin: 0;
             padding: 0;
@@ -24,6 +23,9 @@
         }
 
         .form-container {
+            margin-top: 25px;
+            margin-bottom: 25px;
+
             background: #fff;
             border-radius: 10px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
@@ -91,14 +93,61 @@
         .form-btn:hover {
             background: #8E94F2;
         }
+
+        .upload-label {
+            display: inline-block;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        #preview {
+            width: 250px;
+            height: 250px;
+            border-radius: 5px;
+            object-fit: cover;
+            border: 2px solid #ddd;
+            margin-bottom: 5px;
+        }
+
+        #ProfilePic {
+            display: none;
+        }
+
+        span {
+            display: block;
+            color: #555;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+
+        .spinner {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            border: 6px solid #f3f3f3;  
+            border-top: 6px solid #6C63FF;  
+            border-radius: 50%;        
+            width: 60px;                
+            height: 60px;               
+            animation: spin 2s linear infinite; 
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
+    <div class="spinner" id="spinner" style="display: none;">
+    </div>
+
     <div class="form-container">
         <div class="form-header">
             <h1>Student Signup Form</h1>
         </div>
-        <form action="/public/extrainfopost" method="POST" enctype="multipart/form-data">
+        <form id="mainForm" onsubmit="postForm(event)">
             <input type="hidden" name="Token" value="{{.Token}}">
             <div class="form-section">
                 <label for="StudentName">Student Name</label>
@@ -151,11 +200,11 @@
             </div>
 
             <div class="form-section">
-                <label for="Resume">Resume</label>
+                <label for="Resume">Resume <label style="color: red;">{allowed .pdf , max size 300 Kb} </label></label>
                 <input type="file" id="Resume" name="Resume">
             </div>
             <div class="form-section">
-                <label for="Result">Result</label>
+                <label for="Result">Result <label style="color: red;">{allowed .pdf , max size 300 Kb} </label></label>
                 <input type="file" id="Result" name="Result" required>
             </div>
             <div class="form-section">
@@ -177,12 +226,65 @@
                 <input type="text" id="Skills" name="Skills">
             </div>
 
-            <div class="form-section">
-                <file
-            </div>
+            <label for="ProfilePic" class="upload-label">
+                
+                <img id="preview" alt="Profile Picture" />
+                <span style="color: red;">{allowed .pdf , max size 300 Kb} </span>
+                <span>Click to upload </span>
+            </label>
+            <input type="file" id="ProfilePic" name="ProfilePic" accept="image/*" />
 
             <button type="submit" class="form-btn">Proceed to Confirm Email</button>
         </form>
     </div>
+
+<script>
+
+    function postForm(event) {
+        event.preventDefault();
+        document.getElementById('spinner').style.display = 'block'; 
+        const url ="/public/extrainfopost";
+        
+        const formData = document.getElementById('mainForm');
+        const form = new FormData(formData);
+
+        fetch((url), {
+            method: "POST",
+            body: form,
+        })
+        .then((response) => (response.json()))
+        .then((data) => {
+            document.getElementById('spinner').style.display = 'none'; 
+            if (data.Message) {
+                alert("Error : " + data.Type + "\nMessage : " + data.Message);
+            }
+            if (data.Status) {
+                alert(data.Status);
+                window.location.href = "/public/login";
+            }
+        })
+        .catch((error) => {
+            console.log(error);
+        });
+    }
+
+
+    document.getElementById('ProfilePic').addEventListener('change', function (event) {
+    const file = event.target.files[0];
+    const preview = document.getElementById('preview');
+
+    if (file) {
+        const reader = new FileReader();
+
+        reader.onload = function (e) {
+        preview.src = e.target.result;
+        };
+
+        reader.readAsDataURL(file);
+    }
+    });
+
+
+</script>
 </body>
 </html>

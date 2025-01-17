@@ -166,7 +166,7 @@
             display:block;
             top:50%; 
             text-align: center;
-            font-size: 0.8em;
+            font-size: 1.0em;
             color: #555;
         }
     </style>
@@ -180,17 +180,6 @@
             <button id="interviewsTab" class="tab">Interviews</button>
         </div>
 
-        <!-- <div class="top-nav">
-            <select onchange="middle()" class="filterbar" name="eventtype" id="filter">
-                <option value="all">All</option>
-                <option value="interview">Interview</option>
-                <option value="test">Test</option>
-                <option value="lecture">#Lecture</option>
-            </select>
-            <div class="searchbar">
-                <input type="text" id="searchBox" placeholder="Search..." />
-            </div>
-        </div> -->
 
         <div id="dataList"></div>
 
@@ -226,7 +215,6 @@
 
     const heading = document.getElementById('pageHeading');
 
-    // Function to fetch job listings from the backend
     function fetchData(tab = 'tests') {
         showSpinner();
         const url = `/laa/student/completeddata?tab=${tab}`;

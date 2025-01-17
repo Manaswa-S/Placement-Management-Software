@@ -673,7 +673,6 @@
             document.getElementById('ApplicationId').value = ApplicationId;
         }
 
-        // Function to handle form submission
         function submitForm(event) {
             event.preventDefault(); // Prevent default form submission behavior
 
@@ -736,11 +735,8 @@
                     }
                 })
                 .then(blob => {
-                    // Create a URL for the blob
                     const fileURL = window.URL.createObjectURL(blob);
                     fetchJobs();
-
-                    // Open the file in a new tab
                     window.open(fileURL, '_blank');
                 })
                 .catch(error => {

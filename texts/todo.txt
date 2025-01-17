@@ -37,7 +37,19 @@ add unique constraint on the testresults table (userid and testid)
 
 reduce font size of every h1
 
+if a test was started for the first time by a user, it updates the test results table, but if it fails to retrieve the test form, the entry in testresults in invalid and should be removed
+
+you can send multiple extrainfo post requests from one link, it does not check for duplicates
+
 restructure the template folder
+
+alot of the earlier functions have alot of inefficiency that needs to be fixed\
+
+rate limit on file uploads separately
+
+change boiler plate names in email templates, etc
+
+replace the 'var name struct' with new() asap
 
 include profile pic feature for all
 

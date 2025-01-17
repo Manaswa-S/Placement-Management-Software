@@ -115,7 +115,7 @@
 <body>
     <div class="signup-container">
         <h2>Sign Up</h2>
-        <form action="/public/postsignupdata" method="post">
+        <form id="mainForm" onsubmit="postForm(event)">
             <div class="form-group">
                 <label for="email">Email</label>
                 <input type="email" id="Email" name="Email" placeholder="Enter your email" required>
@@ -150,6 +150,37 @@
             <a href="/public/login">Already have an account? Login</a>
         </div>
     </div>
+
+<script>
+
+
+    function postForm(event) {
+        event.preventDefault();
+        const url ="/public/postsignupdata";
+        
+        const formData = document.getElementById('mainForm');
+        const form = new FormData(formData);
+
+        fetch((url), {
+            method: "POST",
+            body: form,
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.Message) {
+                alert("Error : " + "\nMessage : " + data.Message);
+            }
+            if (data.Status) {
+                alert(data.Status);
+            }
+        })
+        .catch((error) => {
+            console.log(error);
+        });
+    }
+
+
+</script>
 </body>
 
 </html>

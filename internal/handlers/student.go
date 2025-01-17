@@ -3,7 +3,6 @@ package handlers
 import (
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	errs "go.mod/internal/const"
@@ -58,6 +57,15 @@ func (h *StudentHandler) RegisterRoute(studentRoute *gin.RouterGroup) {
 	studentRoute.GET("/profile", h.GetProfile)
 	// get the complete profile data
 	studentRoute.GET("/profiledata", h.ProfileData) 
+
+	// get the file specified as query for the user id 
+	studentRoute.GET("/getfile", h.GetFile)
+
+	// update the student's details
+	studentRoute.POST("/updatedetails", h.UpdateDetails)
+	// update student's documents/files 
+	studentRoute.POST("/updatefile", h.UpdateFile)
+	
 }
 
 
@@ -201,7 +209,7 @@ func (h *StudentHandler) UpcomingData(ctx *gin.Context) {
 		return
 	}
 	// service delegation
-	allUpcomingData, err := h.StudentService.UpcomingData(ctx, userid.(int64), eventtype)
+	uData, err := h.StudentService.UpcomingData(ctx, userid.(int64), eventtype)
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
@@ -209,7 +217,7 @@ func (h *StudentHandler) UpcomingData(ctx *gin.Context) {
 		return
 	}
 	// return data
-	ctx.JSON(http.StatusOK, allUpcomingData)
+	ctx.JSON(http.StatusOK, uData)
 }
 
 func (h *StudentHandler) TakeTestStatic(ctx *gin.Context) {
@@ -237,8 +245,7 @@ func (h *StudentHandler) TakeTestStatic(ctx *gin.Context) {
 		"TestName": testMetadata.TestName,
 		"TestDescription": testMetadata.Description.String,
 		"TestDuration": testMetadata.Duration,
-		"TestEndDate": strings.Split(testMetadata.EndTime, " ")[0],
-		"TestEndTime": strings.Split(testMetadata.EndTime, " ")[1],
+		"TestEndTime": testMetadata.EndTime,
 		"QCount": testMetadata.QCount,
 		"TestType": testMetadata.Type,
 	})
@@ -324,7 +331,6 @@ func (h *StudentHandler) Completed(ctx *gin.Context) {
 func (h *StudentHandler) GetProfile(ctx *gin.Context) {
 	ctx.File("./template/student/myProfile.html")
 }
-
 func (h *StudentHandler) ProfileData(ctx *gin.Context) {
 
 	userid, exists := ctx.Get("ID")
@@ -339,5 +345,83 @@ func (h *StudentHandler) ProfileData(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(200, data)
+	ctx.JSON(http.StatusOK, data)
+}
+
+func (h *StudentHandler) GetFile(ctx *gin.Context) {
+	// get user if and file type requested
+	userid, exists := ctx.Get("ID")
+	fileType := ctx.Query("type")
+	if (!exists || fileType == "") {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error": "missing user ID or query parameter",
+		})
+		return
+	}
+	// get the file path 
+	filePath, errf := h.StudentService.GetStudentFile(ctx, userid.(int64), fileType)
+	if errf != nil {
+		ctx.JSON(http.StatusBadRequest, errf)
+		return 
+	}
+	// respond with file
+	ctx.Header("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0")
+	ctx.File(filePath)
+}
+
+func (h *StudentHandler) UpdateDetails(ctx *gin.Context) {
+	details := new(dto.UpdateStudentDetails)
+
+	userid, exists := ctx.Get("ID")
+	err := ctx.Bind(details)
+	if err != nil || !exists {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error": "missing user ID or failed to bind incoming data",
+		})
+		return
+	}	
+
+	err = h.StudentService.UpdateDetails(ctx, userid.(int64), details)
+	if err != nil {
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.Status(http.StatusOK)		
+}
+
+
+func (h *StudentHandler) UpdateFile(ctx *gin.Context) {
+	
+	fileType := ctx.Query("type")
+	userid, exists := ctx.Get("ID")
+	if fileType == "" || !exists {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error": "missing user ID or file type query",
+		})
+		return
+	}
+	
+	file, err := ctx.FormFile(fileType)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error": "failed to get file",
+		})
+		return
+	}
+
+	errf := h.StudentService.UpdateFile(ctx, userid.(int64), file, fileType)
+	if errf != nil {
+		if (errf.Type != errs.Internal) {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"Type": errf.Type,
+				"Message": errf.Message,
+			})
+		}
+		return
+	}
+
+	ctx.Status(http.StatusOK)
+
+
 }

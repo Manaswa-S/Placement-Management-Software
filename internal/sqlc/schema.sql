@@ -65,6 +65,7 @@ CREATE TABLE students (
     skills TEXT,
     user_id BIGINT NOT NULL,
     extras JSON,
+    picture_url TEXT,
     CONSTRAINT uni_result_url UNIQUE (result_url),
     CONSTRAINT uni_roll_no UNIQUE (roll_number),
     CONSTRAINT students_pkey PRIMARY KEY (student_id),
@@ -79,7 +80,7 @@ CREATE TABLE applications (
     data_url TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     status application_status NOT NULL DEFAULT 'Applied',
-    CONSTRAINT students_app_pkey FOREIGN KEY (student_id) REFERENCES students(student_id),
+    CONSTRAINT students_app_pkey FOREIGN KEY (student_id) REFERENCES students(student_id) ON DELETE CASCADE,
     CONSTRAINT jobs_pkey FOREIGN KEY (job_id) REFERENCES jobs(job_id) ON DELETE CASCADE
 );
 
@@ -92,7 +93,7 @@ CREATE TABLE interviews (
     status interview_status NOT NULL,  
     notes TEXT,
     location TEXT NOT NULL DEFAULT 'Campus',
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     extras JSON,
     CONSTRAINT applications_interviews_pkey FOREIGN KEY (application_id) REFERENCES applications(application_id),
     CONSTRAINT companies_interviews_pkey FOREIGN KEY (company_id) REFERENCES companies(company_id)

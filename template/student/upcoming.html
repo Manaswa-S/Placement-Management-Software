@@ -21,6 +21,7 @@
         }
 
         h1 {
+            font-size: 1.5em;
             text-align: center;
             color: #6C63FF;
             margin-bottom: 20px;
@@ -86,12 +87,8 @@
             margin-bottom: 20px;
         }
 
-        .filterbar {
-            padding: 10px;
-            font-size: 14px;
-            border-radius: 5px;
-            border: 1px solid #ddd;
-            background-color: #fff;
+        .searchbar {
+            margin-left: auto;
         }
 
         .searchbar input {
@@ -150,31 +147,57 @@
             display:block;
             top:50%; 
             text-align: center;
-            font-size: 0.8em;
+            font-size: 1.0em;
             color: #555;
         }
+
+        .tabs {
+            display: flex;
+            justify-content: center;
+            margin-top: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            background-color:transparent;
+            font-size: 16px;
+            font-weight: 500;
+            transition: background-color 0.3s ease;
+        }
+
+        .tab:hover {
+            background-color: #e0e0e0;
+        }
+
+        .tab.active {
+            border-bottom: 3px solid #6C63FF;
+            color: #6C63FF;
+        }
+
 
     </style>
 </head>
 
 <body>
     <div class="container">
-        <h1 id="pageHeading">Upcoming Events</h1>
+        <h1 id="pageHeading">Upcoming Tests</h1>
+
+        <div class="tabs">
+            <button id="testsTab" class="tab active">Tests</button>
+            <button id="interviewsTab" class="tab">Interviews</button>
+        </div>
 
         <!-- Filters Section -->
         <div class="top-nav">
-            <select onchange="middle()" class="filterbar" name="eventtype" id="filter">
-                <option value="all">All</option>
-                <option value="interview">Interview</option>
-                <option value="test">Test</option>
-                <option value="lecture">#Lecture</option>
-            </select>
             <div class="searchbar">
                 <input type="text" id="searchBox" placeholder="Search..." />
             </div>
         </div>
 
-        <div id="appList"></div>
+        <div id="dataList"></div>
 
         <div class="spinner" id="spinner" style="display: none;">
         </div>
@@ -187,125 +210,138 @@
 
     <script>
 
-        const appList = document.getElementById('appList');
-        const filter = document.getElementById('filter');
+        const dataList = document.getElementById('dataList');
+        
+        const tabs = document.querySelectorAll('.tab');
+        const testTb = document.getElementById('testsTab');
+        const intTb = document.getElementById('interviewsTab');
+        
         const prevbtn = document.getElementById('prev-btn');
         const nextbtn = document.getElementById('next-btn');
 
-        let intsData = [];
-        let testsData = [];
+        const heading = document.getElementById('pageHeading');
 
-        let lastInt = 0;
-        let lastTest = 0;
-        let pageSize;
-        let currPage = 0;
+        let alldata = [];
         let savedPages = {};
+        let searched = [];
 
-        let ilen = 0;
-        let tlen = 0;
+        let dlen = 0;
+        let pageSize = 0;
+        let lastIndex = 0;
+        let currPage = 0;
+
+        let activeTemp = testTemp;
 
         // Function to fetch job listings from the backend
-        function fetchJobs(eventtype = 'all') {
-            appList.innerHTML = ''; // Clear existing jobs
+        function fetchData(eventtype = 'tests') {
+            dataList.innerHTML = ''; // Clear existing jobs
             showSpinner();
             const url = `/laa/student/upcomingdata?eventtype=${eventtype}`;
             fetch(url)
                 .then(response => response.json())
                 .then(data => {
-
-                    const { InterviewsData, TestsData } = data;
-                    intsData = InterviewsData;
-                    testsData = TestsData;
-
                     hideSpinner();
-
-                    if (intsData == null && testsData == null) {
-                        appList.innerHTML = `
+                    if (data == null) {
+                        dataList.innerHTML = `
                             <div class="no-data">
                                 No upcoming events. Relax !
                             </div>
                         `;
+                        alldata = [];
                     } else {
-                        pagination();
+                        const {Data} = data;
+                        alldata = Data;
+                        searched = alldata;
                         middle();
                     }
                 })
                 .catch(error => console.error('Error fetching events:', error));
         }
 
-        function listInt() {
-            if (intsData != null) {
-                let i = 0;
-                for (i = lastInt; i < ilen; i++) {
-                    if (pageSize == 0) {
-                        break;
-                    }
-                    let job = intsData[i];
-                    const intCard = `
-                        <div class="card">
-                            <div class="title">${job.Title}</div>
-                            <div class="details">
-                                    <p>Interview ID: ${job.InterviewID}</p>
-                                    <p>Company: ${job.CompanyName}</p>
-                                    <p>Date: ${job.Date}</p>
-                                    <p>Time: ${job.Time}</p>
-                                    <p>Type: ${job.InterviewsType}</p>
-                                    <p>Location: ${job.Location}</p>
-                                    <p>Notes: ${job.Notes}</p>
-                            </div>
-                        </div>
-                    `;
-                    appList.innerHTML += intCard;
-                    pageSize--;
-                };
-                lastInt = i;
-            }
+        function intTemp(job) {
+            return `
+                <div class="card">
+                    <div class="title">${job.Title}</div>
+                    <div class="details">
+                            <p>Interview ID: ${job.InterviewID}</p>
+                            <p>Company: ${job.CompanyName}</p>
+                            <p>Date: ${job.Date}</p>
+                            <p>Time: ${job.Time}</p>
+                            <p>Type: ${job.InterviewsType}</p>
+                            <p>Location: ${job.Location}</p>
+                            <p>Notes: ${job.Notes}</p>
+                    </div>
+                </div>
+            `;
         }
-        function listTest() {
-            if (testsData != null) {
+        
+        function testTemp(job) {
+            return `
+                <div class="card">
+                    <div class="title">${job.TestName}</div>
+                    <div class="details">
+                            <p>Test ID: ${job.TestID}</p>
+                            <p title="${job.Description}">Description: ${job.Description}</p>
+                            <p>Company Name: ${job.CompanyName}</p>
+                            <p>Duration: ${job.Duration} mins.</p>
+                            <p>Job Title: ${job.Title}</p>
+                            <p>No. of Questions: ${job.QCount}</p>
+                            <p>Last Date: ${job.EndTime}</p>
+                            <p>Type: ${job.Type}</p>
+                        <div>
+                            <button class="apply-btn" onclick="takeTest(${job.TestID}, this)"> Take Test </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function setActiveTemplate(template) {
+            activeTemp = template;
+        }
+
+        function listdata() {
+            if (searched.length != 0) {
                 let i = 0;
-                for (i = lastTest; i < tlen; i++) {
+                for (i = lastIndex; i < dlen; i++) {
                     if (pageSize == 0) {
                         break;
                     }
-                    let job = testsData[i];
-                    const testCard = `
-                        <div class="card">
-                            <div class="title">${job.TestName}</div>
-                            <div class="details">
-                                    <p>Test ID: ${job.TestID}</p>
-                                    <p title="${job.Description}">Description: ${job.Description}</p>
-                                    <p>Company Name: ${job.CompanyName}</p>
-                                    <p>Duration: ${job.Duration} mins.</p>
-                                    <p>Job Title: ${job.Title}</p>
-                                    <p>No. of Questions: ${job.QCount}</p>
-                                    <p>Last Date: ${job.EndTime}</p>
-                                    <p>Type: ${job.Type}</p>
-                                <div>
-                                    <button class="apply-btn" onclick="takeTest(${job.TestID}, this)"> Take Test </button>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                    appList.innerHTML += testCard;
+
+                    let job = searched[i]; 
+                    const card = activeTemp(job);
+                    dataList.innerHTML += card;
                     pageSize--;
-                };
-                lastTest = i;
+                }
+                lastIndex = i;
             }
         }
 
+        function displaybtn() {
+            prevbtn.style.visibility = currPage <= 1 ? 'hidden' : 'visible';
+
+            if (pageSize > 0) {
+                nextbtn.style.visibility = 'hidden';
+                dataList.innerHTML += `
+                    <div class="no-data">
+                        Thats all for now !
+                    </div>
+                `;
+            } else {
+                nextbtn.style.visibility = 'visible';
+            }
+        }
+
+        
         function pagination() {
-
-            if (intsData != null) {
-                ilen = intsData.length;
-            }
-            if (testsData != null) {
-                tlen = testsData.length;
+        
+            if (searched != null) {
+                dlen = searched.length;
             }
 
             prevbtn.onclick = function () {
                 currPage -= 1;
-                appList.innerHTML = savedPages[currPage].Template;
+                dataList.innerHTML = savedPages[currPage].Template;
                 pageSize = 10 - savedPages[currPage].Length;
                 displaybtn();
             }
@@ -315,77 +351,61 @@
                 pageSize = 10; // this defines the number of cards per page
                 
                 if (savedPages[currPage] != null)  {
-                    appList.innerHTML = savedPages[currPage].Template;
+                    dataList.innerHTML = savedPages[currPage].Template;
                     pageSize = 10 - savedPages[currPage].Length;
                 } else {
-                    appList.innerHTML = ``;
-                    let flag = false;
-                    const fval = filter.value;
+                    dataList.innerHTML = ``;
 
-                    if (fval == 'all' || fval == 'interview') {
-                        if (intsData != null) {
-                            if (ilen > lastInt) {
-                                listInt();
-                                flag = true;
-                            }                        
-                        }
-                    }
-
-                    if (fval == 'all' || fval == 'test') {
-                        if (testsData != null) {
-                            if (tlen > lastTest) {
-                                listTest();
-                                flag = true;
-                            }                      
-                        }
-                    }
-                    if (flag) {
+                    if (searched != null && dlen > lastIndex) {
+                        listdata();
                         savedPages[currPage] = {
-                            Template: appList.innerHTML,
+                            Template: dataList.innerHTML,
                             Length: (10 - pageSize)
                         }
-                    } 
+                    }
                 }
                 displaybtn();
             }
-
         }
 
-        function displaybtn() {
-            prevbtn.style.visibility = currPage <= 1 ? 'hidden' : 'visible';
-    
-            if (pageSize > 0) {
-                nextbtn.style.visibility = 'hidden';
-                appList.innerHTML += `
-                    <div class="no-data">
-                        Thats all for now !
-                    </div>
-                `;
-            } else {
-                nextbtn.style.visibility = 'visible';
-            }
-
+        function middle() {
+            pagination();
+            lastIndex = currPage = 0;
+            savedPages = {};
+            nextbtn.click();
         }
+
+
+
+
+
+        function showSpinner() {
+            document.getElementById('spinner').style.display = 'block'; 
+        }
+        function hideSpinner() {
+            document.getElementById('spinner').style.display = 'none'; 
+        }
+
+        testTb.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            testTb.classList.add('active');
+            setActiveTemplate(testTemp);
+            fetchData('tests');
+            heading.innerHTML = `Upcoming Tests`;
+        });
+        intTb.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            intTb.classList.add('active');
+            setActiveTemplate(intTemp);
+            fetchData('interviews');
+            heading.innerHTML = `Upcoming Interviews`;
+        });
 
         function takeTest(testID) {
             const URL = `/laa/student/taketest?testid=${testID}`;
             window.location.href = URL;
         }
 
-        // Function to apply filters
-        function middle() {
-            lastInt = lastTest = currPage = 0;
-            savedPages = {};
-            nextbtn.click();
-        }
-
-        function showSpinner() {
-            document.getElementById('spinner').style.display = 'block'; 
-        }
-
-        function hideSpinner() {
-            document.getElementById('spinner').style.display = 'none'; 
-        }
         // TODO: 
         function search() {
             const query = searchbar.value.toLowerCase();
@@ -394,25 +414,16 @@
                 middle();
                 return;
             }
-            const fval = filter.value;
-            if (fval == "all" || fval == "interview") {
-                const result = alldata.filter(job =>
-                Object.values(job).some(val => val.toString().toLowerCase().includes(query)));
-            }
-            if (fval == 'all' || fval == 'test') {
-                const result = alldata.filter(job =>
-                Object.values(job).some(val => val.toString().toLowerCase().includes(query)));
-            }
-
-            
+            const result = alldata.filter(job =>
+            Object.values(job).some(val => val.toString().toLowerCase().includes(query)));
+        
             searched = result;
             middle();
         }
         const searchbar = document.getElementById('searchBox');
         searchbar.addEventListener('input', search);
 
-        // Initial load
-        fetchJobs();
+        fetchData();
     </script>
 </body>
 

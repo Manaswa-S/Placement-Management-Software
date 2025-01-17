@@ -139,7 +139,7 @@
             display:block;
             top:50%; 
             text-align: center;
-            font-size: 0.8em;
+            font-size: 1.2em;
             color: #555;
         }
 
@@ -226,10 +226,10 @@
                     alldata = Applications;
                     console.log(data);
                     hideSpinner();
-                    if (alldata === null) {
-                        appList.innerHTML = `
+                    if (alldata == null) {
+                        dataList.innerHTML = `
                             <div class="no-jobs">
-                                No applications at the moment. Go to 'Apply to Jobs'.
+                                No applications at the moment. <a href=/laa/student/jobslist>'Apply to Jobs'</a>.
                             </div>
                         `;
                         return;

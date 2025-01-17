@@ -73,9 +73,19 @@
             margin-bottom: 4px;
         }
         .description {
+            display: flex;
+            justify-content: space-between;
             font-size: 0.9em;
             color: #535252;
             margin-bottom: 4px;
+        }
+        .description label {
+            flex:0.5;
+            text-align: left;
+        }
+        .description span {
+            flex: 3;
+            text-align: left;
         }
         .details {
             display:block; 
@@ -479,10 +489,30 @@
                     <div id="title" class="title">
                         <label>{{.TestName}}</label>
                     </div>
+                    <div id="description" class="description">
+                        <label>{{.TestDescription}}</label>
+                    </div>
                 </div>
                 <div id="card" class="card">
-                    <div id="title" class="title">
-                        <label>Instructions</label>
+                    <div id="title" class="description">
+                        <label><strong>Duration:</strong> </label>
+                        <span>{{.TestDuration}} Mins</span>
+                    </div>
+                    <div id="title" class="description">
+                        <label><strong>End Time:</strong></label>
+                        <span>{{.TestEndTime}}</span>
+                    </div>
+                    <div id="title" class="description">
+                        <label><strong>Ques. Count:</strong></label>
+                        <span>{{.QCount}}</span>
+                    </div>
+                    <div id="title" class="description">
+                        <label><strong>Type:</strong></label>
+                        <span>{{.TestType}}</span>
+                    </div>
+                    <br>
+                    <div id="title" class="description">
+                        <label><strong>Instructions:</strong></label>
                     </div>
                     <div id="details" class="instructions">
                         <label>1) Do not refresh or leave the page during the test. Doing so will submit the test immediately.</label><br>

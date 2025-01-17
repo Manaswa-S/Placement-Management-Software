@@ -2,10 +2,15 @@ package services
 
 import (
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"mime/multipart"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -108,50 +113,46 @@ func (s *StudentService) MyApplications(ctx *gin.Context, userId any, status str
 	return applicationsData, nil
 }
 
-func (s *StudentService) UpcomingData(ctx *gin.Context, userID int64, eventtype string)  (dto.AllUpcomingData, error) {
+func (s *StudentService) UpcomingData(ctx *gin.Context, userID int64, eventtype string)  (*dto.Upcoming, error) {
 
-	var allData dto.AllUpcomingData
-	var upcomingInter []sqlc.GetInterviewsForUserIDRow
-	var upcomingTests []sqlc.GetTestsForUserIDRow
-	var err error
-	// if filter is 'all' or 'interview'
-	if eventtype == "all" || eventtype == "interview" {
-		upcomingInter, err = s.queries.GetInterviewsForUserID(ctx, userID)
+	switch eventtype {
+	case "interviews":
+		uInts, err := s.queries.UpcomingInterviews(ctx, userID)
 		if err != nil {
-			return allData, fmt.Errorf("error getting upcoming interviews for user : %s", err)
+			return nil, err
 		}
-		allData.InterviewsData = upcomingInter
-	}
-	// if filter is 'all' or 'test'
-	if eventtype == "all" || eventtype == "test" {
-		upcomingTests, err = s.queries.GetTestsForUserID(ctx, sqlc.GetTestsForUserIDParams{
-			UserID: userID,
-		})
+		return &dto.Upcoming{
+			Data: uInts,
+		}, nil
+	case "tests":
+		uTests, err := s.queries.UpcomingTests(ctx, userID)
 		if err != nil {
-			return allData, fmt.Errorf("error getting upcoming tests for user : %s", err)
+			return nil, err
 		}
-		allData.TestsData = upcomingTests
+		return &dto.Upcoming{
+			Data: uTests,
+		}, nil
+	default:
+		return nil, nil
 	}
-
-	return allData, nil
 }
 
-func (s *StudentService) TestMetadata(ctx *gin.Context, userID int64, testid string) (sqlc.GetTestsForUserIDRow, error) {
+func (s *StudentService) TestMetadata(ctx *gin.Context, userID int64, testid string) (*sqlc.TestMetadataRow, error) {
 	
 	testID, err := strconv.ParseInt(testid, 10, 64)
 	if err != nil {
-		return sqlc.GetTestsForUserIDRow{}, fmt.Errorf("error parsing test ID : %s", err)
+		return nil, fmt.Errorf("error parsing test ID : %s", err)
 	}
 
-	testMetadata, err := s.queries.GetTestsForUserID(ctx, sqlc.GetTestsForUserIDParams{
+	testMetadata, err := s.queries.TestMetadata(ctx, sqlc.TestMetadataParams{
 		UserID: userID,
 		TestID: testID,
 	})
 	if err != nil {
-		return sqlc.GetTestsForUserIDRow{}, err
+		return nil, err
 	}
 
-	return testMetadata[0], nil
+	return &testMetadata, nil
 }
 
 // TODO: This function seems too inefficient, too much in one func and too many redundant db calls.
@@ -165,7 +166,6 @@ func (s *StudentService) TakeTest(ctx *gin.Context, userID int64, testid string,
 			Message: fmt.Sprintf("error parsing test ID : %v", err),
 		}
 	}
-
 
 	// check if column exists in testResult with testID and userID ie. test is already given
 	resultData, err := s.queries.IsTestGiven(ctx, sqlc.IsTestGivenParams{
@@ -496,10 +496,18 @@ func (s *StudentService) Completed(ctx *gin.Context, userID int64, tab string) (
 	}
 }
 
-
-
-func (s *StudentService) ProfileData(ctx *gin.Context, userID int64) (*dto.History, error) {
+func (s *StudentService) ProfileData(ctx *gin.Context, userID int64) (*dto.ProfileData, error) {
 	
+	overData, err := s.queries.ApplicationsStatusCounts(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	userData, err := s.queries.UsersTableData(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
 	data, err := s.queries.ProfileData(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -520,12 +528,130 @@ func (s *StudentService) ProfileData(ctx *gin.Context, userID int64) (*dto.Histo
 		return nil, err
 	}
 
-
-	return &dto.History{
-		Data: &data,
-		Applications: &appsHistory,
-		Interviews: &intsHistory,
-		Tests: &testHistory,
+	return &dto.ProfileData{
+		OverData: &overData,
+		UsersData: &userData,
+		ProData: &data,
+		AppsHistory: &appsHistory,
+		IntsHistory: &intsHistory,
+		TestsHistory: &testHistory,
 	}, nil
 }
 
+func (s *StudentService) GetStudentFile(ctx *gin.Context, userID int64, fileType string) (string, *errs.Error) {
+	// get paths to all available files
+	filePaths, err := s.queries.GetAllFilePaths(ctx, userID)
+	if err != nil {
+		return "", &errs.Error{
+			Type: errs.Internal,
+			Message: "failed to fetch file paths for user ID",
+		}
+	}
+
+	// check what type is requested
+	filepath := filePaths.PictureUrl.String
+	if fileType == "resume" {
+		filepath = filePaths.ResumeUrl.String
+	}
+	if fileType == "result" {
+		filepath = filePaths.ResultUrl
+	}
+
+    // Check if the file exists
+    if _, err := os.Stat(filepath); err != nil {
+        return "", &errs.Error{
+			Type: errs.NotFound,
+			Message: "could not find any file for given path",
+		}
+    }
+	// return the requested file's path
+	return filepath, nil
+}
+
+func (s *StudentService) UpdateDetails(ctx *gin.Context, userID int64, details *dto.UpdateStudentDetails) (error) {
+
+	err := s.queries.UpdateStudentDetails(ctx, sqlc.UpdateStudentDetailsParams{
+		Course: details.Course,
+		Department: details.Department,
+		YearOfStudy: details.YearOfStudy,
+		Cgpa: pgtype.Float8{Float64: details.CGPA, Valid: true},
+		ContactNo: details.ContactNumber,
+		Address: pgtype.Text{String: details.Address, Valid: true},
+		Skills: pgtype.Text{String: details.Skills, Valid: true},
+		UserID: userID,
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *StudentService) UpdateFile(ctx *gin.Context, userID int64, file *multipart.FileHeader, fileType string) (*errs.Error) {
+	var err error
+	// get the file size and content-type
+	size := file.Size
+	ext := file.Header.Get("Content-Type")
+	// get the expected size for the content type 
+	expected := config.FileSizeForContentType[ext] 
+	if (expected == 0) {
+		// invalid file content type
+		return &errs.Error{
+			Type: errs.PreconditionFailed,
+			Message: "Invalid file type.",
+		}
+	}
+	if (expected < size) {
+		// file size more than expected
+		return &errs.Error{
+			Type: errs.PreconditionFailed,
+			Message: "The file size exceeds the limit.",
+		}
+	}
+
+	userUUID, err := s.queries.GetUserUUIDFromUserID(ctx, userID)
+	if err != nil {
+		return nil
+	}
+	strUUID := hex.EncodeToString(userUUID.Bytes[:])
+
+	nameType := strings.ToLower(fileType)
+	storageDir := fmt.Sprintf("%sStorageDir", fileType)
+
+	fileStoragePath := fmt.Sprintf("%s%s&%d&%s%s", os.Getenv(storageDir), strUUID, time.Now().Unix(), nameType, filepath.Ext(file.Filename))
+	fileSavePath, err := utils.SaveFile(ctx, fileStoragePath, file)
+	if err != nil {
+		return nil
+	}
+
+	switch fileType {
+	case "Resume":
+		err = s.queries.UpdateStudentResume(ctx, sqlc.UpdateStudentResumeParams{
+			ResumeUrl: pgtype.Text{String: fileSavePath, Valid: true},
+			UserID: userID,
+		})
+	case "Result":
+		err = s.queries.UpdateStudentResult(ctx, sqlc.UpdateStudentResultParams{
+			ResultUrl: fileSavePath,
+			UserID: userID,
+		})
+	case "ProfilePic":
+		err = s.queries.UpdateStudentProfilePic(ctx, sqlc.UpdateStudentProfilePicParams{
+			PictureUrl: pgtype.Text{String: fileSavePath, Valid: true},
+			UserID: userID,
+		})
+	default:
+		return &errs.Error{
+			Type: errs.NotFound,
+			Message: "No such file type found. Use valid file type in url.",
+		}
+	}
+	if err != nil {
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: err.Error(),
+		}
+	}
+
+	return nil
+}

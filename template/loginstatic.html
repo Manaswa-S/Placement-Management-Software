@@ -99,13 +99,13 @@
 <body>
     <div class="login-container">
         <h2>Login</h2>
-        <form action="/public/postlogindata" method="post">
+        <form id="mainForm" onsubmit="postData(event)">
             <div class="form-group">
-                <label for="email">Email</label>
+                <label for="Email">Email</label>
                 <input type="email" id="Email" name="Email" placeholder="Enter your email" required>
             </div>
             <div class="form-group">
-                <label for="password">Password</label>
+                <label for="Password">Password</label>
                 <input type="password" id="Password" name="Password" placeholder="Enter your password" required>
             </div>
             <button type="submit" class="login-btn">Login</button>
@@ -114,5 +114,35 @@
             <a href="/public/resetpassgetemail">Forgot Password?</a> | <a href="/public/signup">Sign Up</a>
         </div>
     </div>
+
+<script>
+
+    function postData(event) {
+        event.preventDefault();
+        const url ="/public/postlogindata";
+
+        const formData = document.getElementById('mainForm');
+        const form = new FormData(formData);
+
+        fetch((url), {
+            method: "POST",
+            body: form
+        })
+        .then(response => {
+            if (!response.ok) {
+                response.json().then(data => {
+                    alert(data.Message);
+                })
+            }
+            else if (response.redirected) {
+                window.location.href = response.url;
+            }
+        })
+        .catch(error => {
+            console.log(error);
+        })
+    }
+
+</script>
 </body>
 </html>

@@ -12,36 +12,18 @@
             background: linear-gradient(135deg, #ece9e6, #ffffff);
             color: #333;
         }
-
         .container {
-            position: static;
-            left: 0;
-            top: 0;
-            width: 94%;
-
-            margin-left: 3%;
-            margin-right: 3%;
-            margin-top: 15px;
-            margin-bottom: 20px;
+            width: 90%;
+            margin: 20px auto;
+            max-width: 1200px;
         }
-
-        /* .r-container {
-            position:fixed;
-            right: 0;
-            top: 0;
-            width: 14%;
-            height: 100vh;
-            margin-right: 3%;
-            margin-left: 1%;
-            padding: 15px;
-        }  */
-
+        
         h1 {
+            font-size: 1.5em;
             text-align: center;
             color: #6C63FF;
-            margin-bottom: 20px;
+            margin-bottom: 10px;
         }
-
         .card {
             background: #fff;
             border: 1px solid #ddd;
@@ -51,106 +33,58 @@
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
             transition: box-shadow 0.3s;
         }
-
         .card:hover {
             box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
         }
 
-        .info {
-            width: 100%;
-            padding: 10px;
+        .topcard {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
         }
-
-        .info label {
-            display: block;
+        .topcard p {
+            display: flex;
+            align-items: start;
+            justify-content: center;
+            margin-bottom: 20px;
         }
-
+ 
         .title {
-            font-size: 1.2em;
+            font-size: 1.5em;
             color: #6C63FF;
             margin-bottom: 4px;
         }
-
         .details {
-            display:block; 
-            font-size: 0.8em;
+            display:grid; 
+            font-size: 17px;
             color: #555;
-            margin-bottom: 8px;
         }
-
-        .details p {
+        .details label {
             margin: 3px 0; 
             line-height: 1.4;
             white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
         }
-        .apply-btn {
-            margin: auto;
+
+        .btn {
+            margin-top: 8px;
+            margin-bottom: 8px;
             background: #6C63FF;
             color: #fff;
             font-size: 14px;
-            font-weight: bold;
+            font-weight:500;
             border: none;
             border-radius: 5px;
-            padding: 10px 15px;
+            padding: 12px 15px;
             cursor: pointer;
             text-decoration: none;
             transition: background-color 0.3s;
-        }
-
-        .apply-btn:hover {
-            background: #8E94F2;
-        }
-
-        .left-nav {
-            display: flex;
-            justify-content: space-between;
+            position: relative; 
+            justify-content: center;
             align-items: center;
-            width: 10%;
-            margin-bottom: 20px;
         }
-
-        .filterbar {
-            padding: 10px;
-            font-size: 14px;
-            border-radius: 5px;
-            border: 1px solid #ddd;
-            background-color: #fff;
-        }
-
-        .searchbar input {
-            padding: 10px;
-            font-size: 14px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-        }
-
-        .paging {
-            position:static;
-            bottom: 2%;
-            width: 100%;
-        }
-
-        .nav-btn {
-            visibility:hidden;
-            position:relative;
-            background: #6C63FF;
-            color: #fff;
-            font-size: 14px;
-            padding: 10px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-            border: none;
-        }
-        .prev-btn {
-            left: 50%;
-            transform: translateX(-100%); 
-        }
-
-        .next-btn {
-            left: 50%;
-            transform: translateX(-100%); 
+        .btn:hover {
+            background: #8E94F2;
         }
 
         .spinner {
@@ -165,43 +99,674 @@
             height: 60px;               
             animation: spin 2s linear infinite; 
         }
-
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
 
+        .tabs {
+            display:flex;
+            justify-content: center;
+            margin-top: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            background-color:transparent;
+            font-size: 16px;
+            font-weight: 500;
+            transition: background-color 0.3s ease;
+        }
+
+        .tab:hover {
+            background-color: #e0e0e0;
+        }
+
+        .tab.active {
+            border-bottom: 3px solid #6C63FF;
+            color: #6C63FF;
+        }
+
+        .no-data {
+            display:block;
+            top:50%; 
+            text-align: center;
+            font-size: 16px;
+            color: #555;
+        }
+
+        #ProfileImage {
+            max-width:250px;
+            height: 250px;
+            border-radius: 50%;
+            border: 3px solid #ddd;
+            margin-bottom: 5px;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .nav {
+            position:static;
+            bottom: 2%;
+            width: 100%;
+        }   
+
+        .edit-btn {
+            left: 100%;
+            transform: translateX(-100%); 
+        }
+
+        .cancel-btn {
+            left: 50%;
+            transform: translateX(-100%); 
+        }
+
+        .details input,
+        .details textarea,
+        .details select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            margin-top: 1px;
+            margin-bottom: 8px;
+            background-color: #f7f7f7;
+            box-sizing: border-box;
+        }
+
+        .overview {
+            display: flex;
+            justify-content: space-between;
+            font-size: 17px;
+            color: #535252;
+            margin-bottom: 4px;
+        }
+        .overview label {
+            flex:1;
+            text-align: left;
+        }
+        .overview span {
+            flex: 3;
+            text-align: left;
+        }
+
+        .documents {
+            display: flex;
+            justify-content: space-between;
+            font-size: 17px;
+            color: #535252;
+            margin-bottom: 0px;
+            margin-top: 5px;
+        }
+        .documents label {
+            flex:1;
+            text-align: left;
+            align-content: center;
+        }
+        .doc-btn {
+            flex: 3;
+            max-width: 10%;
+            margin-left: 15px;
+            margin-right: 15px;
+        }
+        .file-update {
+            flex: 1;
+            padding: 5px;
+            border: 1px solid #2f2f2f;
+            border-radius: 5px;
+            font-size: 14px;
+            margin-top: 8px;
+            margin-bottom: 8px;
+            background-color: #eae8e8;
+            box-sizing: border-box;
+        }
+        .report-textarea {
+            width: 100%;
+            height: 100%;
+            box-sizing: border-box;
+            resize: none; 
+            border: 2px solid #000000;  
+            background-color: #eae8e8;
+            font-size: 18px;
+        }
+
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2>My Profile</h2>
+    <div id="container" class="container">
+        <h1 id="pageHeading"> PROFILE </h1>
+        
+        <div class="tabs">
+            <button id="overTab" class="tab active">Overview</button>
+            <button id="detailsTab" class="tab">Details</button>
+            <button id="activityTab" class="tab">Activity</button>
+            <button id="documentsTab" class="tab">Documents</button>
+            <button id="helpTab" class="tab">Help</button>
+        </div>
 
-        <!-- Profile Information -->
-        <div class="card">
-            <div class="details">
-                <label for="name">Name: John Doe</label>
-            </div>
-            <div class="details">
-                <label for="email">Email: john.doe@example.com</label>
-            </div>
-            <div class="details"> 
-                <label for="bio">Bio: I am a software engineer passionate about backend development</label>
-            </div>
-        </div>
+        
+        <div id="dataList"></div>
+  
+        <div class="spinner" id="spinner" style="display: none;"></div>
+
     </div>
-    <div class="container">
-        <div class="card">
-            <button class="profile-btn">Update Info</button>
-            <button class="profile-btn">Upload Media</button>
-    
-            <h3>History</h3>
-            <ul>
-                <li>Updated profile info on 2025-01-08</li>
-                <li>Uploaded profile picture on 2024-12-15</li>
-                <li>Viewed placement results on 2024-11-10</li>
-            </ul>
-        </div>
-    </div>
+
+<script>
+
+        const dataList = document.getElementById('dataList');
+
+        const tabs = document.querySelectorAll('.tab');
+        const overTb = document.getElementById('overTab');
+        const detTb = document.getElementById('detailsTab');
+        const actTb = document.getElementById('activityTab');
+        const docTb = document.getElementById('documentsTab');
+        const helpTb = document.getElementById('helpTab');
+
+        let overData = {};
+        let userData = {};
+        let details = [];
+        let appsHis = [];
+        let intsHis = [];
+        let testsHis = [];
+
+        let PPUrl = '';
+
+        function fetchData(tab = 'tests') {
+            showSpinner();
+            const url = `/laa/student/profiledata`;
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+
+                    if (data == null) {
+                        dataList.innerHTML = `
+                            <div class="no-data">
+                                Failed to get profile data. Try again later!
+                            </div>
+                        `;
+                        return;
+                    } else {
+                        const {OverData, UsersData, ProData, AppsHistory, IntsHistory, TestsHistory} = data;
+                        if (OverData != null && OverData[0] != null) {
+                            overData = OverData[0];
+                        }
+                        userData = UsersData != null ? UsersData : null;
+                        details = ProData != null ? ProData : null;
+                        appsHis = AppsHistory != null ? AppsHistory : null;
+                        intsHis = IntsHistory != null ? IntsHistory : null;
+                        testsHis = TestsHistory != null ? TestsHistory : null;
+                        setOverview();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching data:' + error)
+                });
+        }
+
+        function fetchFile(type = 'profilepic') {
+
+            const url = `/laa/student/getfile?type=${type}`;
+            return fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error("Failed to fetch file: ");
+                    }
+                    return response.blob();
+                })
+                .catch(error => {
+                    console.error('Error fetching data: ' + error)
+                });
+        }
+
+        function setPP() {
+            if (!PPUrl) {
+                fetchFile()
+                .then(img => {
+                    const imgurl = URL.createObjectURL(img);
+                    PPUrl = imgurl;
+                    dataList.innerHTML += cards;
+                    document.getElementById('ProfileImage').src = PPUrl;
+                    hideSpinner();
+                });
+            } else {
+                dataList.innerHTML += cards;
+                document.getElementById('ProfileImage').src = PPUrl;
+            }
+        }
+        let cards = ``;
+        function setOverview() {
+            dataList.innerHTML = ``;
+
+            cards = `
+                <div id="details" class="card">
+                    <div class="topcard">
+                        <img id="ProfileImage">
+                    </div>
+                    <div class="topcard">
+                        <label class="title">${details.StudentName}</label>
+                    </div>
+                </div>
+            `;
+            
+            if (overData.AppliedCount != null && overData.AppliedCount > 0) {
+                cards += `
+                    <div id="details" class="card">
+                        <label class="title">Insights</label>
+                        <div class="overview">
+                            <label><strong>Applied:</strong></label>
+                            <span>${overData.AppliedCount != null ? overData.AppliedCount : '0'}</span>
+                        </div>
+                        <div class="overview">
+                            <label><strong>Under-Review:</strong></label>
+                            <span>${overData.UnderReviewCount != null ? overData.UnderReviewCount : '0'}</span>
+                        </div>
+                        <div class="overview">
+                            <label><strong>Short-Listed:</strong></label>
+                            <span>${overData.ShortlistedCount != null ? overData.ShortlistedCount : '0'}</span>
+                        </div>
+                        <div class="overview">
+                            <label><strong>Rejected:</strong></label>
+                            <span>${overData.RejectedCount != null ? overData.RejectedCount : '0'}</span>
+                        </div>
+                        <div class="overview">
+                            <label><strong>Offered:</strong></label>
+                            <span>${overData.OfferedCount != null ? overData.OfferedCount : '0'}</span>
+                        </div>
+                        
+                        <div class="topcard">
+                            <label class="title" style="${overData.HiredCount > 0 ? "color: #22ff00" : "color: #ff0000"}">${overData.HiredCount > 0 ? 'Placed !' : 'Not Placed !'}</label>
+                        </div>
+                    </div>
+                `;
+            } else {
+                cards += `
+                    <div id="details" class="card">
+                        <a class="title no-data" href="/laa/student/jobslist">Apply to Jobs to see Insights</a>
+                    </div>
+                `;
+            }
+
+            cards += `
+                <div id="details" class="card">
+                    <div class="overview">
+                        <label><strong>Created On:</strong></label>
+                        <span>${userData.CreatedAt}</span>
+                    </div>
+                    <div class="overview">
+                        <label><strong>Account Confirmed:</strong></label>
+                        <span>${userData.Confirmed != true ? 'False' : 'True'}</span>
+                    </div>
+                    <div class="overview">
+                        <label><strong>Account Verified:</strong></label>
+                        <span>${userData.IsVerified != true ? 'False' : 'True'}</span>
+                    </div>
+                </div>
+            `;
+
+            setPP();
+        }
+
+        function setDetails() {
+            dataList.innerHTML = ``;
+            dataList.innerHTML = `
+                <div id="details" class="card">
+                    <div class="details">
+                        <label><strong>Name:</strong> ${details.StudentName}</label>
+                        <label><strong>Roll Number:</strong> ${details.RollNumber}</label>
+                        <label><strong>Date of Birth:</strong> ${details.StudentDob}</label>
+                        <label><strong>Gender:</strong> ${details.Gender}</label>
+                        <label><strong>Email:</strong> ${details.StudentEmail}</label>
+                        <label><strong>Extras:</strong> ${details.Extras == null ? 'None' : 'Extras'}</label>
+                    </div>
+                </div>
+                    
+                <div id="editables" class="card">
+                    <div class="details">
+                        <label><strong>Course:</strong> ${details.Course}</label>
+                        <label><strong>Department:</strong> ${details.Department}</label>
+                        <label><strong>Year Of Study:</strong> ${details.YearOfStudy}</label>
+                        <label><strong>Resume</strong></label>
+                        <label><strong>Result</strong></label>
+                        <label><strong>CGPA:</strong> ${details.Cgpa}</label>
+                        <label><strong>Contact Number:</strong> ${details.ContactNo}</label>
+                        <label><strong>Address:</strong> ${details.Address}</label>
+                        <label><strong>Skills:</strong> ${details.Skills}</label>
+
+                        <div class="nav">
+                            <button onclick="editDetails()" class="btn edit-btn">Edit</button>
+                        </div>
+
+                    </div>
+                </div>
+
+            `;
+       
+        }
+
+        function editDetails() {
+            const editables = document.getElementById("editables");
+            editables.innerHTML = `
+                <form id="newDetailsForm" onsubmit="submitNewDetails(event)">
+                    <div class="details">
+                        <label for="Course"><strong>Course</strong></label>
+                        <select id="Course" name="Course" required>
+                            <option value="B.Tech">B.Tech.</option>
+                            <option value="B.Sc.">B.Sc.</option>
+                            <option value="B.E.">B.E.</option>
+                        </select>
+                    
+                        <label for="Department"><strong>Department</strong></label>
+                        <select id="Department" name="Department" required>
+                            <option value="Computer">Computer</option>
+                            <option value="Electronics">Electronics</option>
+                            <option value="Information_Technology">Information Technology</option>
+                        </select>
+
+                        <label for="YearOfStudy"><strong>Year Of Study</strong></label>
+                        <select id="YearOfStudy" name="YearOfStudy" required>
+                            <option value="First">First</option>
+                            <option value="Second">Second</option>
+                            <option value="Third">Third</option>
+                            <option value="Fourth">Fourth</option>
+                        </select>
+                    
+                        <label for="CGPA"><strong>CGPA</strong></label>
+                        <input type="text" id="CGPA" name="CGPA" value="${details.Cgpa}" required>  
+            
+                        <label for="ContactNumber"><strong>Contact Number</strong></label>
+                        <input type="text" id="ContactNumber" name="ContactNumber" value="${details.ContactNo}" required>
+                
+                        <label for="Address"><strong>Address</strong></label>
+                        <input type="text" id="Address" name="Address" value="${details.Address}">
+                
+                        <label for="Skills"><strong>Skills</strong></label>
+                        <input type="text" id="Skills" name="Skills" value="${details.Skills}">
+                        
+
+                        <div class="nav">
+                            <button onclick="setDetails()" class="btn cancel-btn">Cancel</button>
+                            <button type="submit" class="btn cancel-btn">Update</button>
+                        </div>
+                    </div>
+                </form>
+            `;
+            document.getElementById("Course").value = details.Course;
+            document.getElementById("Department").value = details.Department;
+            document.getElementById("YearOfStudy").value = details.YearOfStudy;
+        }
+
+        function setActivity() {
+            dataList.innerHTML = ``;
+            let cards = `
+                <div id="details" class="card">
+                    <div class="details">
+            `;
+            if (appsHis != null) {
+                appsHis.forEach(elem => {
+                    cards += `
+                            <p><strong>${elem.CreatedAt}: ${elem.ApplicationID}: </strong>Applied to : <strong>${elem.Title}</strong> at <strong>${elem.CompanyName}</strong></p>
+                    `;
+                });
+            }
+            else {
+                cards += `
+                    <label class="title no-data">No Applications activity.</a>
+                `;
+            }
+            cards += ` 
+                    </div>
+                </div>
+
+                <div id="details" class="card">
+                    <div class="details">
+            `;
+            if (intsHis != null) {
+                intsHis.forEach(elem => {
+                    cards += `
+                            <p><strong>${elem.CreatedAt}: ${elem.InterviewID}: </strong>Interview scheduled for : <strong>${elem.Title}</strong></p>
+                    `;
+                });
+            }
+            else {
+                cards += `
+                    <label class="title no-data">No Interviews activity.</a>
+                `;
+            }
+            cards += ` 
+                    </div>
+                </div>
+
+                <div id="details" class="card">
+                    <div class="details">
+            `;
+            if (testsHis != null) {
+                testsHis.forEach(elem => {
+                    cards += `
+                            <p><strong>${elem.StartTime}: ${elem.TestID}: </strong>Test started : <strong>${elem.TestName}</strong></p>
+                    `;
+                });
+            }
+            else {
+                cards += `
+                    <label class="title no-data">No Tests activity.</a>
+                `;
+            }
+            cards += ` 
+                    </div>
+                </div>
+            `;
+            dataList.innerHTML += cards;
+        }
+
+        function setDocuments() {
+            dataList.innerHTML = ``;
+
+            let cards = `
+                    <div id="details" class="card">
+                        <div class="documents">
+                            <button onclick="editDocuments()" class="btn doc-btn">Edit</button>
+                        </div>
+                        <div class="documents">
+                            <label><strong>Resume:</strong></label>
+                            <button id="dwnbt" onclick="openFile('resume')" class="btn doc-btn">Download</button>
+                        </div>
+
+                        <div class="documents">
+                            <label><strong>Result:</strong></label>
+                            <button onclick="openFile('result')" class="btn doc-btn">Download</button>
+                        </div>
+
+                        <div class="documents">
+                            <label><strong>Profile Picture:</strong></label>
+                            <button onclick="openFile('profilepic')" class="btn doc-btn">Download</button>
+                        </div>
+                    </div>
+                `;
+            
+            dataList.innerHTML += cards;
+        }
+
+        function editDocuments() {
+
+            dataList.innerHTML = ``;
+
+            let cards = `
+                    <div id="details" class="card">
+                        <div class="nav">
+                            <button onclick="setDocuments()" class="btn doc-btn">Cancel</button>
+                        </div>
+
+                        <div class="documents">
+                            <label><strong>Resume:</strong></label>
+                            <button id="dwnbt" onclick="openFile('resume')" class="btn doc-btn">Download</button>
+                        </div>
+                        <div class="documents">
+                            <input class="file-update" id="Resume" type="file"  name="Resume">
+                            <button onclick="updateFile('Resume')" class="btn doc-btn">Upload</button>
+                        </div>
+
+                        <div class="documents">
+                            <label><strong>Result:</strong></label>
+                            <button onclick="openFile('result')" class="btn doc-btn">Download</button>
+                        </div>
+                        <div class="documents">
+                            <input class="file-update" id="Result" type="file"  name="Result" required>
+                            <button onclick="updateFile('Result')" class="btn doc-btn">Upload</button>
+                        </div>
+
+                        <div class="documents">
+                            <label><strong>Profile Picture:</strong></label>
+                            <button onclick="openFile('profilepic')" class="btn doc-btn">Download</button>
+                        </div>
+                        <div class="documents">
+                            <input class="file-update" id="ProfilePic" type="file"  name="ProfilePic" required>
+                            <button onclick="updateFile('ProfilePic')" class="btn doc-btn">Upload</button>
+                        </div>
+                    </div>
+                `;
+            
+            dataList.innerHTML += cards;
+        }
+
+        function setHelp() {
+            dataList.innerHTML = ``;
+            dataList.innerHTML = `
+                <div id="details" class="card">
+                    <div class="topcard">
+                        <label class="title">Have a Problem ? Describe it here.</label>
+                    </div>
+                    <div class="topcard" style="height:400px;">
+                        <textarea class="report-textarea" type="text" id="Report" name="Report"></textarea>
+                    </div>
+
+                    <button onclick="sendReport()" class="btn edit-btn">Report</button>
+                </div>
+            `;
+       
+        }
+
+
+
+        overTb.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            overTb.classList.add('active');
+            setOverview();
+        });
+        detTb.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            detTb.classList.add('active');
+            setDetails();
+        });
+        actTb.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            actTb.classList.add('active');
+            setActivity();
+        });
+        docTb.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            docTb.classList.add('active');
+            setDocuments();
+        });
+        helpTb.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            helpTb.classList.add('active');
+            setHelp();
+        });
+
+        function showSpinner() {
+            document.getElementById('spinner').style.display = 'block'; 
+        }
+        function hideSpinner() {
+            document.getElementById('spinner').style.display = 'none'; 
+        }
+
+        
+        function submitNewDetails(event) {
+            showSpinner();
+            event.preventDefault();
+
+            const url = `/laa/student/updatedetails`;
+
+            const details = document.getElementById("newDetailsForm");
+            const form = new FormData(details);
+
+            fetch(url, {
+                method: 'POST',
+                body: form
+            })
+            .then(response => {
+                if (response.ok) {
+                    hideSpinner();
+                    window.location.reload();
+                } else {
+                    console.log("something went wrong");
+                }
+            })  
+            .catch(error => {
+                console.log(error);
+            })
+        }
+
+        function openFile(type) {
+            fetchFile(type)
+            .then(file => {
+                const fileURL = window.URL.createObjectURL(file);
+                window.open(fileURL, '_blank');
+            })
+        }
+
+        function updateFile(type) {
+            const file = document.getElementById(type).files[0];
+            const formFile = new FormData();
+            formFile.append(type, file);
+
+            const url = `/laa/student/updatefile?type=${type}`;
+
+            fetch(url, {
+                method: 'POST',
+                body: formFile
+            })
+            .then((response) => {
+                if (!response.ok) {
+                    return response.json();
+                }
+                alert('Updated file successfully');
+            })
+            .then((data) => {
+                alert("Error : " + data.Type + "\nMessage : " + data.Message);
+            })
+            .catch(error => {
+                console.log(error);
+            });
+
+        }
+
+        function sendReport() {
+            const report = document.getElementById('Report').value;
+            console.log(report);
+            const url = `/laa/report`;
+
+            const form = new FormData();
+            form.append("Message", report);
+
+            fetch(url, {
+                method: 'POST',
+                body: form,
+            })
+            .then((response) => {
+                if (response.ok) {
+                    alert("Report sent successfully");
+                }
+            })
+            .catch((error) => {
+                console.log(error);
+            });
+        }
+       
+        fetchData();
+</script>
 </body>
 </html>

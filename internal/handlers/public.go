@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	errs "go.mod/internal/const"
 	"go.mod/internal/services"
 	sqlc "go.mod/internal/sqlc/generate"
 	"go.mod/internal/utils"
@@ -128,25 +129,28 @@ func (h *PublicHandler) SignupPost(ctx *gin.Context){
 	var signupData sqlc.SignupUserParams
 	err := ctx.Bind(&signupData)
 	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"Message": err.Error(),
 		})
 		return
 	}
 
 	// call appropriate service method
-	err = h.PublicService.SignupPost(ctx, signupData)
-	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+	errf := h.PublicService.SignupPost(ctx, signupData)
+	if errf != nil {
+		if (errf.Type != errs.Internal) {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"Type": errf.Type,
+				"Message": errf.Message,		
+			})
+		}
 		return
 	}
 
 	// respond with data
 	// redirect to respective dashboard
 	ctx.JSON(http.StatusOK, gin.H{
-		"status": "signup successful! check email for further instructions.",
+		"Status": "Signup Initiated! Check email for further instructions.",
 	})
 }
 
@@ -172,34 +176,51 @@ func (h *PublicHandler) ExtraInfoPost(ctx *gin.Context) {
 	}
 
 	var userData interface{}
+	var errf *errs.Error
+	
+	role, ok := claims["role"]
+	if !ok {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"Type": errs.InvalidState,
+			"Message": "Invalid role provided.",
+		})
+		return
+	}
+	roleFloat, ok := role.(float64)
+	if !ok {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"Type": errs.InvalidState,
+			"Message": "Invalid role provided.",
+		})
+		return
+	}
+	
+	roleInt := int64(roleFloat) 
 
-	switch int64(claims["role"].(float64)) {
+	switch roleInt {
 	case RoleStudent:
-		userData, err = h.PublicService.ExtraInfoPostStudent(ctx, claims)
-		if err != nil {
-			ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-				"error": err.Error(),
-			})
-			return
-		}
+		userData, errf = h.PublicService.ExtraInfoPostStudent(ctx, claims)
 	case RoleCompany:
-		userData, err = h.PublicService.ExtraInfoPostCompany(ctx, claims)
-		if err != nil {
-			ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-				"error": err.Error(),
-			})
-			return
-		}
+		userData, errf = h.PublicService.ExtraInfoPostCompany(ctx, claims)
 	default:
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": "invalid role",
+			"Type": errs.Unauthorized,
+			"Message": "invalid role",
 		})
 		return
 	}
 
-	ctx.JSON(200, gin.H{
-		"data": userData,
-		"status": "sign up complete. proceed with further instructions as given in the email",
+	if errf != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"Type": errf.Type,
+			"Message": errf.Message,
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"Data": userData,
+		"Status": "Sign up complete. Proceed with further instructions as given in the email.",
 	})
 }
 
@@ -208,23 +229,25 @@ func (h *PublicHandler) SendConfirmationEmail(ctx *gin.Context){
 	// get email of request
 	email := ctx.Query("email")
 	if email == "" {
-		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": "email is required",
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"Message": "Email not found.",
 		})
 		return
 	}
 	// call service
 	err := h.PublicService.SendConfirmEmail(ctx, email)
 	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": "not able to  send confirmation email. try again",
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"Message": "Failed to send confirmation email. Try again.",
 		})
 		return
 	}
 	// respond
-	ctx.JSON(http.StatusOK, gin.H{
-		"status": "confirmation email sent",
-	})
+	ctx.Data(http.StatusOK, "text/html; charset=utf-8", []byte(`
+		<script>
+			alert("Sent email successfully!");
+		</script>
+	`))
 }
 
 func(h *PublicHandler) ConfirmSignup(ctx *gin.Context) {
@@ -263,11 +286,14 @@ func (h *PublicHandler) LoginPost(ctx *gin.Context){
 	}
 
 	// call the appropriate service
-	userRole, JWTTokens, err := h.PublicService.LoginPost(ctx, loginData)
-	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+	userRole, JWTTokens, errf := h.PublicService.LoginPost(ctx, loginData)
+	if errf != nil {
+		if (errf.Type != errs.Internal) {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"Type": errf.Type,
+				"Message": errf.Message,
+			})
+		}
 		return
 	}
 

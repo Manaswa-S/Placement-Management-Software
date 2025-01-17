@@ -135,7 +135,7 @@
             }
         }
         .no-jobs {
-            display:block;
+            display:relative;
             top:50%; 
             text-align: center;
             font-size: 0.8em;
@@ -155,7 +155,6 @@
             animation: spin 2s linear infinite; 
         }
 
-        /* Keyframes for the spinning animation */
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
@@ -343,7 +342,7 @@
             if (pageSize > 0) {
                 nextbtn.style.visibility = 'hidden';
                 dataList.innerHTML += `
-                    <div class="job-details">
+                    <div class="no-jobs">
                         Thats all for now !
                     </div>
                 `;
@@ -357,7 +356,6 @@
             document.getElementById('spinner').style.display = 'block'; 
         }
 
-        // Function to hide the spinner
         function hideSpinner() {
             document.getElementById('spinner').style.display = 'none'; 
         }
