@@ -28,6 +28,7 @@ func Logger() gin.HandlerFunc {
 			Method: c.Request.Method,
 			Path: c.Request.URL.Path,
 		}
+
 		c.Next()
 
 		statusCode := c.Writer.Status()
@@ -61,7 +62,6 @@ func Logger() gin.HandlerFunc {
 			fmt.Println("error opening logger file: ", err.Error())
 			return
 		}
-
 		defer f.Close()
 
 		_, err = f.WriteString(string(jsonLog) + "\n")

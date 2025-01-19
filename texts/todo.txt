@@ -41,6 +41,8 @@ if a test was started for the first time by a user, it updates the test results 
 
 you can send multiple extrainfo post requests from one link, it does not check for duplicates
 
+new job form needs refactoring, there are redundant fields like company name and email, etc
+
 restructure the template folder
 
 alot of the earlier functions have alot of inefficiency that needs to be fixed\

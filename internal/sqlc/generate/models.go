@@ -53,6 +53,7 @@ type Job struct {
 	Position     string
 	Extras       []byte
 	ActiveStatus bool
+	Description  pgtype.Text
 }
 
 type Student struct {

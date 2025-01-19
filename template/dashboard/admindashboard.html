@@ -5,132 +5,199 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - PMS</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
+        * {
             margin: 0;
             padding: 0;
-            background-color: #f5f5f5;
+            box-sizing: border-box;
+            font-family: 'Arial', sans-serif;
         }
-        header {
-            background-color: #2c3e50;
-            color: #ecf0f1;
-            padding: 15px;
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #5951f5, #abafea);
+            color: #333;
+            display: flex;
+        }
+
+        .sidebar {
+            width: 250px;
+            background: #fff;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar h2 {
+            color: #532ff3;
+            margin-bottom: 20px;
             text-align: center;
         }
-        nav {
-            background-color: #34495e;
-            color: #ecf0f1;
-            width: 200px;
-            position: fixed;
-            top: 0;
-            left: 0;
-            height: 100%;
-            padding-top: 20px;
-        }
-        nav a {
-            display: block;
-            color: #ecf0f1;
+
+        .nav-item {
+            padding: 10px;
+            margin-bottom: 10px;
+            color: #333;
             text-decoration: none;
-            padding: 10px 20px;
-            margin: 5px 0;
-            border-radius: 4px;
+            border-radius: 5px;
+            transition: background-color 0.3s;
         }
-        nav a:hover {
-            background-color: #1abc9c;
+
+        .nav-item:hover, .nav-item.active {
+            background-color: #6C63FF;
+            color: #fff;
         }
+
         .main-content {
-            margin-left: 220px;
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .dashboard-header {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .dashboard-header h1 {
+            color: #532ff3;
+            margin-bottom: 10px;
+        }
+
+        .dashboard-stats {
+            display:block;
+
+        }
+
+        .stat-card {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card h3 {
+            color: #6C63FF;
+            margin-bottom: 10px;
+        }
+
+        .dashboard-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .content-section {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
             padding: 20px;
         }
-        .card {
-            background-color: #ffffff;
-            border: 1px solid #ddd;
+
+        .content-section h2 {
+            color: #532ff3;
+            margin-bottom: 15px;
+        }
+
+        .job-list, .candidate-list {
+            list-style-type: none;
+        }
+
+        .job-list li, .candidate-list li {
+            border-bottom: 1px solid #eee;
+            padding: 10px 0;
+        }
+
+        .action-btn {
+            background: #6C63FF;
+            color: #fff;
+            font-size: 14px;
+            font-weight: bold;
+            border: none;
             border-radius: 5px;
-            padding: 15px;
-            margin: 15px 0;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            padding: 8px 12px;
+            cursor: pointer;
+            transition: all 0.3s;
         }
-        .card h3 {
-            margin: 0 0 10px 0;
-            color: #2c3e50;
+
+        .action-btn:hover {
+            background: #8E94F2;
         }
-        .btn {
-            display: inline-block;
-            padding: 10px 15px;
-            color: #ffffff;
-            background-color: #3498db;
-            text-decoration: none;
-            border-radius: 4px;
-            margin-top: 10px;
-        }
-        .btn:hover {
-            background-color: #2980b9;
-        }
-        footer {
-            text-align: center;
-            padding: 10px;
-            background-color: #2c3e50;
-            color: #ecf0f1;
-            margin-top: 20px;
+
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                order: 2;
+            }
+
+            .main-content {
+                order: 1;
+            }
         }
     </style>
 </head>
 <body>
 
-<header>
-    <h1>Admin Dashboard - PMS</h1>
-</header>
+    <div class="sidebar">
+        <h2>PMS Dashboard</h2>
+        <a href="#" class="nav-item active">Delete Later</a>
+        <a href="/laa/admin/managestudents" class="nav-item">Manage Students</a>
+        <a href="#companies" class="nav-item">Manage Companies</a>
+        <a href="#jobs" class="nav-item">Job Postings</a>
+        <a href="#reports" class="nav-item">Reports</a>
+        <a href="#settings" class="nav-item">Settings</a>
+    </div>
 
-<nav>
-    <a href="/laa/admin/testdatadeletelater">Delete Later</a>
-    <a href="#students">Manage Students</a>
-    <a href="#companies">Manage Companies</a>
-    <a href="#jobs">Job Postings</a>
-    <a href="#reports">Reports</a>
-    <a href="#settings">Settings</a>
-</nav>
+    <div class="main-content">
+        <header class="dashboard-header">
+            <h1>Welcome back, Admin Name</h1>
+            <p>Here's an overview of your placement activities</p>
+        </header>
+        <div class="dashboard-stats">
+            <div class="stat-card">
+                <h3>Overview</h3>
+                <p>Track and manage the overall placement status across students and companies.</p>
+                <a href="#" class="action-btn">View Insights</a>
+            </div>
 
-<div class="main-content">
-    <section id="overview" class="card">
-        <h3>Overview</h3>
-        <p>Track and manage the overall placement status across students and companies.</p>
-        <a href="#" class="btn">View Insights</a>
-    </section>
+            <div class="stat-card">
+                <h3>Manage Students</h3>
+                <p>Review student profiles, resumes, and placement statuses.</p>
+                <a href="#" class="action-btn">View Students</a>
+            </div>
 
-    <section id="students" class="card">
-        <h3>Manage Students</h3>
-        <p>Review student profiles, resumes, and placement statuses.</p>
-        <a href="#" class="btn">View Students</a>
-    </section>
+            <div class="stat-card">
+                <h3>Manage Companies</h3>
+                <p>Collaborate with companies and approve job postings.</p>
+                <a href="#" class="action-btn">View Companies</a>
+            </div>
 
-    <section id="companies" class="card">
-        <h3>Manage Companies</h3>
-        <p>Collaborate with companies and approve job postings.</p>
-        <a href="#" class="btn">View Companies</a>
-    </section>
+            <div class="stat-card">
+                <h3>Job Postings</h3>
+                <p>Review and manage job postings submitted by companies.</p>
+                <a href="#" class="action-btn">Manage Jobs</a>
+            </div>
 
-    <section id="jobs" class="card">
-        <h3>Job Postings</h3>
-        <p>Review and manage job postings submitted by companies.</p>
-        <a href="#" class="btn">Manage Jobs</a>
-    </section>
+            <div class="stat-card">
+                <h3>Reports</h3>
+                <p>Generate detailed reports on placement statistics and outcomes.</p>
+                <a href="#" class="action-btn">Generate Reports</a>
+            </div>
 
-    <section id="reports" class="card">
-        <h3>Reports</h3>
-        <p>Generate detailed reports on placement statistics and outcomes.</p>
-        <a href="#" class="btn">Generate Reports</a>
-    </section>
-
-    <section id="settings" class="card">
-        <h3>Settings</h3>
-        <p>Update administrative preferences and system settings.</p>
-        <a href="#" class="btn">Update Settings</a>
-    </section>
-</div>
-
-<footer>
-    <p>&copy; 2024 Placement Management System</p>
-</footer>
-
+            <div class="stat-card">
+                <h3>Settings</h3>
+                <p>Update administrative preferences and system settings.</p>
+                <a href="#" class="action-btn">Update Settings</a>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

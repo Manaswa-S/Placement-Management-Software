@@ -1,7 +1,6 @@
 package dto
 
 import (
-	"mime/multipart"
 	"time"
 
 	sqlc "go.mod/internal/sqlc/generate"
@@ -9,10 +8,9 @@ import (
 )
 
 type NewJobData struct {
-	CompanyName string
-	CompanyEmail string
-	JobLocation string
+	JobId int64
 	JobTitle string
+	JobLocation string
 	JobDescription string
 	JobType string
 	JobSalary string
@@ -96,6 +94,7 @@ type CancelInterview struct {
 type Upcoming struct {
 	Data any
 }
+
 type Completed struct {
 	Data any
 }
@@ -128,6 +127,7 @@ type TestQuestion struct {
 	NextId string
 	TTL time.Duration
 }
+
 type TestResponse struct {
 	ItemID string
 	Response []string
@@ -147,9 +147,6 @@ type Token struct {
 	ID int64
 	Email string	
 }
-
-
-
 
 type ProfileData struct {
 	OverData *[]sqlc.ApplicationsStatusCountsRow
@@ -177,12 +174,9 @@ type Report struct {
 	IpAddress string
 }
 
-type StudentFilesPost struct {
-	ResumeFile *multipart.FileHeader
-	ResultFile *multipart.FileHeader
-	ProfilePic *multipart.FileHeader
 
-	ResumePath string
-	ResultPath string
-	ProfilePicPath string	
+
+
+type PerformanceData struct {
+	Latency float64
 }

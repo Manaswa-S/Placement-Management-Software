@@ -20,6 +20,9 @@ import (
 	"google.golang.org/api/option"
 )
 
+var GAPIService *apicalls.Caller
+
+
 func main() {
 
 	signals := make(chan os.Signal, 1)
@@ -58,8 +61,8 @@ func main() {
 		}
 	} ()
 
-	
 	<-signals
+
 
 	fmt.Println("\nReceived shutdown signal ...")
 
@@ -129,8 +132,6 @@ func routes(router *gin.Engine) {
 	superuserHandler.RegisterRoute(superuserRoute)
 }
 
-
-var GAPIService *apicalls.Caller
 
 func GoogleAPIService() (error) {
 

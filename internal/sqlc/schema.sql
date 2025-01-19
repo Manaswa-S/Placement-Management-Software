@@ -41,6 +41,7 @@ CREATE TABLE jobs (
     position text NOT NULL,
     extras JSON,
     active_status boolean NOT NULL DEFAULT true,
+    description TEXT,
     CONSTRAINT jobs_pkey PRIMARY KEY (job_id),
     CONSTRAINT jobs_company_id_fkey FOREIGN KEY (company_id)
         REFERENCES companies(company_id)

@@ -165,7 +165,7 @@
             z-index: 999;
         }
 
-        /* Semi-modal style */
+        
         .semi-modal {
             display: none; /* Hidden by default */
             position: fixed;
@@ -303,13 +303,12 @@
             </div>
 
             <form id="interviewForm" action="/laa/company/scheduleinterview" method="POST" enctype="multipart/form-data" onsubmit="submitForm(event)">
-                <!-- Hidden inputs for ApplicationId -->
                 <input type="hidden" id="ApplicationId" name="ApplicationId" />
 
-                <label for="interviewDate">Date:</label>
+                <label for="Date">Date:</label>
                 <input type="date" id="Date" name="Date" required />
 
-                <label for="interviewTime">Time:</label>
+                <label for="Time">Time:</label>
                 <input type="time" id="Time" name="Time" required />
 
                 <label for="Type">Type:</label>
@@ -320,10 +319,10 @@
                     <option value="Hybrid">Hybrid</option>
                 </select>
 
-                <label for="interviewLocation">Location/Link:</label>
+                <label for="Location">Location/Link:</label>
                 <input type="text" id="Location" name="Location" placeholder="Interview Location or Virtual Meeting Link" required />
 
-                <label for="interviewNotes">Notes:</label>
+                <label for="Notes">Notes:</label>
                 <input type="text" id="Notes" name="Notes" placeholder="Add any relevant notes" />
 
                 <button type="submit">Schedule Interview</button>
@@ -336,9 +335,7 @@
                 Offer Letter
             </div>
 
-            <!-- Form for Interview Details -->
             <form id="OfferForm" action="/laa/company/offer" method="POST" enctype="multipart/form-data" onsubmit="offerApplicant(event)">
-                <!-- Hidden inputs for ApplicationId -->
                 <input type="hidden" id="OfferApplicationId" name="OfferApplicationId" />
     
                 <label for="OfferLetter">Offer Letter:</label>
@@ -401,7 +398,7 @@
                     alldata = Applicants;
                     hideSpinner();
                     if (alldata == null) {
-                        appList.innerHTML = `
+                        dataList.innerHTML = `
                             <div class="no-jobs">
                                 No applications at the moment. Please check back later.
                             </div>

@@ -34,10 +34,25 @@ WHERE users.user_id = $1;
 -- >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 -- Company queries 
 
--- name: InsertNewJob :one
-INSERT INTO jobs (data_url, company_id, title, location, type, salary, skills, position, extras)
-VALUES ($1, (SELECT company_id FROM companies WHERE representative_email = $2), $3, $4, $5, $6, $7, $8, $9)
-RETURNING *;
+-- name: InsertNewJob :exec
+INSERT INTO jobs (data_url, company_id, title, location, type, salary, skills, position, extras, description)
+VALUES ($1, (SELECT company_id FROM companies WHERE companies.user_id = $2), $3, $4, $5, $6, $7, $8, $9, $10);
+
+-- name: UpdateJob :exec
+UPDATE jobs
+SET location = $1,
+    title = $2,
+    description = $3,
+    type = $4,
+    salary = $5,
+    skills = $6,
+    position = $7,
+    extras = $8
+WHERE job_id = $9
+AND company_id = (SELECT company_id FROM companies WHERE companies.user_id = $10);
+
+
+
 
 
 -- name: ExtraInfoCompany :one
@@ -176,7 +191,9 @@ SELECT
     jobs.skills,
     jobs.position,
     jobs.active_status,
-    COALESCE(t.no_of_applications, 0)    
+    COALESCE(t.no_of_applications, 0),
+    jobs.description,
+    jobs.extras    
 FROM jobs
 LEFT JOIN (
     SELECT 
@@ -535,13 +552,58 @@ WHERE user_id = $2;
 
 
 
+-- name: ListToVerifyStudent :many
+SELECT 
+    users.user_id,
+    users.email,
+    TO_CHAR(users.created_at, 'HH12:MI AM DD-MM-YYYY') AS created_at,
+    users.confirmed
+FROM users
+WHERE users.confirmed = true
+AND users.is_verified = false
+AND users.role = 1;
 
-
-
-
-
-
--- name: GetResponses :one
-SELECT responses 
-FROM testresults
+-- name: VerifyStudent :exec
+UPDATE users
+SET is_verified = true
 WHERE user_id = $1;
+
+-- name: StudentsOverview :many
+SELECT 
+    students.student_id,
+    students.student_name,
+    students.roll_number,
+    students.student_dob,
+    students.gender,
+    students.course,
+    students.department,
+    students.year_of_study,
+    students.cgpa,
+    students.contact_no,
+    students.address,
+    students.skills, 
+    students.extras
+FROM students;
+
+
+
+
+
+-- name: StudentInfo :one
+SELECT
+    students.student_id,
+    students.student_name,
+    students.roll_number,
+    students.student_dob,
+    students.gender,
+    students.course,
+    students.department,
+    students.year_of_study,
+    students.cgpa,
+    students.contact_no,
+    students.address,
+    students.skills, 
+    students.picture_url AS profilePic,
+    students.extras
+FROM students
+WHERE students.user_id = $1;

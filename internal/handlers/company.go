@@ -66,7 +66,7 @@ func (h *CompanyHandler) NewJobGet(ctx *gin.Context) {
 	GoogleFormLink := os.Getenv("NewJobFormLink")
 
 	if GoogleFormLink == "" {
-		ctx.File("./template/jobs/newjobform.html")
+		ctx.File("./template/company/newjobform.html")
 		return
 	} else {
 		ctx.Redirect(http.StatusSeeOther, GoogleFormLink)
@@ -77,9 +77,10 @@ func (h *CompanyHandler) NewJobGet(ctx *gin.Context) {
 func (h *CompanyHandler) NewJobPost(ctx *gin.Context) {
 	
 	// bind incoming request form
-	var jobdata dto.NewJobData
+	jobdata := new(dto.NewJobData)
+	userid, exists := ctx.Get("ID")
 	err := ctx.Bind(&jobdata)
-	if err != nil {
+	if err != nil || !exists {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
@@ -87,7 +88,7 @@ func (h *CompanyHandler) NewJobPost(ctx *gin.Context) {
 	}
 
 	// call appropriate service
-	_, err = h.CompanyService.NewJobPost(ctx, jobdata)
+	err = h.CompanyService.NewJobPost(ctx, jobdata, userid.(int64))
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
@@ -95,16 +96,15 @@ func (h *CompanyHandler) NewJobPost(ctx *gin.Context) {
 		return
 	}
 	
-	// redirect to dashboard
 	// TODO: the user can just go back and submit form again which is dangerous
-	ctx.Redirect(http.StatusSeeOther, "/laa/company/dashboard")
+	ctx.Status(http.StatusOK)
 }
 
 
 func (h *CompanyHandler) MyApplicantsStatic(ctx *gin.Context) {
 	// return the html template
 	// the template then indirectly calls /myapplicants
-	ctx.File("./template/jobs/myapplicants.html")
+	ctx.File("./template/company/myapplicants.html")
 }
 
 func (h *CompanyHandler) MyApplicants(ctx *gin.Context) {
@@ -163,7 +163,7 @@ func (h *CompanyHandler) GetResumeOrResultFile(ctx *gin.Context) {
 
 
 func (h *CompanyHandler) MyJobListStatic(ctx *gin.Context) {
-	ctx.File("./template/jobs/myjoblistings.html")
+	ctx.File("./template/company/myjoblistings.html")
 }
 
 func (h *CompanyHandler) MyJobListings(ctx *gin.Context) {

@@ -27,7 +27,7 @@
             border-radius: 10px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
             width: 100%;
-            max-width: 800px;
+            max-width: min(800px, 90%);
             padding: 30px;
             display: none;
             margin-top: 30px;
@@ -92,38 +92,39 @@
         }
 
         .form-btn {
+            margin-top: 8px;
+            margin-bottom: 8px;
             background: #6C63FF;
             color: #fff;
-            font-size: 16px;
-            font-weight: bold;
+            font-size: 14px;
+            font-weight:500;
             border: none;
             border-radius: 5px;
-            padding: 12px 20px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        .button-grid {
-            display:grid; 
-            grid-template-columns: repeat(2, 1fr); 
+            padding: 12px 15px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background-color 0.3s;
+            position: relative; 
             justify-content: center;
             align-items: center;
         }
-
+        
         .form-btn:hover {
             background: #8E94F2;
         }
 
-        .back-btn {
-            display: block;
-            color: #fff;
-            font-size: 16px;
-            transition: all 0.3s;
-            margin-top: 15px;
-            margin-bottom: 20px;
+        .nav {
+            position:static;
+            bottom: 2%;
+            width: 100%;
+        }   
+
+        .next-btn {
+            right: 1;
         }
 
-        .back-btn:hover {
-            background: #ff8787;
+        .cancel-btn {
+            right: 0;
         }
 
         .toast {
@@ -180,7 +181,6 @@
         </div>
 
         <form id="newTestForm" onsubmit="uploadQuestions(UploadMethod.value, event)">
-            <!-- Test Metadata Section -->
             <div class="form-section">
                 <label for="Name">Test Name</label>
                 <input type="text" id="Name" name="Name" placeholder="Enter test name" required>
@@ -221,8 +221,8 @@
                 </select>
             </div>
 
-            <div class="button-grid">
-                <button class="form-btn" type="submit">Create Test</button>
+            <div class="nav">
+                <button class="form-btn next-btn" type="submit">Create Test</button>
             </div>
         </form>
     </div>
@@ -266,9 +266,9 @@
                     <label for="Notes">Additional Notes or Instructions</label>
                     <input type="text" id="Notes" name="Notes" placeholder="Any specific details about the test (optional)"></input>
                 </div>
-                <div class="button-grid">
-                    <button class="form-btn" type="button" onclick="back()"> < Back</button>
-                    <button class="form-btn" type="submit" >Create Test</button>
+                <div class="nav">
+                    <button class="form-btn cancel-btn" type="button" onclick="back()"> < Back</button>
+                    <button class="form-btn next-btn" type="submit" >Create Test</button>
                 </div>
             </form>
         </div>

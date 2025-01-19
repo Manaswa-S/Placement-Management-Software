@@ -27,7 +27,7 @@
             border-radius: 10px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
             width: 100%;
-            max-width: 800px;
+            max-width: min(800px, 90%);
             padding: 30px;
             margin-top: 30px;
             margin-bottom: 30px;
@@ -92,36 +92,44 @@
         .form-btn:hover {
             background: #8E94F2;
         }
+        .spinner {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            border: 6px solid #f3f3f3;  
+            border-top: 6px solid #6C63FF;  
+            border-radius: 50%;        
+            width: 60px;                
+            height: 60px;               
+            animation: spin 2s linear infinite; 
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
+    <div class="spinner" id="spinner" style="display: none;">
+    </div>
 
     <div class="form-container">
         <div class="form-header">
             <h1>Post a New Job</h1>
         </div>
 
-        <form action="/laa/company/newjobpost" method="POST">
-            <!-- Company Details Section -->
-            <div class="form-section">
-                <label for="CompanyName">Company Name</label>
-                <input type="text" id="CompanyName" name="CompanyName" required placeholder="Enter company name">
-            </div>
+        <form id="mainForm" onsubmit="submitForm(event)">
 
             <div class="form-section">
-                <label for="CompanyEmail">Company Email</label>
-                <input type="email" id="CompanyEmail" name="CompanyEmail" required placeholder="Enter company email">
+                <label for="JobTitle">Job Title</label>
+                <input type="text" id="JobTitle" name="JobTitle" required placeholder="Enter job title">
             </div>
 
             <div class="form-section">
                 <label for="JobLocation">Job Location</label>
                 <input type="text" id="JobLocation" name="JobLocation" required placeholder="Enter company location">
-            </div>
-
-            <!-- Job Details Section -->
-            <div class="form-section">
-                <label for="JobTitle">Job Title</label>
-                <input type="text" id="JobTitle" name="JobTitle" required placeholder="Enter job title">
             </div>
 
             <div class="form-section">
@@ -175,12 +183,42 @@
                 </select>
             </div>
 
-            <!-- Submit Button -->
             <div class="form-section">
                 <button type="submit" class="form-btn">Submit Job Posting</button>
             </div>
         </form>
     </div>
 
+<script>
+
+    function submitForm() {
+        event.preventDefault();
+        document.getElementById('spinner').style.display = 'block'; 
+
+        const url = `/laa/company/newjobpost`;
+
+        const formData = document.getElementById('mainForm');
+        const form = new FormData(formData);
+
+        fetch(url, {
+            method: 'POST',
+            body: form,
+        })
+            .then(response => {
+                document.getElementById('spinner').style.display = 'none'; 
+                if (!response.ok) {
+                    alert("Failed to create job post. Try again.");
+                } else {
+                    alert("Job posted successfully");
+                    window.location.href = "/laa/company/dashboard";
+                }
+            })
+            .catch(error => {
+                console.log(error);
+            });
+    }
+
+
+</script>
 </body>
 </html>

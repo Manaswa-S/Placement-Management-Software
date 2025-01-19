@@ -64,7 +64,15 @@
             margin: 3px 0; 
             line-height: 1.4;
             white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
+        .details label:hover {
+            white-space: normal;
+            overflow: visible;  
+            text-overflow: unset;
+        }
+        
 
         .btn {
             margin-top: 8px;
@@ -311,9 +319,6 @@
             const url = `/laa/student/getfile?type=${type}`;
             return fetch(url)
                 .then(response => {
-                    if (!response.ok) {
-                        throw new Error("Failed to fetch file: ");
-                    }
                     return response.blob();
                 })
                 .catch(error => {
@@ -336,6 +341,7 @@
                 document.getElementById('ProfileImage').src = PPUrl;
             }
         }
+        
         let cards = ``;
         function setOverview() {
             dataList.innerHTML = ``;
@@ -635,9 +641,14 @@
             dataList.innerHTML = ``;
             dataList.innerHTML = `
                 <div id="details" class="card">
+
                     <div class="topcard">
-                        <label class="title">Have a Problem ? Describe it here.</label>
+                        <label class="title">Have a Problem ?</label>
                     </div>
+                    <div class="topcard">
+                        <label class="title">Describe it here or Email to us at : pmssuperuser@gmail.com</label>
+                    </div>
+
                     <div class="topcard" style="height:400px;">
                         <textarea class="report-textarea" type="text" id="Report" name="Report"></textarea>
                     </div>

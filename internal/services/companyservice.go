@@ -36,7 +36,7 @@ func NewCompanyService(queriespool *sqlc.Queries, gapiService *apicalls.Caller, 
 	}
 }
 
-func (c *CompanyService) NewJobPost(ctx *gin.Context, jobdata dto.NewJobData) (sqlc.Job, error) {
+func (c *CompanyService) NewJobPost(ctx *gin.Context, jobdata *dto.NewJobData, userID int64) (error) {	
 	// split skills into []text
 	skills := strings.Split(jobdata.SkillsRequired, ",")
 	for i, skill := range skills {
@@ -48,9 +48,8 @@ func (c *CompanyService) NewJobPost(ctx *gin.Context, jobdata dto.NewJobData) (s
 	extras := make(map[string]interface{})
 	for key, values := range ctx.Request.Form {
 		if _, exists := map[string]bool{
-			"CompanyName": true,
-			"CompanyEmail": true,
-			"CompanyLocation": true,
+			"JobId": true,
+			"JobLocation": true,
 			"JobTitle": true,
 			"JobDescription": true,
 			"JobType": true,
@@ -67,13 +66,33 @@ func (c *CompanyService) NewJobPost(ctx *gin.Context, jobdata dto.NewJobData) (s
 
 	extraJson, err := json.Marshal(extras)
 	if err != nil {
-		return sqlc.Job{}, errors.New("unable to marshal extras to json")
+		return errors.New("unable to marshal extras to json")
 	}
+
+	if (jobdata.JobId != 0) {
+		err = c.queries.UpdateJob(ctx, sqlc.UpdateJobParams{
+			Location: jobdata.JobLocation,
+			Title: jobdata.JobTitle,
+			Description: pgtype.Text{String: jobdata.JobDescription, Valid: true},
+			Type: jobdata.JobType,
+			Salary: jobdata.JobSalary,
+			Skills: skills,
+			Position: jobdata.JobPosition,
+			Extras: extraJson,
+			JobID: jobdata.JobId,
+			UserID: userID,
+		})
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
 	// TODO: need to better validate incoming data 
 	// add job data to db
-	jobData, err := c.queries.InsertNewJob(ctx, sqlc.InsertNewJobParams{
+	err = c.queries.InsertNewJob(ctx, sqlc.InsertNewJobParams{
 		DataUrl: pgtype.Text{String: "", Valid: true},
-		RepresentativeEmail: jobdata.CompanyEmail,
+		UserID: userID,
 		Title: jobdata.JobTitle,
 		Location: jobdata.JobLocation,
 		Type: jobdata.JobType,
@@ -81,12 +100,13 @@ func (c *CompanyService) NewJobPost(ctx *gin.Context, jobdata dto.NewJobData) (s
 		Skills: skills,
 		Position: jobdata.JobPosition,
 		Extras: extraJson,
+		Description: pgtype.Text{String: jobdata.JobDescription, Valid: true},
 	})
 	if err != nil {
-		return sqlc.Job{}, err
+		return err
 	}
 
-	return jobData, nil
+	return nil
 }
 
 func (c *CompanyService) MyApplicants(ctx *gin.Context, userID int64, jobid string) ([]sqlc.GetApplicantsRow, error){
@@ -155,7 +175,7 @@ func (c *CompanyService) GetResumeOrResultFilePath(ctx *gin.Context, userID int6
 	return filepath, nil
 }
 
-func (c *CompanyService) MyJobListings(ctx *gin.Context, userID int64) ([]sqlc.GetJobListingsRow, error){
+func (c *CompanyService) MyJobListings(ctx *gin.Context, userID int64) (*[]sqlc.GetJobListingsRow, error){
 
 	// get the listings data 
 	jobListings, err := c.queries.GetJobListings(ctx, userID)
@@ -163,7 +183,7 @@ func (c *CompanyService) MyJobListings(ctx *gin.Context, userID int64) ([]sqlc.G
 		return nil, fmt.Errorf("failed to fetch job listings for user %d: %w", userID, err)
 	}
 
-	return jobListings, nil
+	return &jobListings, nil
 }
 
 func (c *CompanyService) CloseJob(ctx *gin.Context, jobid string, userID int64) (error){

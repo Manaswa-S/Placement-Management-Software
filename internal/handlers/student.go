@@ -73,10 +73,10 @@ func (h *StudentHandler) StudentDashboard(ctx *gin.Context) {
 	ctx.File("./template/dashboard/studentdashboard.html")
 }
 func (h *StudentHandler) JobsList(ctx *gin.Context) {
-	ctx.File("./template/jobs/alljobslist.html")
+	ctx.File("./template/student/alljobslist.html")
 }
 func (h *StudentHandler) MyAppsStatic(ctx *gin.Context) {
-	ctx.File("./template/jobs/myapplications.html")
+	ctx.File("./template/student/myapplications.html")
 }
 func (h *StudentHandler) ApplicableJobs(ctx *gin.Context) {
 	// TODO: get the filters of the request body  

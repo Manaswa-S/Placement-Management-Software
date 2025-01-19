@@ -721,7 +721,9 @@ SELECT
     jobs.skills,
     jobs.position,
     jobs.active_status,
-    COALESCE(t.no_of_applications, 0)    
+    COALESCE(t.no_of_applications, 0),
+    jobs.description,
+    jobs.extras    
 FROM jobs
 LEFT JOIN (
     SELECT 
@@ -749,6 +751,8 @@ type GetJobListingsRow struct {
 	Position         string
 	ActiveStatus     bool
 	NoOfApplications int64
+	Description      pgtype.Text
+	Extras           []byte
 }
 
 func (q *Queries) GetJobListings(ctx context.Context, userID int64) ([]GetJobListingsRow, error) {
@@ -771,6 +775,8 @@ func (q *Queries) GetJobListings(ctx context.Context, userID int64) ([]GetJobLis
 			&i.Position,
 			&i.ActiveStatus,
 			&i.NoOfApplications,
+			&i.Description,
+			&i.Extras,
 		); err != nil {
 			return nil, err
 		}
@@ -893,19 +899,6 @@ func (q *Queries) GetOfferLetterData(ctx context.Context, applicationID int64) (
 		&i.RepresentativeEmail,
 	)
 	return i, err
-}
-
-const getResponses = `-- name: GetResponses :one
-SELECT responses 
-FROM testresults
-WHERE user_id = $1
-`
-
-func (q *Queries) GetResponses(ctx context.Context, userID int64) ([]byte, error) {
-	row := q.db.QueryRow(ctx, getResponses, userID)
-	var responses []byte
-	err := row.Scan(&responses)
-	return responses, err
 }
 
 const getResumeAndResultPath = `-- name: GetResumeAndResultPath :one
@@ -1049,31 +1042,31 @@ func (q *Queries) InsertNewApplication(ctx context.Context, arg InsertNewApplica
 	return err
 }
 
-const insertNewJob = `-- name: InsertNewJob :one
+const insertNewJob = `-- name: InsertNewJob :exec
 
-INSERT INTO jobs (data_url, company_id, title, location, type, salary, skills, position, extras)
-VALUES ($1, (SELECT company_id FROM companies WHERE representative_email = $2), $3, $4, $5, $6, $7, $8, $9)
-RETURNING job_id, data_url, created_at, company_id, title, location, type, salary, skills, position, extras, active_status
+INSERT INTO jobs (data_url, company_id, title, location, type, salary, skills, position, extras, description)
+VALUES ($1, (SELECT company_id FROM companies WHERE companies.user_id = $2), $3, $4, $5, $6, $7, $8, $9, $10)
 `
 
 type InsertNewJobParams struct {
-	DataUrl             pgtype.Text
-	RepresentativeEmail string
-	Title               string
-	Location            string
-	Type                string
-	Salary              string
-	Skills              []string
-	Position            string
-	Extras              []byte
+	DataUrl     pgtype.Text
+	UserID      int64
+	Title       string
+	Location    string
+	Type        string
+	Salary      string
+	Skills      []string
+	Position    string
+	Extras      []byte
+	Description pgtype.Text
 }
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 // Company queries
-func (q *Queries) InsertNewJob(ctx context.Context, arg InsertNewJobParams) (Job, error) {
-	row := q.db.QueryRow(ctx, insertNewJob,
+func (q *Queries) InsertNewJob(ctx context.Context, arg InsertNewJobParams) error {
+	_, err := q.db.Exec(ctx, insertNewJob,
 		arg.DataUrl,
-		arg.RepresentativeEmail,
+		arg.UserID,
 		arg.Title,
 		arg.Location,
 		arg.Type,
@@ -1081,23 +1074,9 @@ func (q *Queries) InsertNewJob(ctx context.Context, arg InsertNewJobParams) (Job
 		arg.Skills,
 		arg.Position,
 		arg.Extras,
+		arg.Description,
 	)
-	var i Job
-	err := row.Scan(
-		&i.JobID,
-		&i.DataUrl,
-		&i.CreatedAt,
-		&i.CompanyID,
-		&i.Title,
-		&i.Location,
-		&i.Type,
-		&i.Salary,
-		&i.Skills,
-		&i.Position,
-		&i.Extras,
-		&i.ActiveStatus,
-	)
-	return i, err
+	return err
 }
 
 const interviewHistory = `-- name: InterviewHistory :many
@@ -1180,6 +1159,50 @@ func (q *Queries) IsTestGiven(ctx context.Context, arg IsTestGivenParams) (IsTes
 	var i IsTestGivenRow
 	err := row.Scan(&i.TestID, &i.StartTime, &i.EndTime)
 	return i, err
+}
+
+const listToVerifyStudent = `-- name: ListToVerifyStudent :many
+SELECT 
+    users.user_id,
+    users.email,
+    TO_CHAR(users.created_at, 'HH12:MI AM DD-MM-YYYY') AS created_at,
+    users.confirmed
+FROM users
+WHERE users.confirmed = true
+AND users.is_verified = false
+AND users.role = 1
+`
+
+type ListToVerifyStudentRow struct {
+	UserID    int64
+	Email     string
+	CreatedAt string
+	Confirmed bool
+}
+
+func (q *Queries) ListToVerifyStudent(ctx context.Context) ([]ListToVerifyStudentRow, error) {
+	rows, err := q.db.Query(ctx, listToVerifyStudent)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListToVerifyStudentRow
+	for rows.Next() {
+		var i ListToVerifyStudentRow
+		if err := rows.Scan(
+			&i.UserID,
+			&i.Email,
+			&i.CreatedAt,
+			&i.Confirmed,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const newTest = `-- name: NewTest :exec
@@ -1339,6 +1362,133 @@ func (q *Queries) SignupUser(ctx context.Context, arg SignupUserParams) (User, e
 		&i.IsVerified,
 	)
 	return i, err
+}
+
+const studentInfo = `-- name: StudentInfo :one
+SELECT
+    students.student_id,
+    students.student_name,
+    students.roll_number,
+    students.student_dob,
+    students.gender,
+    students.course,
+    students.department,
+    students.year_of_study,
+    students.cgpa,
+    students.contact_no,
+    students.address,
+    students.skills, 
+    students.picture_url AS profilePic,
+    students.extras
+FROM students
+WHERE students.user_id = $1
+`
+
+type StudentInfoRow struct {
+	StudentID   int64
+	StudentName string
+	RollNumber  string
+	StudentDob  pgtype.Date
+	Gender      string
+	Course      string
+	Department  string
+	YearOfStudy string
+	Cgpa        pgtype.Float8
+	ContactNo   string
+	Address     pgtype.Text
+	Skills      pgtype.Text
+	Profilepic  pgtype.Text
+	Extras      []byte
+}
+
+func (q *Queries) StudentInfo(ctx context.Context, userID int64) (StudentInfoRow, error) {
+	row := q.db.QueryRow(ctx, studentInfo, userID)
+	var i StudentInfoRow
+	err := row.Scan(
+		&i.StudentID,
+		&i.StudentName,
+		&i.RollNumber,
+		&i.StudentDob,
+		&i.Gender,
+		&i.Course,
+		&i.Department,
+		&i.YearOfStudy,
+		&i.Cgpa,
+		&i.ContactNo,
+		&i.Address,
+		&i.Skills,
+		&i.Profilepic,
+		&i.Extras,
+	)
+	return i, err
+}
+
+const studentsOverview = `-- name: StudentsOverview :many
+SELECT 
+    students.student_id,
+    students.student_name,
+    students.roll_number,
+    students.student_dob,
+    students.gender,
+    students.course,
+    students.department,
+    students.year_of_study,
+    students.cgpa,
+    students.contact_no,
+    students.address,
+    students.skills, 
+    students.extras
+FROM students
+`
+
+type StudentsOverviewRow struct {
+	StudentID   int64
+	StudentName string
+	RollNumber  string
+	StudentDob  pgtype.Date
+	Gender      string
+	Course      string
+	Department  string
+	YearOfStudy string
+	Cgpa        pgtype.Float8
+	ContactNo   string
+	Address     pgtype.Text
+	Skills      pgtype.Text
+	Extras      []byte
+}
+
+func (q *Queries) StudentsOverview(ctx context.Context) ([]StudentsOverviewRow, error) {
+	rows, err := q.db.Query(ctx, studentsOverview)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StudentsOverviewRow
+	for rows.Next() {
+		var i StudentsOverviewRow
+		if err := rows.Scan(
+			&i.StudentID,
+			&i.StudentName,
+			&i.RollNumber,
+			&i.StudentDob,
+			&i.Gender,
+			&i.Course,
+			&i.Department,
+			&i.YearOfStudy,
+			&i.Cgpa,
+			&i.ContactNo,
+			&i.Address,
+			&i.Skills,
+			&i.Extras,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const submitTest = `-- name: SubmitTest :one
@@ -1609,6 +1759,49 @@ func (q *Queries) UpdateEmailConfirmation(ctx context.Context, email string) err
 	return err
 }
 
+const updateJob = `-- name: UpdateJob :exec
+UPDATE jobs
+SET location = $1,
+    title = $2,
+    description = $3,
+    type = $4,
+    salary = $5,
+    skills = $6,
+    position = $7,
+    extras = $8
+WHERE job_id = $9
+AND company_id = (SELECT company_id FROM companies WHERE companies.user_id = $10)
+`
+
+type UpdateJobParams struct {
+	Location    string
+	Title       string
+	Description pgtype.Text
+	Type        string
+	Salary      string
+	Skills      []string
+	Position    string
+	Extras      []byte
+	JobID       int64
+	UserID      int64
+}
+
+func (q *Queries) UpdateJob(ctx context.Context, arg UpdateJobParams) error {
+	_, err := q.db.Exec(ctx, updateJob,
+		arg.Location,
+		arg.Title,
+		arg.Description,
+		arg.Type,
+		arg.Salary,
+		arg.Skills,
+		arg.Position,
+		arg.Extras,
+		arg.JobID,
+		arg.UserID,
+	)
+	return err
+}
+
 const updatePassword = `-- name: UpdatePassword :exec
 UPDATE users
 SET password = $2
@@ -1751,4 +1944,15 @@ func (q *Queries) UsersTableData(ctx context.Context, userID int64) (UsersTableD
 	var i UsersTableDataRow
 	err := row.Scan(&i.CreatedAt, &i.Confirmed, &i.IsVerified)
 	return i, err
+}
+
+const verifyStudent = `-- name: VerifyStudent :exec
+UPDATE users
+SET is_verified = true
+WHERE user_id = $1
+`
+
+func (q *Queries) VerifyStudent(ctx context.Context, userID int64) error {
+	_, err := q.db.Exec(ctx, verifyStudent, userID)
+	return err
 }

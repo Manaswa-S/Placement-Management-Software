@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Completed</title>
+    <title>Manage Students</title>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -56,7 +56,7 @@
         }
         .details {
             display:grid; 
-            grid-template-columns: repeat(2, 1fr); 
+            grid-template-columns: repeat(3, 1fr); 
             font-size: 0.8em;
             color: #555;
         }
@@ -208,6 +208,9 @@
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
             z-index: 1000;
             box-sizing: border-box;
+            margin-bottom: 30px;
+            margin-top: 30px;
+
         }
 
         .semi-button {
@@ -234,10 +237,10 @@
             animation: fadein 0.5s, fadeout 0.5s 2.5s;
         }
         .toast.green {
-            background-color: #4CAF50; /* Green for success */
+            background-color: #4CAF50; 
         }
         .toast.red {
-            background-color: #f44336; /* Red for error */
+            background-color: #f44336;
         }
         @keyframes fadein {
             from {bottom: 0; opacity: 0;}
@@ -256,56 +259,15 @@
             margin-bottom: 4px;
         }
         .overview label {
-            flex:1;
+            flex:1.5;
             text-align: left;
         }
         .overview span {
-            flex: 3;
+            flex: 2.5;
             text-align: left;
         }
 
-        .absolute {
-            width: 90% ;
-            margin: 1% auto;
-            position: absolute;
-            left: 0;
-            right: 0;
-            
-            background: none !important;
-        
-        }
-
-        .grid-table {
-            width: 100% ;
-            margin: 1% auto;
-            position: relative;
-            left: 0;
-            right: 0;
-            display: grid;
-            grid-template-columns: 5% 20% 6% 6% 5% 6% 8% 5% 5% 15% 9% 10%;
-            font-size: 14px;
-            background: none !important;
-            align-items: stretch;
-        }
-
-        .header {
-            font-weight: bold;
-            border: 1px solid #ddd;
-            font-size: 16px;
-            background-color: #d6d4d4;
-            padding: 10px;
-        }
-
-        .cell {
-            padding: 10px;
-            border: 1px solid #ddd;
-            background: none ;
-
-            background-color: white;
-            white-space: nowrap;       
-            overflow:hidden;          
-            text-overflow:ellipsis;
-        }
+ 
     </style>
 </head>
 <body>
@@ -316,30 +278,13 @@
             <button id="overviewTab" class="tab active">Overview</button>
             <button id="verifyTab" class="tab">Verify</button>
         </div>
-
-
-        <div id="cardList"></div>
-        
-        <div class="absolute">
-            <div id="tableHeader" class="grid-table">
-                <div class="header">ID</div>
-                <div class="header">Name</div>
-                <div class="header">R.No.</div>
-                <div class="header">DOB</div>
-                <div class="header">Gender</div>
-                <div class="header">Course</div>
-                <div class="header">Department</div>
-                <div class="header">Year</div>
-                <div class="header">CGPA</div>
-                <div class="header">Skills</div>
-                <div class="header">Contact</div>
-                <div class="header">Address</div>
+        <div class="top-nav">
+            <div class="searchbar">
+                <input type="text" id="searchBox" placeholder="Search..." />
             </div>
-
-            <div id="tableList" class="grid-table"></div>
         </div>
 
-
+        <div id="dataList"></div>
 
         <div class="spinner" id="spinner" style="display: none;">
         </div>
@@ -369,10 +314,8 @@
     let activeTemp = overviewTemp;
 
 
-    const cardList = document.getElementById('cardList');
-    const tableList = document.getElementById('tableList');
+    const dataList = document.getElementById('dataList');
 
-    let dataList = tableList;
 
 
     const prevbtn = document.getElementById('prev-btn');
@@ -424,21 +367,20 @@
 
     function overviewTemp(job) {
         return  `
-            <div class="cell">${job.StudentID}</div>
-            <div class="cell">${job.StudentName}</div>
-            <div class="cell">${job.RollNumber}</div>
-            <div class="cell">${job.StudentDob}</div>
-            <div class="cell">${job.Gender}</div>
-
-            <div class="cell">${job.Course}</div>
-            <div class="cell">${job.Department == 'Information_Technology' ? 'IT' : job.Department}</div>
-            <div class="cell">${job.YearOfStudy}</div>
-
-            <div class="cell">${job.Cgpa}</div>
-            <div class="cell">${job.Skills}</div>
-            
-            <div class="cell">${job.ContactNo}</div>
-            <div class="cell">${job.Address}</div>
+            <div class="card">
+                <div class="title">${job.StudentID} : ${job.StudentName} : ${job.RollNumber}</div>
+                <div class="details">
+                    <p>${job.StudentDob}</p>
+                    <p>${job.Gender}</p>
+                    <p>${job.Course}</p>
+                    <p>${job.Department}</p>
+                    <p>${job.YearOfStudy}</p>
+                    <p>${job.Cgpa}</p>
+                    <p>${job.Skills}</p>
+                    <p>${job.ContactNo}</p>
+                    <p>${job.Address}</p>
+                </div>
+            </div>
         `;
     }
 
@@ -544,11 +486,6 @@
     overviewTb.addEventListener('click', () => {
         tabs.forEach(t => t.classList.remove('active'));
         overviewTb.classList.add('active');
-        dataList.innerHTML = ``;
-        dataList = tableList;
-        tableHeader.style.visibility = 'visible';
-        pageSize = 100;
-
         activeTemp = overviewTemp;
         fetchData('overview');
     });
@@ -556,11 +493,6 @@
     verifyTb.addEventListener('click', () => {
         tabs.forEach(t => t.classList.remove('active'));
         verifyTb.classList.add('active');
-        dataList.innerHTML = ``;
-        dataList = cardList;
-        tableHeader.style.visibility = 'hidden';
-        pageSize = 10;
-
         activeTemp = verifyTemp;
         fetchData('verify');
     });
@@ -676,7 +608,27 @@
         }, timeout);
     }
 
-    
+    function search() {
+        const query = searchbar.value.toLowerCase();
+        if (query == "") {
+            searched = alldata;
+            middle();
+            return;
+        }
+        console.log(alldata);
+        const result = alldata.filter(job =>
+            Object.values(job).some(val => 
+                val !== null && val !== undefined && val.toString().toLowerCase().includes(query)
+            )
+        );
+
+        
+        searched = result;
+        middle();
+    }
+    const searchbar = document.getElementById('searchBox');
+    searchbar.addEventListener('input', search);
+
     overviewTb.click();
 </script>
 
