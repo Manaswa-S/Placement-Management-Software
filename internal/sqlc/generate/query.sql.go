@@ -89,7 +89,7 @@ func (q *Queries) ApplicationStatusToAnd(ctx context.Context, arg ApplicationSta
 	return err
 }
 
-const applicationsStatusCounts = `-- name: ApplicationsStatusCounts :many
+const applicationsStatusCounts = `-- name: ApplicationsStatusCounts :one
 SELECT
     COUNT(applications.status) AS applied_count,
     COUNT(CASE WHEN applications.status = 'UnderReview' THEN 1 END) AS under_review_count,
@@ -111,31 +111,18 @@ type ApplicationsStatusCountsRow struct {
 	HiredCount       int64
 }
 
-func (q *Queries) ApplicationsStatusCounts(ctx context.Context, userID int64) ([]ApplicationsStatusCountsRow, error) {
-	rows, err := q.db.Query(ctx, applicationsStatusCounts, userID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ApplicationsStatusCountsRow
-	for rows.Next() {
-		var i ApplicationsStatusCountsRow
-		if err := rows.Scan(
-			&i.AppliedCount,
-			&i.UnderReviewCount,
-			&i.ShortlistedCount,
-			&i.RejectedCount,
-			&i.OfferedCount,
-			&i.HiredCount,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+func (q *Queries) ApplicationsStatusCounts(ctx context.Context, userID int64) (ApplicationsStatusCountsRow, error) {
+	row := q.db.QueryRow(ctx, applicationsStatusCounts, userID)
+	var i ApplicationsStatusCountsRow
+	err := row.Scan(
+		&i.AppliedCount,
+		&i.UnderReviewCount,
+		&i.ShortlistedCount,
+		&i.RejectedCount,
+		&i.OfferedCount,
+		&i.HiredCount,
+	)
+	return i, err
 }
 
 const cancelApplication = `-- name: CancelApplication :exec
@@ -200,6 +187,15 @@ func (q *Queries) CancelInterviewEmailData(ctx context.Context, applicationID in
 		&i.RepresentativeEmail,
 	)
 	return i, err
+}
+
+const clearAnswersTable = `-- name: ClearAnswersTable :exec
+DELETE FROM temp_correct_answers
+`
+
+func (q *Queries) ClearAnswersTable(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, clearAnswersTable)
+	return err
 }
 
 const closeJob = `-- name: CloseJob :exec
@@ -321,6 +317,71 @@ func (q *Queries) CompletedTests(ctx context.Context, userID int64) ([]Completed
 	return items, nil
 }
 
+const cumulativeResultData = `-- name: CumulativeResultData :many
+WITH tr AS (
+    SELECT 
+        result_id,
+        SUM(time_taken) AS total_time_taken,
+        COUNT(result_id) AS questions_attempted
+    FROM testresponses
+    GROUP BY result_id
+),
+main AS (
+    SELECT 
+        testresults.result_id,
+        testresults.user_id,
+        TO_CHAR(testresults.start_time, 'HH12:MI:SS AM DD-MM-YYYY') AS start_time,
+        TO_CHAR(testresults.end_time, 'HH12:MI:SS AM DD-MM-YYYY') AS end_time,
+        testresults.score,
+        tr.total_time_taken,
+        tr.questions_attempted
+    FROM testresults 
+    JOIN tr ON testresults.result_id = tr.result_id
+    WHERE testresults.test_id = $1
+)
+
+SELECT result_id, user_id, start_time, end_time, score, total_time_taken, questions_attempted 
+FROM main
+`
+
+type CumulativeResultDataRow struct {
+	ResultID           int64
+	UserID             int64
+	StartTime          string
+	EndTime            string
+	Score              pgtype.Int8
+	TotalTimeTaken     int64
+	QuestionsAttempted int64
+}
+
+func (q *Queries) CumulativeResultData(ctx context.Context, testID int64) ([]CumulativeResultDataRow, error) {
+	rows, err := q.db.Query(ctx, cumulativeResultData, testID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CumulativeResultDataRow
+	for rows.Next() {
+		var i CumulativeResultDataRow
+		if err := rows.Scan(
+			&i.ResultID,
+			&i.UserID,
+			&i.StartTime,
+			&i.EndTime,
+			&i.Score,
+			&i.TotalTimeTaken,
+			&i.QuestionsAttempted,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const deleteInterview = `-- name: DeleteInterview :exec
 DELETE FROM interviews
 WHERE application_id = $1
@@ -345,6 +406,40 @@ type DeleteJobParams struct {
 func (q *Queries) DeleteJob(ctx context.Context, arg DeleteJobParams) error {
 	_, err := q.db.Exec(ctx, deleteJob, arg.JobID, arg.UserID)
 	return err
+}
+
+const evaluateTestResult = `-- name: EvaluateTestResult :one
+WITH tr AS (
+    UPDATE testresponses
+    SET points = temp_correct_answers.points
+    FROM temp_correct_answers
+    WHERE testresponses.question_id = temp_correct_answers.question_id
+    AND testresponses.response = temp_correct_answers.correct_answer
+    RETURNING testresponses.points, testresponses.result_id
+),
+rs AS (
+    SELECT 
+        result_id, 
+        SUM(points) AS score 
+    FROM tr
+    GROUP BY result_id
+),
+up AS (
+    UPDATE testresults
+    SET score = rs.score
+    FROM rs
+    WHERE testresults.result_id = rs.result_id
+)
+SELECT 
+    SUM(temp_correct_answers.points) AS totalpoints
+FROM temp_correct_answers
+`
+
+func (q *Queries) EvaluateTestResult(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, evaluateTestResult)
+	var totalpoints int64
+	err := row.Scan(&totalpoints)
+	return totalpoints, err
 }
 
 const extraInfoCompany = `-- name: ExtraInfoCompany :one
@@ -1026,6 +1121,22 @@ func (q *Queries) GetUserUUIDFromUserID(ctx context.Context, userID int64) (pgty
 	return user_uuid, err
 }
 
+const insertAnswers = `-- name: InsertAnswers :exec
+INSERT INTO temp_correct_answers (question_id, correct_answer, points)
+VALUES ($1, $2, $3)
+`
+
+type InsertAnswersParams struct {
+	QuestionID    string
+	CorrectAnswer []string
+	Points        pgtype.Int4
+}
+
+func (q *Queries) InsertAnswers(ctx context.Context, arg InsertAnswersParams) error {
+	_, err := q.db.Exec(ctx, insertAnswers, arg.QuestionID, arg.CorrectAnswer, arg.Points)
+	return err
+}
+
 const insertNewApplication = `-- name: InsertNewApplication :exec
 INSERT INTO applications (job_id, student_id, data_url) 
 VALUES ($1, (SELECT student_id FROM students WHERE user_id = $2), $3)
@@ -1135,6 +1246,7 @@ func (q *Queries) InterviewStatusTo(ctx context.Context, arg InterviewStatusToPa
 
 const isTestGiven = `-- name: IsTestGiven :one
 SELECT 
+    testresults.result_id,
     testresults.test_id,
     testresults.start_time,
     testresults.end_time
@@ -1149,6 +1261,7 @@ type IsTestGivenParams struct {
 }
 
 type IsTestGivenRow struct {
+	ResultID  int64
 	TestID    int64
 	StartTime pgtype.Timestamptz
 	EndTime   pgtype.Timestamptz
@@ -1157,7 +1270,12 @@ type IsTestGivenRow struct {
 func (q *Queries) IsTestGiven(ctx context.Context, arg IsTestGivenParams) (IsTestGivenRow, error) {
 	row := q.db.QueryRow(ctx, isTestGiven, arg.TestID, arg.UserID)
 	var i IsTestGivenRow
-	err := row.Scan(&i.TestID, &i.StartTime, &i.EndTime)
+	err := row.Scan(
+		&i.ResultID,
+		&i.TestID,
+		&i.StartTime,
+		&i.EndTime,
+	)
 	return i, err
 }
 
@@ -1515,7 +1633,8 @@ func (q *Queries) SubmitTest(ctx context.Context, arg SubmitTestParams) (int64, 
 const takeTest = `-- name: TakeTest :one
 SELECT 
     tests.file_id,
-    tests.duration
+    tests.duration,
+    tests.end_time
 FROM tests
 JOIN applications ON applications.job_id = tests.job_id
 WHERE applications.student_id = (SELECT student_id FROM students WHERE user_id = $1)
@@ -1530,13 +1649,27 @@ type TakeTestParams struct {
 type TakeTestRow struct {
 	FileID   string
 	Duration int64
+	EndTime  pgtype.Timestamptz
 }
 
 func (q *Queries) TakeTest(ctx context.Context, arg TakeTestParams) (TakeTestRow, error) {
 	row := q.db.QueryRow(ctx, takeTest, arg.UserID, arg.TestID)
 	var i TakeTestRow
-	err := row.Scan(&i.FileID, &i.Duration)
+	err := row.Scan(&i.FileID, &i.Duration, &i.EndTime)
 	return i, err
+}
+
+const testFileId = `-- name: TestFileId :one
+SELECT 
+    file_id
+FROM tests WHERE tests.test_id = $1
+`
+
+func (q *Queries) TestFileId(ctx context.Context, testID int64) (string, error) {
+	row := q.db.QueryRow(ctx, testFileId, testID)
+	var file_id string
+	err := row.Scan(&file_id)
+	return file_id, err
 }
 
 const testHistory = `-- name: TestHistory :many
@@ -1629,13 +1762,44 @@ func (q *Queries) TestMetadata(ctx context.Context, arg TestMetadataParams) (Tes
 	return i, err
 }
 
+const testResultPoller = `-- name: TestResultPoller :many
+
+
+SELECT  
+    tests.test_id
+FROM tests
+WHERE tests.end_time < NOW()
+AND tests.result_url IS NULL
+`
+
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// Admin Functions --------------------------------
+func (q *Queries) TestResultPoller(ctx context.Context) ([]int64, error) {
+	rows, err := q.db.Query(ctx, testResultPoller)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int64
+	for rows.Next() {
+		var test_id int64
+		if err := rows.Scan(&test_id); err != nil {
+			return nil, err
+		}
+		items = append(items, test_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const upcomingInterviews = `-- name: UpcomingInterviews :many
 SELECT 
     companies.company_name,
     jobs.title,
     interviews.interview_id,
-    (interviews.date_time)::DATE AS date,
-    (interviews.date_time)::TIME::TEXT AS time,
+    TO_CHAR(interviews.date_time, 'HH12:MI AM DD-MM-YYYY') AS date_time,
     interviews.type::TEXT,
     interviews.location,
     interviews.notes
@@ -1645,14 +1809,14 @@ JOIN interviews ON applications.application_id = interviews.application_id
 JOIN jobs ON applications.job_id = jobs.job_id
 JOIN companies ON jobs.company_id = companies.company_id
 WHERE applications.student_id = (SELECT student_id FROM students WHERE students.user_id = $1)
+AND interviews.date_time > NOW()
 `
 
 type UpcomingInterviewsRow struct {
 	CompanyName    string
 	Title          string
 	InterviewID    int64
-	Date           pgtype.Date
-	Time           string
+	DateTime       string
 	InterviewsType string
 	Location       string
 	Notes          pgtype.Text
@@ -1671,8 +1835,7 @@ func (q *Queries) UpcomingInterviews(ctx context.Context, userID int64) ([]Upcom
 			&i.CompanyName,
 			&i.Title,
 			&i.InterviewID,
-			&i.Date,
-			&i.Time,
+			&i.DateTime,
 			&i.InterviewsType,
 			&i.Location,
 			&i.Notes,
@@ -1694,7 +1857,7 @@ SELECT
     tests.description,
     tests.duration,
     tests.q_count,
-    TO_CHAR(tests.end_time, 'DD-MM-YYYY HH12:MI AM') AS end_time,
+    TO_CHAR(tests.end_time, 'HH12:MI AM DD-MM-YYYY') AS end_time,
     tests.type,    
     companies.company_name,
     jobs.title
@@ -1703,7 +1866,8 @@ JOIN tests ON applications.job_id = tests.job_id
 JOIN jobs ON applications.job_id = jobs.job_id
 JOIN companies ON jobs.company_id = companies.company_id
 WHERE applications.student_id = (SELECT student_id FROM students WHERE students.user_id = $1)
-AND NOT EXISTS (SELECT 1 FROM testresults WHERE testresults.test_id = tests.test_id)
+AND NOT EXISTS (SELECT 1 FROM testresults WHERE testresults.test_id = tests.test_id AND testresults.user_id = $1)
+AND tests.end_time > NOW()
 `
 
 type UpcomingTestsRow struct {
@@ -1819,20 +1983,26 @@ func (q *Queries) UpdatePassword(ctx context.Context, arg UpdatePasswordParams) 
 }
 
 const updateResponse = `-- name: UpdateResponse :exec
-UPDATE testresults 
-SET responses = responses || $1::jsonb
-WHERE user_id = $2 
-AND test_id = $3
+INSERT INTO testresponses (result_id, question_id, response, time_taken)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (result_id, question_id)
+DO UPDATE SET response = $3, time_taken = $4
 `
 
 type UpdateResponseParams struct {
-	Column1 []byte
-	UserID  int64
-	TestID  int64
+	ResultID   int64
+	QuestionID string
+	Response   []string
+	TimeTaken  pgtype.Int8
 }
 
 func (q *Queries) UpdateResponse(ctx context.Context, arg UpdateResponseParams) error {
-	_, err := q.db.Exec(ctx, updateResponse, arg.Column1, arg.UserID, arg.TestID)
+	_, err := q.db.Exec(ctx, updateResponse,
+		arg.ResultID,
+		arg.QuestionID,
+		arg.Response,
+		arg.TimeTaken,
+	)
 	return err
 }
 

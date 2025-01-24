@@ -4,244 +4,60 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Profile</title>
+    <link rel="stylesheet" href="/static/styles/student.css">
+    <script src="https://go-echarts.github.io/go-echarts-assets/assets/echarts.min.js"></script>
+
     <style>
-        body {
-            font-family: 'Arial', sans-serif;
-            margin: 0;
-            padding: 0;
-            background: linear-gradient(135deg, #ece9e6, #ffffff);
-            color: #333;
-        }
-        .container {
-            width: 90%;
-            margin: 20px auto;
-            max-width: 1200px;
-        }
-        
-        h1 {
-            font-size: 1.5em;
-            text-align: center;
-            color: #6C63FF;
-            margin-bottom: 10px;
-        }
         .card {
-            background: #fff;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            transition: box-shadow 0.3s;
-        }
-        .card:hover {
-            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
-        }
-
-        .topcard {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 20px;
-        }
-        .topcard p {
-            display: flex;
-            align-items: start;
-            justify-content: center;
-            margin-bottom: 20px;
-        }
- 
-        .title {
-            font-size: 1.5em;
-            color: #6C63FF;
-            margin-bottom: 4px;
-        }
-        .details {
-            display:grid; 
-            font-size: 17px;
-            color: #555;
-        }
-        .details label {
-            margin: 3px 0; 
-            line-height: 1.4;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .details label:hover {
-            white-space: normal;
-            overflow: visible;  
-            text-overflow: unset;
-        }
-        
-
-        .btn {
-            margin-top: 8px;
-            margin-bottom: 8px;
-            background: #6C63FF;
-            color: #fff;
-            font-size: 14px;
-            font-weight:500;
-            border: none;
-            border-radius: 5px;
-            padding: 12px 15px;
-            cursor: pointer;
-            text-decoration: none;
-            transition: background-color 0.3s;
             position: relative; 
+        }
+        .graph-item {
+            position: static;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 500px;
+        }
+
+        .more-graphs {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%; 
+            height: 80%; 
+
+            background: linear-gradient(to top,rgba(0, 0, 0, 1.0), transparent 100%);
+
+            border-radius: 10px;
+            display: flex;
             justify-content: center;
             align-items: center;
-        }
-        .btn:hover {
-            background: #8E94F2;
-        }
-
-        .spinner {
-            display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            border: 6px solid #f3f3f3;  
-            border-top: 6px solid #6C63FF;  
-            border-radius: 50%;        
-            width: 60px;                
-            height: 60px;               
-            animation: spin 2s linear infinite; 
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .tabs {
-            display:flex;
-            justify-content: center;
-            margin-top: 10px;
-            margin-bottom: 20px;
-        }
-
-        .tab {
-            padding: 10px 20px;
-            cursor: pointer;
-            border: none;
-            background-color:transparent;
-            font-size: 16px;
-            font-weight: 500;
-            transition: background-color 0.3s ease;
-        }
-
-        .tab:hover {
-            background-color: #e0e0e0;
-        }
-
-        .tab.active {
-            border-bottom: 3px solid #6C63FF;
-            color: #6C63FF;
-        }
-
-        .no-data {
-            display:block;
-            top:50%; 
             text-align: center;
-            font-size: 16px;
-            color: #555;
+            flex-direction: column;
         }
 
-        #ProfileImage {
-            max-width:250px;
-            height: 250px;
-            border-radius: 50%;
-            border: 3px solid #ddd;
-            margin-bottom: 5px;
-            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+        .more-graphs label {
+            font-size: 1.5em;
+            width: auto;
+            margin: 1% 5%;
+            font-weight: 700;
+            color: white;
+            cursor: pointer;
+        }
+        .more-graphs p {
+            font-size: 1.2em;
+            width: auto;
+            margin: 1% 5%;
+            font-weight: 700;
+            color: rgb(194, 194, 194);
+            cursor: pointer;
         }
 
-        .nav {
-            position:static;
-            bottom: 2%;
-            width: 100%;
-        }   
-
-        .edit-btn {
-            left: 100%;
-            transform: translateX(-100%); 
-        }
-
-        .cancel-btn {
-            left: 50%;
-            transform: translateX(-100%); 
-        }
-
-        .details input,
-        .details textarea,
-        .details select {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 14px;
-            margin-top: 1px;
-            margin-bottom: 8px;
-            background-color: #f7f7f7;
-            box-sizing: border-box;
-        }
-
-        .overview {
-            display: flex;
-            justify-content: space-between;
-            font-size: 17px;
-            color: #535252;
-            margin-bottom: 4px;
-        }
-        .overview label {
-            flex:1;
-            text-align: left;
-        }
-        .overview span {
-            flex: 3;
-            text-align: left;
-        }
-
-        .documents {
-            display: flex;
-            justify-content: space-between;
-            font-size: 17px;
-            color: #535252;
-            margin-bottom: 0px;
-            margin-top: 5px;
-        }
-        .documents label {
-            flex:1;
-            text-align: left;
-            align-content: center;
-        }
-        .doc-btn {
-            flex: 3;
-            max-width: 10%;
-            margin-left: 15px;
-            margin-right: 15px;
-        }
-        .file-update {
-            flex: 1;
-            padding: 5px;
-            border: 1px solid #2f2f2f;
-            border-radius: 5px;
-            font-size: 14px;
-            margin-top: 8px;
-            margin-bottom: 8px;
-            background-color: #eae8e8;
-            box-sizing: border-box;
-        }
-        .report-textarea {
-            width: 100%;
-            height: 100%;
-            box-sizing: border-box;
-            resize: none; 
-            border: 2px solid #000000;  
-            background-color: #eae8e8;
-            font-size: 18px;
-        }
 
     </style>
+
+
+
 </head>
 <body>
     <div id="container" class="container">
@@ -257,10 +73,15 @@
 
         
         <div id="dataList"></div>
-  
+
         <div class="spinner" id="spinner" style="display: none;"></div>
 
     </div>
+    <!-- >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>.... -->
+    
+
+
+    <!-- >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>.... -->
 
 <script>
 
@@ -279,8 +100,10 @@
         let appsHis = [];
         let intsHis = [];
         let testsHis = [];
+        let chrt = {};
 
         let PPUrl = '';
+
 
         function fetchData(tab = 'tests') {
             showSpinner();
@@ -288,6 +111,7 @@
             fetch(url)
                 .then(response => response.json())
                 .then(data => {
+                    console.log(data);
 
                     if (data == null) {
                         dataList.innerHTML = `
@@ -297,17 +121,17 @@
                         `;
                         return;
                     } else {
-                        const {OverData, UsersData, ProData, AppsHistory, IntsHistory, TestsHistory} = data;
-                        if (OverData != null && OverData[0] != null) {
-                            overData = OverData[0];
-                        }
+                        const {OverData, UsersData, ProData, AppsHistory, IntsHistory, TestsHistory, SankeyChrt} = data;
+                        overData = OverData != null ? OverData : null;
                         userData = UsersData != null ? UsersData : null;
                         details = ProData != null ? ProData : null;
                         appsHis = AppsHistory != null ? AppsHistory : null;
                         intsHis = IntsHistory != null ? IntsHistory : null;
                         testsHis = TestsHistory != null ? TestsHistory : null;
+                        chrt = SankeyChrt != null ? SankeyChrt : null;
                         setOverview();
                     }
+
                 })
                 .catch(error => {
                     console.error('Error fetching data:' + error)
@@ -333,15 +157,32 @@
                     const imgurl = URL.createObjectURL(img);
                     PPUrl = imgurl;
                     dataList.innerHTML += cards;
+                    setChart();
                     document.getElementById('ProfileImage').src = PPUrl;
                     hideSpinner();
                 });
             } else {
                 dataList.innerHTML += cards;
+                setChart();
                 document.getElementById('ProfileImage').src = PPUrl;
             }
         }
         
+        function setChart() {
+            let goecharts_PtBfKrydoHIY = echarts.init(document.getElementById('PtBfKrydoHIY'), "white", { renderer: "canvas" });
+            let option_PtBfKrydoHIY = {"color":chrt.Colors,"legend":{},"series":chrt.MultiSeries,"title":chrt.title,"toolbox":chrt.toolbox,"tooltip":chrt.tooltip}
+            goecharts_PtBfKrydoHIY.setOption(option_PtBfKrydoHIY);
+            goecharts_PtBfKrydoHIY.on('finished', () => {
+                const lnk = goecharts_PtBfKrydoHIY.getDataURL({
+                    type: 'png',
+                    pixelRatio: 3,
+                    backgroundColor: '#fff'
+                });
+                document.getElementById('chrtdwnld').href = lnk;
+            });
+
+        }
+
         let cards = ``;
         function setOverview() {
             dataList.innerHTML = ``;
@@ -358,32 +199,61 @@
             `;
             
             if (overData.AppliedCount != null && overData.AppliedCount > 0) {
-                cards += `
+                let ac = overData.AppliedCount;
+                let urc = overData.UnderReviewCount;
+                let slc = overData.ShortlistedCount;
+                let rc = overData.RejectedCount;
+                let oc = overData.OfferedCount;
+                let hc = overData.HiredCount;
+
+                if (hc > 0) {
+                    cards += `
                     <div id="details" class="card">
-                        <label class="title">Insights</label>
-                        <div class="overview">
-                            <label><strong>Applied:</strong></label>
-                            <span>${overData.AppliedCount != null ? overData.AppliedCount : '0'}</span>
-                        </div>
-                        <div class="overview">
-                            <label><strong>Under-Review:</strong></label>
-                            <span>${overData.UnderReviewCount != null ? overData.UnderReviewCount : '0'}</span>
-                        </div>
-                        <div class="overview">
-                            <label><strong>Short-Listed:</strong></label>
-                            <span>${overData.ShortlistedCount != null ? overData.ShortlistedCount : '0'}</span>
-                        </div>
-                        <div class="overview">
-                            <label><strong>Rejected:</strong></label>
-                            <span>${overData.RejectedCount != null ? overData.RejectedCount : '0'}</span>
-                        </div>
-                        <div class="overview">
-                            <label><strong>Offered:</strong></label>
-                            <span>${overData.OfferedCount != null ? overData.OfferedCount : '0'}</span>
-                        </div>
-                        
                         <div class="topcard">
-                            <label class="title" style="${overData.HiredCount > 0 ? "color: #22ff00" : "color: #ff0000"}">${overData.HiredCount > 0 ? 'Placed !' : 'Not Placed !'}</label>
+                            <label class="title">You have been Hired. Congratulations !</label>
+                        </div>
+                    </div>
+                    `;
+                } else if (oc > 0 && hc == 0) {
+                    cards += `
+                    <div id="details" class="card">
+                        <div class="topcard">
+                            <label class="title">You have offers for ${oc} jobs.</label>
+                        </div>
+                    </div>
+                    `;
+                } else if (slc > 0 && oc == 0 && hc == 0) {
+                    cards += `
+                    <div id="details" class="card">
+                        <div class="topcard">
+                            <label class="title">${slc} out of ${ac} of your applications have been shortlisted.</label>
+                        </div>
+                    </div>
+                    `;
+                } else if (urc > 0 && slc == 0 && oc == 0 && hc == 0) {
+                    cards += `
+                    <div id="details" class="card">
+                        <div class="topcard">
+                            <label class="title">${urc} out of ${ac} of your applications are under review.</label>
+                        </div>
+                    </div>
+                    `;
+                } else if (ac > 0 && urc == 0 && slc == 0 && oc == 0 && hc == 0) {
+                    cards += `
+                    <div id="details" class="card">
+                        <div class="topcard">
+                            <label class="title">You have applied to ${ac} jobs.</label>
+                        </div>
+                    </div>
+                    `;
+                }
+
+                cards += `
+                    <div class="card">
+                        <div class="graph-item" id="PtBfKrydoHIY"></div>
+                        <div class="more-graphs">
+                            <p> <a style="color:white;" id="chrtdwnld" href="#" download="sankeyChart.png">Download 📥</a>  </p>
+                            <label> Dive into More Insights! <a style="color:white;" id="chrtdwnld" href="#" download="chart.png"> More > </a> </label>
                         </div>
                     </div>
                 `;
@@ -440,12 +310,11 @@
                         <label><strong>Contact Number:</strong> ${details.ContactNo}</label>
                         <label><strong>Address:</strong> ${details.Address}</label>
                         <label><strong>Skills:</strong> ${details.Skills}</label>
-
-                        <div class="nav">
-                            <button onclick="editDetails()" class="btn edit-btn">Edit</button>
-                        </div>
-
                     </div>
+
+                <div class="right-btn">
+                    <button onclick="editDetails()" class="btn">Edit</button>
+                </div>
                 </div>
 
             `;
@@ -455,7 +324,7 @@
         function editDetails() {
             const editables = document.getElementById("editables");
             editables.innerHTML = `
-                <form id="newDetailsForm" onsubmit="submitNewDetails(event)">
+                <form id="newDetailsForm">
                     <div class="details">
                         <label for="Course"><strong>Course</strong></label>
                         <select id="Course" name="Course" required>
@@ -490,14 +359,12 @@
                 
                         <label for="Skills"><strong>Skills</strong></label>
                         <input type="text" id="Skills" name="Skills" value="${details.Skills}">
-                        
-
-                        <div class="nav">
-                            <button onclick="setDetails()" class="btn cancel-btn">Cancel</button>
-                            <button type="submit" class="btn cancel-btn">Update</button>
-                        </div>
                     </div>
                 </form>
+                <div class="right-btn">
+                    <button onclick="setDetails()" class="btn">Cancel</button>
+                    <button onclick="submitNewDetails()" class="btn">Update</button>
+                </div>
             `;
             document.getElementById("Course").value = details.Course;
             document.getElementById("Department").value = details.Department;
@@ -508,7 +375,7 @@
             dataList.innerHTML = ``;
             let cards = `
                 <div id="details" class="card">
-                    <div class="details">
+                    <div class="activity">
             `;
             if (appsHis != null) {
                 appsHis.forEach(elem => {
@@ -527,7 +394,7 @@
                 </div>
 
                 <div id="details" class="card">
-                    <div class="details">
+                    <div class="activity">
             `;
             if (intsHis != null) {
                 intsHis.forEach(elem => {
@@ -546,7 +413,7 @@
                 </div>
 
                 <div id="details" class="card">
-                    <div class="details">
+                    <div class="activity">
             `;
             if (testsHis != null) {
                 testsHis.forEach(elem => {
@@ -572,22 +439,22 @@
 
             let cards = `
                     <div id="details" class="card">
-                        <div class="documents">
-                            <button onclick="editDocuments()" class="btn doc-btn">Edit</button>
+                        <div class="right-btn">
+                            <button onclick="editDocuments()" class="btn">Edit</button>
                         </div>
                         <div class="documents">
                             <label><strong>Resume:</strong></label>
-                            <button id="dwnbt" onclick="openFile('resume')" class="btn doc-btn">Download</button>
+                            <button id="dwnbt" onclick="openFile('resume')" class="btn">Download</button>
                         </div>
 
                         <div class="documents">
                             <label><strong>Result:</strong></label>
-                            <button onclick="openFile('result')" class="btn doc-btn">Download</button>
+                            <button onclick="openFile('result')" class="btn">Download</button>
                         </div>
 
                         <div class="documents">
                             <label><strong>Profile Picture:</strong></label>
-                            <button onclick="openFile('profilepic')" class="btn doc-btn">Download</button>
+                            <button onclick="openFile('profilepic')" class="btn">Download</button>
                         </div>
                     </div>
                 `;
@@ -601,35 +468,35 @@
 
             let cards = `
                     <div id="details" class="card">
-                        <div class="nav">
-                            <button onclick="setDocuments()" class="btn doc-btn">Cancel</button>
+                        <div class="right-btn">
+                            <button onclick="setDocuments()" class="btn">Cancel</button>
                         </div>
 
                         <div class="documents">
                             <label><strong>Resume:</strong></label>
-                            <button id="dwnbt" onclick="openFile('resume')" class="btn doc-btn">Download</button>
+                            <button id="dwnbt" onclick="openFile('resume')" class="btn">Download</button>
                         </div>
                         <div class="documents">
                             <input class="file-update" id="Resume" type="file"  name="Resume">
-                            <button onclick="updateFile('Resume')" class="btn doc-btn">Upload</button>
+                            <button onclick="updateFile('Resume')" class="btn">Upload</button>
                         </div>
 
                         <div class="documents">
                             <label><strong>Result:</strong></label>
-                            <button onclick="openFile('result')" class="btn doc-btn">Download</button>
+                            <button onclick="openFile('result')" class="btn">Download</button>
                         </div>
                         <div class="documents">
-                            <input class="file-update" id="Result" type="file"  name="Result" required>
-                            <button onclick="updateFile('Result')" class="btn doc-btn">Upload</button>
+                            <input class="file-update" id="Result" type="file"  name="Result">
+                            <button onclick="updateFile('Result')" class="btn">Upload</button>
                         </div>
 
                         <div class="documents">
                             <label><strong>Profile Picture:</strong></label>
-                            <button onclick="openFile('profilepic')" class="btn doc-btn">Download</button>
+                            <button onclick="openFile('profilepic')" class="btn">Download</button>
                         </div>
                         <div class="documents">
-                            <input class="file-update" id="ProfilePic" type="file"  name="ProfilePic" required>
-                            <button onclick="updateFile('ProfilePic')" class="btn doc-btn">Upload</button>
+                            <input class="file-update" id="ProfilePic" type="file"  name="ProfilePic">
+                            <button onclick="updateFile('ProfilePic')" class="btn">Upload</button>
                         </div>
                     </div>
                 `;
@@ -653,7 +520,9 @@
                         <textarea class="report-textarea" type="text" id="Report" name="Report"></textarea>
                     </div>
 
-                    <button onclick="sendReport()" class="btn edit-btn">Report</button>
+                    <div class="right-btn">
+                        <button onclick="sendReport()" class="btn">Report</button>
+                    </div>
                 </div>
             `;
        
@@ -695,9 +564,8 @@
         }
 
         
-        function submitNewDetails(event) {
+        function submitNewDetails() {
             showSpinner();
-            event.preventDefault();
 
             const url = `/laa/student/updatedetails`;
 
@@ -757,7 +625,12 @@
 
         function sendReport() {
             const report = document.getElementById('Report').value;
-            console.log(report);
+
+            if (report.length <= 25) {
+                alert("Report of atleast 25 characters is required. \nCurrent length : " + report.length);
+                return;
+            }
+            showSpinner();
             const url = `/laa/report`;
 
             const form = new FormData();
@@ -768,6 +641,7 @@
                 body: form,
             })
             .then((response) => {
+                hideSpinner();
                 if (response.ok) {
                     alert("Report sent successfully");
                 }
@@ -777,6 +651,10 @@
             });
         }
        
+        function dwnldChrt() {
+            
+        }
+
         fetchData();
 </script>
 </body>

@@ -33,8 +33,8 @@ func InitDB() (error) {
 	
 	// Connect to redis client
 	RedisClient = redis.NewClient(&redis.Options{
-		Addr: "localhost:6379",
-		Password: "",
+		Addr: os.Getenv("RedisAddress"),
+		Password: os.Getenv("RedisPassword"),
 		DB: 0,
 		Protocol: 2,
 	})
@@ -42,6 +42,19 @@ func InitDB() (error) {
 	if err != nil {
 		return fmt.Errorf("failed to connect to Redis: %v", err)
 	}
+	fmt.Println("Redis connection is alive!")
+
+	conn, err := pool.Acquire(context.Background())
+	if err != nil {
+		return fmt.Errorf("pgx Pool connection failed: %v", err)
+	}
+	err = conn.Ping(context.Background())
+	if err != nil {
+		return fmt.Errorf("database connection failed: %v", err)
+	} else {
+		fmt.Println("Database connection is alive!")
+	}
+
 
 	return nil
 }

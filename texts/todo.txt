@@ -35,6 +35,10 @@ none of our endpoints are type safe, you can send illegal data and it will still
 
 add unique constraint on the testresults table (userid and testid)
 
+there is currently no mechanism to evaluate subjective questions
+
+there should be a created_at in every table
+
 reduce font size of every h1
 
 if a test was started for the first time by a user, it updates the test results table, but if it fails to retrieve the test form, the entry in testresults in invalid and should be removed
@@ -42,6 +46,8 @@ if a test was started for the first time by a user, it updates the test results 
 you can send multiple extrainfo post requests from one link, it does not check for duplicates
 
 new job form needs refactoring, there are redundant fields like company name and email, etc
+
+start test, go back and change page, the test will never be submitted, the time might be up, but the end_time is never updated
 
 restructure the template folder
 

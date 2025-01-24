@@ -6,6 +6,10 @@ const (
 )
 
 const (
+	TestResultPollerTimeout = 5 // seconds
+)
+
+const (
 	SignupConfirmLinkTokenExpiration = 15 // mins
 	ResetLinkTokenExpiration = 15 // mins
 )

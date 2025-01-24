@@ -112,6 +112,7 @@ CREATE TABLE tests (
     job_id BIGINT,
     company_id BIGINT NOT NULL,
     file_id TEXT NOT NULL,
+    result_url TEXT,
     CONSTRAINT companies_tests_pkey FOREIGN KEY (company_id) REFERENCES companies(company_id),
     CONSTRAINT jobs_pkey FOREIGN KEY (jod_id) REFERENCES jobs(job_id)
 );
@@ -120,8 +121,32 @@ CREATE TABLE testresults(
     result_id BIGINT NOT NULL DEFAULT nextval('"testresults_result_id_seq"'::regclass),
     test_id BIGINT NOT NULL,
     user_id BIGINT NOT NULL,
-    responses JSONB DEFAULT '{}' ,
     start_time TIMESTAMP WITH TIME ZONE ,
     end_time TIMESTAMP WITH TIME ZONE ,
+    score BIGINT DEFAULT 0,
     CONSTRAINT "testresults_result_id_pkey" PRIMARY KEY (result_id)
-)
+);
+
+
+CREATE TABLE testresponses (
+    response_id BIGINT NOT NULL DEFAULT nextval('testresponses_response_id_seq'::regclass),
+    result_id BIGINT NOT NULL,
+    question_id TEXT NOT NULL,
+    response TEXT[] ,
+    time_taken BIGINT,
+    points INT,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT response_id_pkey PRIMARY KEY (response_id),
+    CONSTRAINT unique_result_id_q_id UNIQUE (result_id, question_id),
+    CONSTRAINT result_id_testresults_fkey FOREIGN KEY (result_id)
+        REFERENCES public.testresults (result_id) MATCH SIMPLE
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+);
+
+
+CREATE TABLE IF NOT EXISTS temp_correct_answers (
+    question_id TEXT PRIMARY KEY,
+    correct_answer TEXT[],
+    points INT
+);

@@ -3,6 +3,7 @@ package dto
 import (
 	"time"
 
+	"github.com/go-echarts/go-echarts/v2/charts"
 	sqlc "go.mod/internal/sqlc/generate"
 	"google.golang.org/api/forms/v1"
 )
@@ -131,11 +132,7 @@ type TestQuestion struct {
 type TestResponse struct {
 	ItemID string
 	Response []string
-}
-
-type JWTTokens struct {
-	JWTAccess string
-	JWTRefresh string
+	TimeTaken int64
 }
 
 type Token struct {
@@ -148,13 +145,21 @@ type Token struct {
 	Email string	
 }
 
+type JWTTokens struct {
+	JWTAccess string
+	JWTRefresh string
+}
+
+
+
 type ProfileData struct {
-	OverData *[]sqlc.ApplicationsStatusCountsRow
+	OverData *sqlc.ApplicationsStatusCountsRow
 	UsersData *sqlc.UsersTableDataRow
 	ProData *sqlc.ProfileDataRow
 	AppsHistory *[]sqlc.ApplicationHistoryRow
 	IntsHistory *[]sqlc.InterviewHistoryRow
 	TestsHistory *[]sqlc.TestHistoryRow
+	SankeyChrt *charts.Sankey
 }
 
 type UpdateStudentDetails struct {
@@ -173,6 +178,11 @@ type Report struct {
 	ReportedAt time.Time
 	IpAddress string
 }
+
+
+
+
+
 
 
 

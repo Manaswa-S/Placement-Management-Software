@@ -77,6 +77,12 @@ type Student struct {
 	PictureUrl   pgtype.Text
 }
 
+type TempCorrectAnswer struct {
+	QuestionID    string
+	CorrectAnswer []string
+	Points        pgtype.Int4
+}
+
 type Test struct {
 	TestID       int64
 	TestName     string
@@ -89,15 +95,26 @@ type Test struct {
 	JobID        pgtype.Int8
 	CompanyID    int64
 	FileID       string
+	ResultUrl    pgtype.Text
+}
+
+type Testresponse struct {
+	ResponseID int64
+	ResultID   int64
+	QuestionID string
+	Response   []string
+	TimeTaken  pgtype.Int8
+	Points     pgtype.Int4
+	CreatedAt  pgtype.Timestamptz
 }
 
 type Testresult struct {
 	ResultID  int64
 	TestID    int64
 	UserID    int64
-	Responses []byte
 	StartTime pgtype.Timestamptz
 	EndTime   pgtype.Timestamptz
+	Score     pgtype.Int8
 }
 
 type User struct {

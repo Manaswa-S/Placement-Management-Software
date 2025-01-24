@@ -14,6 +14,7 @@ import (
 	"go.mod/internal/handlers"
 	"go.mod/internal/middlewares"
 	"go.mod/internal/services"
+	"go.mod/internal/tasks"
 	"go.mod/internal/utils"
 	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/forms/v1"
@@ -33,18 +34,25 @@ func main() {
 		fmt.Println("Error loading environment variables: ", errenv)
 		return
 	}
-
+	// initialize the database, cache connections 
 	err := config.InitDB()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-
+	// initialize the API connections to external services
 	err = GoogleAPIService()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
+	// initialize the asynchronous functions 
+	err = AsyncsInit()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
 
 	router := gin.Default()
 	router.Use(middlewares.Logger())
@@ -91,7 +99,6 @@ func routes(router *gin.Engine) {
 		utils.RecordReport(ctx)
 	})
 	
-
 	queries := config.QueriesPool
 	redis := config.RedisClient
 
@@ -132,7 +139,6 @@ func routes(router *gin.Engine) {
 	superuserHandler.RegisterRoute(superuserRoute)
 }
 
-
 func GoogleAPIService() (error) {
 
 	serviceAccountKey := os.Getenv("PathToServiceAccountKey")
@@ -151,7 +157,22 @@ func GoogleAPIService() (error) {
 	GAPIService = apicalls.NewCaller(driveService, formsService)
 
 	fmt.Println("Getting New DrivePageToken to start with ...")
-	_, _  = GAPIService.DriveChanges()
+	_, err  = GAPIService.DriveChanges()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func AsyncsInit() error {
+
+	aService := tasks.NewAsyncService(config.QueriesPool, GAPIService)
+	
+	err := aService.StartAsyncs()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

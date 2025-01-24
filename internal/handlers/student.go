@@ -328,6 +328,8 @@ func (h *StudentHandler) Completed(ctx *gin.Context) {
 
 }
 
+
+
 func (h *StudentHandler) GetProfile(ctx *gin.Context) {
 	ctx.File("./template/student/myProfile.html")
 }

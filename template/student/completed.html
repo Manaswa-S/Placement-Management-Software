@@ -4,172 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Completed</title>
-    <style>
-        body {
-            font-family: 'Arial', sans-serif;
-            margin: 0;
-            padding: 0;
-            background: linear-gradient(135deg, #ece9e6, #ffffff);
-            color: #333;
-        }
-        .container {
-            width: 90%;
-            margin: 20px auto;
-            max-width: 1200px;
-        }
-        
-        h1 {
-            font-size: 1.5em;
-            text-align: center;
-            color: #6C63FF;
-            margin-bottom: 10px;
-        }
-        .card {
-            background: #fff;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            transition: box-shadow 0.3s;
-        }
-        .card:hover {
-            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
-        }
-        .title {
-            font-size: 1.0em;
-            color: #6C63FF;
-            margin-bottom: 4px;
-        }
-        .details {
-            display:grid; 
-            grid-template-columns: repeat(2, 1fr); 
-            font-size: 0.8em;
-            color: #555;
-        }
-        .details p {
-            margin: 3px 0; 
-            line-height: 1.4;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .apply-btn {
-            margin-top: 8px;
-            margin-bottom: 8px;
-            background: #6C63FF;
-            color: #fff;
-            font-size: 14px;
-            font-weight:500;
-            border: none;
-            border-radius: 5px;
-            padding: 10px 15px;
-            cursor: pointer;
-            text-decoration: none;
-            transition: background-color 0.3s;
-        }
-        .apply-btn:hover {
-            background: #8E94F2;
-        }
-
-        .top-nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-            margin-bottom: 20px;
-        }
-        .filterbar {
-            padding: 10px;
-            font-size: 14px;
-            border-radius: 5px;
-            border: 1px solid #ddd;
-            background-color: #fff;
-        }
-        .searchbar input {
-            padding: 10px;
-            font-size: 14px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-        }
-
-        .paging {
-            position:static;
-            bottom: 2%;
-            width: 100%;
-        }
-        .nav-btn {
-            visibility:hidden;
-            position:relative;
-            background: #6C63FF;
-            color: #fff;
-            font-size: 14px;
-            padding: 10px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-            border: none;
-        }
-        .prev-btn {
-            left: 50%;
-            transform: translateX(-100%); 
-        }
-        .next-btn {
-            left: 50%;
-            transform: translateX(-100%); 
-        }
-
-        .spinner {
-            display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            border: 6px solid #f3f3f3;  
-            border-top: 6px solid #6C63FF;  
-            border-radius: 50%;        
-            width: 60px;                
-            height: 60px;               
-            animation: spin 2s linear infinite; 
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .tabs {
-            display: flex;
-            justify-content: center;
-            margin-top: 10px;
-            margin-bottom: 20px;
-        }
-
-        .tab {
-            padding: 10px 20px;
-            cursor: pointer;
-            border: none;
-            background-color:transparent;
-            font-size: 16px;
-            font-weight: 500;
-            transition: background-color 0.3s ease;
-        }
-
-        .tab:hover {
-            background-color: #e0e0e0;
-        }
-
-        .tab.active {
-            border-bottom: 3px solid #6C63FF;
-            color: #6C63FF;
-        }
-
-        .no-data {
-            display:block;
-            top:50%; 
-            text-align: center;
-            font-size: 1.0em;
-            color: #555;
-        }
-    </style>
+    <link rel="stylesheet" href="/static/styles/student.css">
 </head>
 <body>
     <div class="container">
@@ -262,7 +97,7 @@
                     <p><strong>Start Time:</strong> ${job.StartTime}</p>
                     <p><strong>End Time:</strong> ${job.EndTime}</p>
                 </div>
-                <button class="apply-btn" 
+                <button class="btn" 
                     onclick="applyToJob(${job.JobID}, this)" 
                     ${job.ActiveStatus ? '' : 'disabled'} 
                     style="background-color: ${job.ActiveStatus ? '#6C63FF' : '#d3d3d3'}; color: ${job.ActiveStatus ? '#fff' : '#000'};">
@@ -271,6 +106,8 @@
             </div>
         `;
     }
+
+    // TODO: add the showResult function
 
     function setActiveTemplate(template) {
         activeTemp = template;

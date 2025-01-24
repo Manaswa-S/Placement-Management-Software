@@ -20,6 +20,7 @@ import (
 	"go.mod/internal/config"
 	errs "go.mod/internal/const"
 	"go.mod/internal/dto"
+	gocharts "go.mod/internal/go-charts"
 	sqlc "go.mod/internal/sqlc/generate"
 	"go.mod/internal/utils"
 	"google.golang.org/api/forms/v1"
@@ -167,6 +168,33 @@ func (s *StudentService) TakeTest(ctx *gin.Context, userID int64, testid string,
 		}
 	}
 
+	// get the file id and duration for the particular test
+	testData, err := s.queries.TakeTest(ctx, sqlc.TakeTestParams{
+		UserID: userID,
+		TestID: testID,
+	})
+	if err != nil {
+		// if it returns zero rows, that means the userID cannot give the requested test ie. he needs to first apply to the job  
+		if err.Error() == errs.NoRowsMatch {
+			return nil, &errs.Error{
+				Type: errs.Unauthorized,
+				Message: "You are not authorized to access this Test. Apply to the job first.",
+			}
+		}
+		// random error
+		return nil, &errs.Error{
+			Type: errs.Internal,
+			Message: fmt.Sprintf("failed to get test metadata : %v", err),
+		}
+	}
+
+	if testData.EndTime.Time.Compare(time.Now()) == -1 {
+		return nil, &errs.Error{
+			Type: errs.Unauthorized,
+			Message: "The end time for the test has gone by. You cannot give the test now.",
+		}
+	}
+
 	// check if column exists in testResult with testID and userID ie. test is already given
 	resultData, err := s.queries.IsTestGiven(ctx, sqlc.IsTestGivenParams{
 		UserID: userID,
@@ -206,26 +234,6 @@ func (s *StudentService) TakeTest(ctx *gin.Context, userID int64, testid string,
 	itemIdOrder := fmt.Sprintf("%sorder", testid)
 	itemIdData := fmt.Sprintf("%sdata", testid)
 	itemIdExpire := fmt.Sprintf("%sexpire%d", testid, userID)
-
-	// get the file id and duration for the particular test
-	testData, err := s.queries.TakeTest(ctx, sqlc.TakeTestParams{
-		UserID: userID,
-		TestID: testID,
-	})
-	if err != nil {
-		// if it returns zero rows, that means the userID cannot give the requested test ie. he needs to first apply to the job  
-		if err.Error() == errs.NoRowsMatch {
-			return nil, &errs.Error{
-				Type: errs.Unauthorized,
-				Message: "You are not authorized to access this Test. Apply to the job first.",
-			}
-		}
-		// random error
-		return nil, &errs.Error{
-			Type: errs.Internal,
-			Message: fmt.Sprintf("failed to get test metadata : %v", err),
-		}
-	}
 
 	// the user is authenticated and has not completed the test yet
 	// so check if the test data exists in cache
@@ -322,22 +330,14 @@ func (s *StudentService) TakeTest(ctx *gin.Context, userID int64, testid string,
 	var key string
 	// get the index of the itemid requested
 	if currentItemId != "cover" {
-		// marshal the struct into json and update the responses in the db
+		// update the responses in the db
 		if (response.ItemID != "") {
-			respByte, err := json.Marshal(gin.H{
-				response.ItemID: response.Response,
-			})
-
-			if err != nil {
-				return nil, &errs.Error{
-					Type: errs.Internal,
-					Message: fmt.Sprintf("failed to marshal response body : %v", err),
-				}
-			}
+			
 			err = s.queries.UpdateResponse(ctx, sqlc.UpdateResponseParams{
-				Column1: respByte,
-				UserID: userID,
-				TestID: testID,
+				ResultID: resultData.ResultID,
+				QuestionID: response.ItemID,
+				Response: response.Response,
+				TimeTaken: pgtype.Int8{Int64: response.TimeTaken, Valid: true},
 			})
 			if err != nil {
 				return nil, &errs.Error{
@@ -528,6 +528,9 @@ func (s *StudentService) ProfileData(ctx *gin.Context, userID int64) (*dto.Profi
 		return nil, err
 	}
 
+	// let us try to send a 'Sankey' type graph
+	sankeyChrt := gocharts.SankeyApplications(&overData)
+	
 	return &dto.ProfileData{
 		OverData: &overData,
 		UsersData: &userData,
@@ -535,6 +538,7 @@ func (s *StudentService) ProfileData(ctx *gin.Context, userID int64) (*dto.Profi
 		AppsHistory: &appsHistory,
 		IntsHistory: &intsHistory,
 		TestsHistory: &testHistory,
+		SankeyChrt: sankeyChrt,
 	}, nil
 }
 

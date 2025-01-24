@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Students</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #ece9e6, #ffffff);
+            color: #333;
+        }
+        .container {
+            width: 90%;
+            margin: 20px auto;
+            max-width: 1200px;
+        }
+        
+        h1 {
+            font-size: 1.5em;
+            text-align: center;
+            color: #6C63FF;
+            margin-bottom: 10px;
+        }
+        .card {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            transition: box-shadow 0.3s;
+        }
+        .card:hover {
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .topcard {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .topcard p {
+            display: flex;
+            align-items: start;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .title {
+            font-size: 1.0em;
+            color: #6C63FF;
+            margin-bottom: 4px;
+        }
+        .details {
+            display:grid; 
+            grid-template-columns: repeat(3, 1fr); 
+            font-size: 0.8em;
+            color: #555;
+        }
+        .details p {
+            margin: 3px 0; 
+            line-height: 1.4;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .apply-btn {
+            margin-top: 8px;
+            margin-bottom: 8px;
+            background: #6C63FF;
+            color: #fff;
+            font-size: 14px;
+            font-weight:500;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 15px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background-color 0.3s;
+        }
+        .apply-btn:hover {
+            background: #8E94F2;
+        }
+
+        .top-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        .filterbar {
+            padding: 10px;
+            font-size: 14px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            background-color: #fff;
+        }
+        .searchbar input {
+            padding: 10px;
+            font-size: 14px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .paging {
+            position:static;
+            bottom: 2%;
+            width: 100%;
+        }
+        .nav-btn {
+            visibility:hidden;
+            position:relative;
+            background: #6C63FF;
+            color: #fff;
+            font-size: 14px;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            border: none;
+        }
+        .prev-btn {
+            left: 50%;
+            transform: translateX(-100%); 
+        }
+        .next-btn {
+            left: 50%;
+            transform: translateX(-100%); 
+        }
+
+        .spinner {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            border: 6px solid #f3f3f3;  
+            border-top: 6px solid #6C63FF;  
+            border-radius: 50%;        
+            width: 60px;                
+            height: 60px;               
+            animation: spin 2s linear infinite; 
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .tabs {
+            display: flex;
+            justify-content: center;
+            margin-top: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            background-color:transparent;
+            font-size: 16px;
+            font-weight: 500;
+            transition: background-color 0.3s ease;
+        }
+
+        .tab:hover {
+            background-color: #e0e0e0;
+        }
+
+        .tab.active {
+            border-bottom: 3px solid #6C63FF;
+            color: #6C63FF;
+        }
+
+        .no-data {
+            display:block;
+            top:50%; 
+            text-align: center;
+            font-size: 1.0em;
+            color: #555;
+        }
+
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+
+        .semi-modal {
+            display: none; 
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            max-width: 600px;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            box-sizing: border-box;
+            margin-bottom: 30px;
+            margin-top: 30px;
+
+        }
+
+        .semi-button {
+            display: flex; 
+            justify-content: center;
+            align-items: center;
+            gap: 10px; 
+        }
+
+        .toast {
+            visibility: hidden;
+            color: #fff;
+            text-align: center;
+            border-radius: 5px;
+            padding: 10px;
+            position:fixed;
+            z-index: 1;
+            right: 5%;
+            bottom: 5%;
+            font-size:smaller;
+        }
+        .toast.show {
+            visibility: visible;
+            animation: fadein 0.5s, fadeout 0.5s 2.5s;
+        }
+        .toast.green {
+            background-color: #4CAF50; 
+        }
+        .toast.red {
+            background-color: #f44336;
+        }
+        @keyframes fadein {
+            from {bottom: 0; opacity: 0;}
+            to {bottom: 5%; opacity: 1;}
+        }
+        @keyframes fadeout {
+            from {bottom: 5%; opacity: 1;}
+            to {bottom: 0; opacity: 0;}
+        }
+
+        .overview {
+            display: flex;
+            justify-content: space-between;
+            font-size: 17px;
+            color: #535252;
+            margin-bottom: 4px;
+        }
+        .overview label {
+            flex:1.5;
+            text-align: left;
+        }
+        .overview span {
+            flex: 2.5;
+            text-align: left;
+        }
+
+ 
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 id="pageHeading">Manage Students</h1>
+
+        <div class="tabs">
+            <button id="overviewTab" class="tab active">Overview</button>
+            <button id="verifyTab" class="tab">Verify</button>
+        </div>
+        <div class="top-nav">
+            <div class="searchbar">
+                <input type="text" id="searchBox" placeholder="Search..." />
+            </div>
+        </div>
+
+        <div id="dataList"></div>
+
+        <div class="spinner" id="spinner" style="display: none;">
+        </div>
+        <div id="paging" class="paging"> 
+            <button id="prev-btn" class="nav-btn prev-btn"> < Prev </button>
+            <button id="next-btn" class="nav-btn next-btn"> Next > </button>
+        </div>
+        <div class="overlay" id="overlayDiv" style="display: none;"></div>
+        <div class="semi-modal" id="modalDiv" style="display: none;">
+            <div id="modalEditable"></div>
+        </div>
+        <div id="toast"></div>
+
+    </div>
+
+<script>
+
+    let alldata = [];
+    let savedPages = {};
+    let searched = [];
+
+    let dlen = 0;
+    let pageSize = 0;
+    let lastIndex = 0;
+    let currPage = 0;
+
+    let activeTemp = overviewTemp;
+
+
+    const dataList = document.getElementById('dataList');
+
+
+
+    const prevbtn = document.getElementById('prev-btn');
+    const nextbtn = document.getElementById('next-btn');
+
+    const tabs = document.querySelectorAll('.tab');
+    const overviewTb = document.getElementById('overviewTab');
+    const verifyTb = document.getElementById('verifyTab');
+
+    const heading = document.getElementById('pageHeading');
+
+    const tableHeader = document.getElementById('tableHeader');
+
+    function fetchData(tab = 'overview') {
+        showSpinner();
+        const url = `/laa/admin/managestudentsdata?tab=${tab}`;
+
+        fetch(url)
+            .then(response => {
+                hideSpinner();
+                if (!response.ok) {
+                    console.log("something went wrong");
+                    return
+                }
+                return response.json();
+            })
+            .then(data => {
+                const {Data} = data;
+                alldata = Data;
+                hideSpinner();
+                if (alldata == null) {
+                    dataList.innerHTML = `
+                        <div class="no-data">
+                            All is verified.
+                        </div>
+                    `;
+                    return;
+                } else {
+                    searched = alldata;
+                    middle();
+                }
+            })
+            .catch(error => {
+                console.log(error);
+            });
+
+
+    }
+
+    function overviewTemp(job) {
+        return  `
+            <div class="card">
+                <div class="title">${job.StudentID} : ${job.StudentName} : ${job.RollNumber}</div>
+                <div class="details">
+                    <p>${job.StudentDob}</p>
+                    <p>${job.Gender}</p>
+                    <p>${job.Course}</p>
+                    <p>${job.Department}</p>
+                    <p>${job.YearOfStudy}</p>
+                    <p>${job.Cgpa}</p>
+                    <p>${job.Skills}</p>
+                    <p>${job.ContactNo}</p>
+                    <p>${job.Address}</p>
+                </div>
+            </div>
+        `;
+    }
+
+    function verifyTemp(job) {
+        return `
+            <div class="card" id="verifyCard${job.UserID}">
+                <div class="title">${job.UserID} : ${job.Email} : ${job.Confirmed ? 'Confirmed': 'Not Confirmed'}</div>
+                <div class="details">
+                    <p>${job.CreatedAt}</p>
+                </div>
+                <button onclick="fetchDetails(${job.UserID}, this)" class="apply-btn">Details</button>
+            </div>
+        `;
+    }
+
+    function setActiveTemplate(template) {
+        activeTemp = template;
+    }
+
+    function listdata() {
+        if (searched.length != 0) {
+            let i = 0;
+            for (i = lastIndex; i < dlen; i++) {
+                if (pageSize == 0) {
+                    break;
+                }
+
+                let job = searched[i]; 
+                const card = activeTemp(job);
+                dataList.innerHTML += card;
+                pageSize--;
+            }
+            lastIndex = i;
+        }
+    }
+
+    function pagination() {
+    
+        if (searched != null) {
+            dlen = searched.length;
+        }
+
+        prevbtn.onclick = function () {
+            currPage -= 1;
+            dataList.innerHTML = savedPages[currPage].Template;
+            pageSize = 10 - savedPages[currPage].Length;
+            displaybtn();
+        }
+
+        nextbtn.onclick = function () {
+            currPage += 1;
+            pageSize = 10; // this defines the number of cards per page
+            
+            if (savedPages[currPage] != null)  {
+                dataList.innerHTML = savedPages[currPage].Template;
+                pageSize = 10 - savedPages[currPage].Length;
+            } else {
+                dataList.innerHTML = ``;
+
+                if (searched != null && dlen > lastIndex) {
+                    listdata();
+                    savedPages[currPage] = {
+                        Template: dataList.innerHTML,
+                        Length: (10 - pageSize)
+                    }
+                }
+            }
+            displaybtn();
+        }
+
+    }
+
+    function displaybtn() {
+        prevbtn.style.visibility = currPage <= 1 ? 'hidden' : 'visible';
+
+        if (pageSize > 0) {
+            nextbtn.style.visibility = 'hidden';
+            dataList.innerHTML += `
+                <div class="no-data">
+                    Thats all for now !
+                </div>
+            `;
+        } else {
+            nextbtn.style.visibility = 'visible';
+        }
+    }
+
+    function showSpinner() {
+        document.getElementById('spinner').style.display = 'block'; 
+    }
+    function hideSpinner() {
+        document.getElementById('spinner').style.display = 'none'; 
+    }
+
+    function middle() {
+        pagination();
+        lastIndex = currPage = 0;
+        savedPages = {};
+        nextbtn.click();
+    }
+
+
+    overviewTb.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        overviewTb.classList.add('active');
+        activeTemp = overviewTemp;
+        fetchData('overview');
+    });
+    
+    verifyTb.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        verifyTb.classList.add('active');
+        activeTemp = verifyTemp;
+        fetchData('verify');
+    });
+
+    function showModal(ApplicationId) {
+        document.getElementById('overlayDiv').style.display = 'block';
+        document.getElementById('modalDiv').style.display = 'block';
+    }
+    function closeModal() {
+        document.getElementById('overlayDiv').style.display = 'none';
+        document.getElementById('modalDiv').style.display = 'none';
+    }
+
+    const mdiv = document.getElementById('modalEditable');
+
+    function fetchDetails(userid) {
+        showSpinner();
+        const url = `/laa/admin/studentinfo?id=${userid}`;
+        fetch(url)
+            .then(response => {
+                hideSpinner();
+                if (!response.ok) {
+                    console.log("something went wrong");
+                    return
+                }
+                return response.json();
+            })
+            .then(data => {
+                const {Data} = data;
+                mdiv.innerHTML = `
+                        <div class="topcard">
+                            <img src="data:image/jpeg;base64,${Data.Profilepic}" style="max-width: 100%; height: auto;" id="ProfileImage">
+                        </div>
+                        <div class="topcard">
+                            <label class="title">${Data.StudentID}: ${Data.StudentName}</label>
+                        </div>
+                        <div class="overview">
+                            <label><strong>Year Of Study:</strong></label>
+                            <span>${Data.YearOfStudy}</span>
+                        </div>
+                        <div class="overview">
+                            <label><strong>Date of Birth:</strong></label>
+                            <span>${Data.StudentDob}</span>
+                        </div>
+                        <div class="overview">
+                            <label><strong>Roll Number:</strong></label>
+                            <span>${Data.RollNumber}</span>
+                        </div>
+                        <div class="overview">
+                            <label><strong>Gender:</strong></label>
+                            <span>${Data.Gender}</span>
+                        </div>
+                        <div class="overview">
+                            <label><strong>Department:</strong></label>
+                            <span>${Data.Department}</span>
+                        </div>
+                        <div class="overview">
+                            <label><strong>Course:</strong></label>
+                            <span>${Data.Course}</span>
+                        </div>
+                        <div class="overview">
+                            <label><strong>Contact Number:</strong></label>
+                            <span>${Data.ContactNo}</span>
+                        </div>
+                        <div class="overview">
+                            <label><strong>CGPA:</strong></label>
+                            <span>${Data.Cgpa}</span>
+                        </div>
+                        <div class="overview">
+                            <label><strong>Address:</strong></label>
+                            <span>${Data.Address}</span>
+                        </div>
+                        <div class="overview">
+                            <label><strong>Skills:</strong></label>
+                            <span>${Data.Skills}</span>
+                        </div>
+                        <div class="semi-button">
+                            <button class="apply-btn" onclick="closeModal()">Cancel</button>
+                            <button class="apply-btn" id="verifyBtn" onclick="verifyStudent(${userid}, this)">Verify</button>
+                        </div>
+                `;
+                showModal();
+            })
+            .catch(error => {
+                console.log(error);
+            })
+    }
+
+    function verifyStudent(userid) {
+        console.log(userid);
+        const url = `/laa/admin/verify?id=${userid}`;
+        fetch(url)
+            .then(response => {
+                if (response.ok) {
+                    closeModal();
+                    document.getElementById(`verifyCard${userid}`).remove();
+                    showToast(`Verified : ${userid}`, 'green');
+                    return;
+                }
+                showToast(`Failed to verify : ${userid}`, 'red');
+            })
+            .catch(error => {
+                console.log(error);
+            });
+    }
+
+    function showToast(message, type, timeout = 3000) {
+        const toast = document.getElementById("toast");
+        toast.innerText = message;
+        toast.className = `toast show ${type}`;
+        setTimeout(() => {
+            toast.className = toast.className.replace("show", "");
+        }, timeout);
+    }
+
+    function search() {
+        const query = searchbar.value.toLowerCase();
+        if (query == "") {
+            searched = alldata;
+            middle();
+            return;
+        }
+        console.log(alldata);
+        const result = alldata.filter(job =>
+            Object.values(job).some(val => 
+                val !== null && val !== undefined && val.toString().toLowerCase().includes(query)
+            )
+        );
+
+        
+        searched = result;
+        middle();
+    }
+    const searchbar = document.getElementById('searchBox');
+    searchbar.addEventListener('input', search);
+
+    overviewTb.click();
+</script>
+
+</body>
+</html>

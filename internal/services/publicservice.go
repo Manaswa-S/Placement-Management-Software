@@ -157,9 +157,9 @@ func (s *PublicService) ConfirmEmail(ctx *gin.Context, confirmToken string) (byt
 	}
 
 	// embed token in email
-	pathtoHTML := "./template/extrainfoforms/companyform.html"
+	pathtoHTML := "./template/public/companyform.html"
 	if int64(claims["role"].(float64)) == 1 {
-		pathtoHTML = "./template/extrainfoforms/studentform.html"
+		pathtoHTML = "./template/public/studentform.html"
 	}
 
 	body, err := utils.DynamicHTML(pathtoHTML, ResetPass{Token: confirmToken})
@@ -226,7 +226,7 @@ func (s *PublicService) GetPass(ctx *gin.Context) (bytes.Buffer, error) {
 		return bytes.Buffer{}, errors.New("link already used. generate new link please")
 	}
 
-	body, err := utils.DynamicHTML("./template/reset/passresetpostpass.html", data)
+	body, err := utils.DynamicHTML("./template/public/passresetpostpass.html", data)
 	if err != nil {
 		return bytes.Buffer{}, errors.New("failed to generate dynamic html")
 	}

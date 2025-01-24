@@ -311,8 +311,7 @@ SELECT
     companies.company_name,
     jobs.title,
     interviews.interview_id,
-    (interviews.date_time)::DATE AS date,
-    (interviews.date_time)::TIME::TEXT AS time,
+    TO_CHAR(interviews.date_time, 'HH12:MI AM DD-MM-YYYY') AS date_time,
     interviews.type::TEXT,
     interviews.location,
     interviews.notes
@@ -321,7 +320,8 @@ JOIN interviews ON applications.application_id = interviews.application_id
                 AND interviews.status != 'Completed'
 JOIN jobs ON applications.job_id = jobs.job_id
 JOIN companies ON jobs.company_id = companies.company_id
-WHERE applications.student_id = (SELECT student_id FROM students WHERE students.user_id = $1);
+WHERE applications.student_id = (SELECT student_id FROM students WHERE students.user_id = $1)
+AND interviews.date_time > NOW();
 
 -- name: UpcomingTests :many
 SELECT 
@@ -330,7 +330,7 @@ SELECT
     tests.description,
     tests.duration,
     tests.q_count,
-    TO_CHAR(tests.end_time, 'DD-MM-YYYY HH12:MI AM') AS end_time,
+    TO_CHAR(tests.end_time, 'HH12:MI AM DD-MM-YYYY') AS end_time,
     tests.type,    
     companies.company_name,
     jobs.title
@@ -339,7 +339,8 @@ JOIN tests ON applications.job_id = tests.job_id
 JOIN jobs ON applications.job_id = jobs.job_id
 JOIN companies ON jobs.company_id = companies.company_id
 WHERE applications.student_id = (SELECT student_id FROM students WHERE students.user_id = $1)
-AND NOT EXISTS (SELECT 1 FROM testresults WHERE testresults.test_id = tests.test_id);
+AND NOT EXISTS (SELECT 1 FROM testresults WHERE testresults.test_id = tests.test_id AND testresults.user_id = $1)
+AND tests.end_time > NOW();
 
 
 -- name: CompletedTests :many
@@ -400,7 +401,8 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, (SELECT company_id FROM companies WHERE 
 -- name: TakeTest :one
 SELECT 
     tests.file_id,
-    tests.duration
+    tests.duration,
+    tests.end_time
 FROM tests
 JOIN applications ON applications.job_id = tests.job_id
 WHERE applications.student_id = (SELECT student_id FROM students WHERE user_id = $1)
@@ -412,6 +414,7 @@ VALUES ($1, $2, $3);
 
 -- name: IsTestGiven :one
 SELECT 
+    testresults.result_id,
     testresults.test_id,
     testresults.start_time,
     testresults.end_time
@@ -420,10 +423,11 @@ WHERE testresults.test_id = $1
 AND testresults.user_id = $2;
 
 -- name: UpdateResponse :exec
-UPDATE testresults 
-SET responses = responses || $1::jsonb
-WHERE user_id = $2 
-AND test_id = $3;
+INSERT INTO testresponses (result_id, question_id, response, time_taken)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (result_id, question_id)
+DO UPDATE SET response = $3, time_taken = $4;
+
 
 -- name: SubmitTest :one
 UPDATE testresults 
@@ -484,7 +488,7 @@ JOIN jobs ON jobs.job_id = applications.job_id
 WHERE applications.student_id = (SELECT students.student_id FROM students WHERE students.user_id = $1)
 ORDER BY interviews.created_at DESC;
 
--- name: ApplicationsStatusCounts :many
+-- name: ApplicationsStatusCounts :one
 SELECT
     COUNT(applications.status) AS applied_count,
     COUNT(CASE WHEN applications.status = 'UnderReview' THEN 1 END) AS under_review_count,
@@ -549,6 +553,97 @@ WHERE user_id = $2;
 
 
 
+-- >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+-- Admin Functions --------------------------------
+
+
+-- name: TestResultPoller :many
+SELECT  
+    tests.test_id
+FROM tests
+WHERE tests.end_time < NOW()
+AND tests.result_url IS NULL;
+
+-- name: TestFileId :one
+SELECT 
+    file_id
+FROM tests WHERE tests.test_id = $1;
+
+-- name: InsertAnswers :exec
+INSERT INTO temp_correct_answers (question_id, correct_answer, points)
+VALUES ($1, $2, $3);
+
+-- name: ClearAnswersTable :exec
+DELETE FROM temp_correct_answers;
+
+-- name: EvaluateTestResult :one
+WITH tr AS (
+    UPDATE testresponses
+    SET points = temp_correct_answers.points
+    FROM temp_correct_answers
+    WHERE testresponses.question_id = temp_correct_answers.question_id
+    AND testresponses.response = temp_correct_answers.correct_answer
+    RETURNING testresponses.points, testresponses.result_id
+),
+rs AS (
+    SELECT 
+        result_id, 
+        SUM(points) AS score 
+    FROM tr
+    GROUP BY result_id
+),
+up AS (
+    UPDATE testresults
+    SET score = rs.score
+    FROM rs
+    WHERE testresults.result_id = rs.result_id
+)
+SELECT 
+    SUM(temp_correct_answers.points) AS totalpoints
+FROM temp_correct_answers;
+
+
+-- name: CumulativeResultData :many
+WITH tr AS (
+    SELECT 
+        result_id,
+        SUM(time_taken) AS total_time_taken,
+        COUNT(result_id) AS questions_attempted
+    FROM testresponses
+    GROUP BY result_id
+),
+main AS (
+    SELECT 
+        testresults.result_id,
+        testresults.user_id,
+        TO_CHAR(testresults.start_time, 'HH12:MI:SS AM DD-MM-YYYY') AS start_time,
+        TO_CHAR(testresults.end_time, 'HH12:MI:SS AM DD-MM-YYYY') AS end_time,
+        testresults.score,
+        tr.total_time_taken,
+        tr.questions_attempted
+    FROM testresults 
+    JOIN tr ON testresults.result_id = tr.result_id
+    WHERE testresults.test_id = $1
+)
+
+SELECT * 
+FROM main;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -585,10 +680,6 @@ SELECT
     students.extras
 FROM students;
 
-
-
-
-
 -- name: StudentInfo :one
 SELECT
     students.student_id,
@@ -607,3 +698,12 @@ SELECT
     students.extras
 FROM students
 WHERE students.user_id = $1;
+
+
+
+
+
+
+
+
+

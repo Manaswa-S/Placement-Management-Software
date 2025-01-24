@@ -21,7 +21,7 @@ func NewAdminHandler(adminService *services.AdminService) *AdminHandler {
 func (h *AdminHandler) RegisterRoute(adminRoute *gin.RouterGroup) {
 	// get the static dashboard template
 	adminRoute.GET("/dashboard", h.AdminDashboard)
-
+	
 	// get all students info
 	adminRoute.GET("/studentinfo", h.StudentInfo)
 
@@ -32,8 +32,12 @@ func (h *AdminHandler) RegisterRoute(adminRoute *gin.RouterGroup) {
 
 	adminRoute.GET("/verify", h.VerifyStudent)
 
+	// generates the test results, returns them, and triggers other funcs
+	adminRoute.GET("/testresult", h.GenerateTestResult)
 
 }
+
+
 
 func (h *AdminHandler) AdminDashboard(ctx *gin.Context) {
 	ctx.File("./template/dashboard/admindashboard.html")
@@ -98,4 +102,16 @@ func (h *AdminHandler) VerifyStudent(ctx *gin.Context) {
 
 	ctx.Status(http.StatusOK)
 
+}
+
+
+
+
+func (h *AdminHandler) GenerateTestResult(ctx *gin.Context) {
+
+	err := h.AdminService.GenerateTestResult(ctx, "10084")
+
+	fmt.Println(err)
+
+	ctx.Status(http.StatusOK)
 }

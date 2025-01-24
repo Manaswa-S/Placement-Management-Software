@@ -50,15 +50,15 @@ func (h *PublicHandler) RegisterRoute(publicRoute *gin.RouterGroup) {
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 func (h *PublicHandler) LoginStatic(ctx *gin.Context) {
-	ctx.File("./template/loginstatic.html")
+	ctx.File("./template/public/loginstatic.html")
 }
 
 func (h *PublicHandler) SignupStatic(ctx *gin.Context) {
-	ctx.File("./template/signupstatic.html")
+	ctx.File("./template/public/signupstatic.html")
 }
 
 func (h *PublicHandler) ResetPassGetEmail(ctx *gin.Context) {
-	ctx.File("./template/reset/passresetgetemail.html")
+	ctx.File("./template/public/passresetgetemail.html")
 }
 
 func (h *PublicHandler) ResetPassPostEmail(ctx *gin.Context) {

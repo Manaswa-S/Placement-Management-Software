@@ -5,190 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Available Jobs</title>
-    <style>
-        body {
-            font-family: 'Arial', sans-serif;
-            margin: 0;
-            padding: 0;
-            background: linear-gradient(135deg, #ece9e6, #ffffff);
-            color: #333;
-        }
-
-        .container {
-            width: 90%;
-            margin: 20px auto;
-            max-width: 1200px;
-        }
-
-        h1 {
-            text-align: center;
-            color: #6C63FF;
-            margin-bottom: 20px;
-        }
-
-        .job-card {
-            background: #fff;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            transition: box-shadow 0.3s;
-        }
-
-        .job-card:hover {
-            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
-        }
-
-        .job-title {
-            font-size: 1.2em;
-            color: #6C63FF;
-            margin-bottom: 4px;
-        }
-
-        .job-company {
-            font-size: 1.0em;
-            color: #333;
-            margin-bottom: 4px;
-        }
-
-        .job-details {
-            display:grid; 
-            grid-template-columns: repeat(2, 1fr); 
-            font-size: 0.8em;
-            color: #555;
-        }
-
-        .job-details p {
-            margin: 3px 0; 
-            line-height: 1.4;
-        }
-        .apply-btn {
-            margin: auto;
-            background: #6C63FF;
-            color: #fff;
-            font-size: 14px;
-            font-weight: bold;
-            border: none;
-            border-radius: 5px;
-            padding: 10px 15px;
-            cursor: pointer;
-            text-decoration: none;
-            transition: background-color 0.3s;
-        }
-
-        .apply-btn:hover {
-            background: #8E94F2;
-        }
-
-        .top-nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-            margin-bottom: 20px;
-        }
-
-        .filterbar {
-            padding: 10px;
-            font-size: 14px;
-            border-radius: 5px;
-            border: 1px solid #ddd;
-        }
-
-        .searchbar input {
-            padding: 10px;
-            font-size: 14px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-        }
-
-
-        .job-card .upload-section {
-            display: none;
-            margin-top: 10px;
-            border-top: 1px solid #ddd;
-            padding-top: 10px;
-            animation: slideDown 0.3s ease-in-out;
-        }
-
-        @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-
-        @media (max-width: 768px) {
-            .filters {
-                flex-direction: column;
-                gap: 10px;
-            }
-
-            .filters select {
-                width: 100%;
-            }
-        }
-        .no-jobs {
-            display:relative;
-            top:50%; 
-            text-align: center;
-            font-size: 0.8em;
-            color: #555;
-        }
-
-        .spinner {
-            display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            border: 6px solid #f3f3f3;  
-            border-top: 6px solid #6C63FF;  
-            border-radius: 50%;        
-            width: 60px;                
-            height: 60px;               
-            animation: spin 2s linear infinite; 
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        .paging {
-            position:static;
-            bottom: 2%;
-            width: 100%;
-        }
-
-        .nav-btn {
-            visibility:hidden;
-            position:relative;
-            background: #6C63FF;
-            color: #fff;
-            font-size: 14px;
-            padding: 10px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-            border: none;
-        }
-        .prev-btn {
-            left: 50%;
-            transform: translateX(-100%); 
-        }
-
-        .next-btn {
-            left: 50%;
-            transform: translateX(-100%); 
-        }
-
-    </style>
+    <link rel="stylesheet" href="/static/styles/student.css">
 </head>
-
 <body>
     <div class="container">
         <h1>Available Jobs</h1>
@@ -246,7 +64,7 @@
                     hideSpinner();
                     if (alljobs == null) {
                         dataList.innerHTML = `
-                            <div class="no-jobs">
+                            <div class="no-data">
                                 No jobs available at the moment. Please check back later.
                             </div>
                         `;
@@ -269,10 +87,10 @@
 
                     let job = searched[i]; 
                     const card = `
-                        <div class="job-card">
-                            <div class="job-title">${job.JobID} : ${job.Title}</div>
-                            <div class="job-company">${job.CompanyName}</div>
-                            <div class="job-details">
+                        <div class="card">
+                            <div class="title">${job.JobID} : ${job.Title}</div>
+                            <div class="company">${job.CompanyName}</div>
+                            <div class="details">
                                 <p><strong>Location:</strong> ${job.Location}</p>
                                 <p><strong>Type:</strong> ${job.Type}</p>
                                 <p><strong>CTC:</strong> ${job.Salary}</p>
@@ -280,17 +98,14 @@
                                 <p><strong>Skills:</strong> ${job.Skills.join(', ')}</p>
                                 <p><strong>Status:</strong> ${job.ActiveStatus ? 'Active' : 'Closed'}</p>
                             </div>
-                            <button class="apply-btn" 
-                                onclick="applyToJob(${job.JobID}, this)" 
-                                ${job.ActiveStatus ? '' : 'disabled'} 
-                                style="background-color: ${job.ActiveStatus ? '#6C63FF' : '#d3d3d3'}; color: ${job.ActiveStatus ? '#fff' : '#000'};">
-                                ${job.ActiveStatus ? 'Apply Now' : 'Closed'}
-                            </button>
+                                <button class="btn" 
+                                    onclick="applyToJob(${job.JobID}, this)" 
+                                    ${job.ActiveStatus ? '' : 'disabled'} 
+                                    style="background-color: ${job.ActiveStatus ? '#6C63FF' : '#d3d3d3'}; color: ${job.ActiveStatus ? '#fff' : '#000'};">
+                                    ${job.ActiveStatus ? 'Apply Now' : 'Closed'}
+                                </button>
 
-                            <div class="upload-section">
-                                <input type="file" id="resume-upload-${job.JobID}" accept=".pdf,.doc,.docx" />
-                                <button class="apply-btn" onclick="uploadResume(${job.JobID}, this)">Submit</button>
-                            </div>
+                           
                         </div>
                     `;
                     dataList.innerHTML += card;
@@ -342,7 +157,7 @@
             if (pageSize > 0) {
                 nextbtn.style.visibility = 'hidden';
                 dataList.innerHTML += `
-                    <div class="no-jobs">
+                    <div class="no-data">
                         Thats all for now !
                     </div>
                 `;

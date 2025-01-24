@@ -39,7 +39,6 @@ func (p *Caller) DriveChanges() (*drive.ChangeList, error) {
 	return currentList, nil 
 }
 
-
 func (p *Caller) GetFormMetadata(formID string) (*forms.Form, error) {
 
 	formData, err := p.FormsService.Forms.Get(formID).Fields("responderUri", "formId").Do()

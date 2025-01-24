@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.mod/internal/apicalls"
 	sqlc "go.mod/internal/sqlc/generate"
+	"go.mod/internal/utils"
 )
 
 type AdminService struct {
@@ -74,8 +75,6 @@ func (a *AdminService) ManageStudents(ctx *gin.Context, tab string) (any, error)
 
 	return nil, nil
 }
-
-
 func (a *AdminService) VerifyStudent(ctx *gin.Context, userid string) (error) {
 	userID, err := strconv.ParseInt(userid, 10, 64)
 	if err != nil {
@@ -88,6 +87,24 @@ func (a *AdminService) VerifyStudent(ctx *gin.Context, userid string) (error) {
 	}
 
 	// TODO: notify student of verification
+
+	return nil
+}
+
+func (a *AdminService) GenerateTestResult(ctx *gin.Context, testid string) (error) {
+	// parse test id 
+	testID, err := strconv.ParseInt(testid, 10, 64)
+	if err != nil {
+		return err
+	}
+
+
+
+	err = utils.GenerateTestResult(a.queries, a.GAPIService, testID)
+	if err != nil {
+		return err
+	}
+
 
 	return nil
 }
