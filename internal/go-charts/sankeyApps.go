@@ -13,6 +13,7 @@ var (
 	sankeyLink = []opts.SankeyLink{}
 )
 
+// SankeyApplications generates the sankey chart of the student's applications' distribution
 func SankeyApplications(data *sqlc.ApplicationsStatusCountsRow) *charts.Sankey {
 
 	zeroLinkval := float32(0.05)

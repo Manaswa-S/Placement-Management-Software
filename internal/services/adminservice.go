@@ -100,11 +100,11 @@ func (a *AdminService) GenerateTestResult(ctx *gin.Context, testid string) (erro
 
 
 
-	err = utils.GenerateTestResult(a.queries, a.GAPIService, testID)
+	resultPath, err := utils.GenerateResultDraft(a.queries, a.GAPIService, testID)
 	if err != nil {
 		return err
 	}
-
+	fmt.Println(resultPath)
 
 	return nil
 }

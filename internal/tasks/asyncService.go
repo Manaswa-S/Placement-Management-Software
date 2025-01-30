@@ -2,7 +2,6 @@ package tasks
 
 import (
 	"context"
-	"fmt"
 
 	"go.mod/internal/apicalls"
 	sqlc "go.mod/internal/sqlc/generate"
@@ -20,14 +19,15 @@ func NewAsyncService(queries *sqlc.Queries, gapiService *apicalls.Caller) *Async
 	}
 }
 
+// the handler for the async services for tasks like auto-result generation, database cleanups and triggers, etc
 func (a *AsyncService) StartAsyncs() error {
-
+	// has its own context
 	ctx := context.Background()
 
+	// starts the test result poller as a go-routine
 	go func() {
 		err := a.TestResultsPoller(ctx)
 		if err != nil {
-			fmt.Println(err)
 			return
 		}
 	} ()

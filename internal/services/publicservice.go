@@ -103,11 +103,10 @@ func (s *PublicService) SendConfirmEmail(ctx *gin.Context, email string) (error)
 	if err != nil {
 		return errors.New("not able to fetch user data from database")
 	}
-	//fmt.Println(userData.UserID)
 
 	// generate confirmation token
 	confirmtokenData := dto.Token{
-		Issuer: "signupFunc@PMS",	
+		Issuer: "ConfirmEmailFunc@PMS",	
 		Subject: "confirm_token",
 		ExpiresAt: time.Now().Add(config.SignupConfirmLinkTokenExpiration * time.Minute).Unix(),
 		IssuedAt: time.Now().Unix(),
@@ -139,12 +138,12 @@ func (s *PublicService) SendConfirmEmail(ctx *gin.Context, email string) (error)
 	return nil
 }
 
-func (s *PublicService) ConfirmEmail(ctx *gin.Context, confirmToken string) (bytes.Buffer, error) {
+func (s *PublicService) ConfirmEmail(ctx *gin.Context, confirmToken string) (*bytes.Buffer, error) {
 	
 	// parse token
 	claims, err := utils.ParseJWT(confirmToken)
 	if err != nil {
-		return bytes.Buffer{}, errors.New("error parsing confirm token. please request a new link")
+		return nil, errors.New("error parsing confirm token. please request a new link")
 	}
 
 	// get email from claims
@@ -153,7 +152,7 @@ func (s *PublicService) ConfirmEmail(ctx *gin.Context, confirmToken string) (byt
 	// update confirmed in the db
 	err = s.queries.UpdateEmailConfirmation(ctx, userEmail)
 	if err != nil {
-		return bytes.Buffer{}, errors.New("error updating email validity")
+		return nil, errors.New("error updating email validity")
 	}
 
 	// embed token in email
@@ -164,10 +163,10 @@ func (s *PublicService) ConfirmEmail(ctx *gin.Context, confirmToken string) (byt
 
 	body, err := utils.DynamicHTML(pathtoHTML, ResetPass{Token: confirmToken})
 	if err != nil {
-		return bytes.Buffer{}, errors.New("failed to generate dynamic html")
+		return nil, errors.New("failed to generate dynamic html")
 	}
 
-	return body, nil
+	return &body, nil
 }
 
 func (s *PublicService) SendResetPassEmail(ctx *gin.Context, email string) (error) {
@@ -215,7 +214,7 @@ func (s *PublicService) SendResetPassEmail(ctx *gin.Context, email string) (erro
 	return nil
 }
 
-func (s *PublicService) GetPass(ctx *gin.Context) (bytes.Buffer, error) {
+func (s *PublicService) GetPass(ctx *gin.Context) (*bytes.Buffer, error) {
 
 	var data ResetPass
 	data.Token = ctx.Query("token")
@@ -223,15 +222,15 @@ func (s *PublicService) GetPass(ctx *gin.Context) (bytes.Buffer, error) {
 	// check if link already used
 	already_used, err := s.redis.Exists(ctx, data.Token).Result()
 	if err != nil || already_used == 0 {
-		return bytes.Buffer{}, errors.New("link already used. generate new link please")
+		return nil, errors.New("link already used. generate new link please")
 	}
 
 	body, err := utils.DynamicHTML("./template/public/passresetpostpass.html", data)
 	if err != nil {
-		return bytes.Buffer{}, errors.New("failed to generate dynamic html")
+		return nil, errors.New("failed to generate dynamic html")
 	}
 
-	return body, nil
+	return &body, nil
 }
 
 func (s *PublicService) ResetPass(ctx *gin.Context, data ResetPass) (error) {
@@ -367,11 +366,12 @@ func (s *PublicService) ExtraInfoPostStudent(ctx *gin.Context, claims jwt.MapCla
 		}
 	}
 
+	// we take 2 containers, one stores the file type, the other stores the file
 	mp := []string{"Resume", "Result", "ProfilePic"}
 	savedFiles := map[string]*multipart.FileHeader{}
-	
+	// loop over 'mp' and extract the files from form, check and validate and insert them into 'savedFiles' 
 	for _, t := range mp {
-		// get resume file
+		// get the file with type t
 		file, err := ctx.FormFile(t)
 		if err != nil {
 			return nil, &errs.Error{
@@ -402,6 +402,7 @@ func (s *PublicService) ExtraInfoPostStudent(ctx *gin.Context, claims jwt.MapCla
 	}
 
 	data.StudentEmail = claims["email"].(string)
+	// get the user's uuid that is used to store files along with time.Now().Unix()
 	userUUID, err := s.queries.GetUserUUIDFromEmail(ctx, data.StudentEmail)
 	if err != nil {
 		return nil, &errs.Error{
@@ -411,12 +412,15 @@ func (s *PublicService) ExtraInfoPostStudent(ctx *gin.Context, claims jwt.MapCla
 	}
 	strUUID := hex.EncodeToString(userUUID.Bytes[:])
 
+	// take another container to store the file's saved path in external storage
 	savedPaths := map[string]string{}
-
+	// loop over 'mp' , get the particular file from 'savedFiles', construct path url and save it
+	// add the path to 'savedPaths'
 	for _,t := range mp {
-		// save resume file
+		// save the file
 		file := savedFiles[t]
-		fileStoragePath := fmt.Sprintf("%s%s&%d&%s%s", os.Getenv("ResumeStorageDir"), strUUID, time.Now().Unix(), strings.ToLower(t), filepath.Ext(file.Filename))
+		fDir := fmt.Sprintf("%sStorageDir", t)
+		fileStoragePath := fmt.Sprintf("%s%s&%d&%s%s", os.Getenv(fDir), strUUID, time.Now().Unix(), strings.ToLower(t), filepath.Ext(file.Filename))
 		fileSavePath, err := utils.SaveFile(ctx, fileStoragePath, file)
 		if err != nil {
 			return nil, &errs.Error{

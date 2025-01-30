@@ -109,29 +109,31 @@ func (c *CompanyService) NewJobPost(ctx *gin.Context, jobdata *dto.NewJobData, u
 	return nil
 }
 
-func (c *CompanyService) MyApplicants(ctx *gin.Context, userID int64, jobid string) ([]sqlc.GetApplicantsRow, error){
+func (c *CompanyService) ApplicantsData(ctx *gin.Context, userID int64, jobid string, appid string) (*[]sqlc.GetApplicantsRow, error){
 
-	var jobID int64
-	var err error
-	var applicantsData []sqlc.GetApplicantsRow
 
 	// parse jobid to int64
-	jobID, err = strconv.ParseInt(jobid, 10, 64)
+	jobID, err := strconv.ParseInt(jobid, 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	appID, err := strconv.ParseInt(appid, 10, 64)
 	if err != nil {
 		return nil, err
 	}
 	
 	// db call
-	applicantsData, err = c.queries.GetApplicants(ctx, sqlc.GetApplicantsParams{
+	applicantsData, err := c.queries.GetApplicants(ctx, sqlc.GetApplicantsParams{
 		UserID: userID,
 		JobID: jobID,
+		ApplicationID: appID,
 	})
 	if err != nil {
 		return nil, err
 	}
 
 	// return 
-	return applicantsData, nil
+	return &applicantsData, nil
 }
 
 func (c *CompanyService) GetResumeOrResultFilePath(ctx *gin.Context, userID int64, applicationid string, filetype string) (string, error) {
@@ -175,7 +177,7 @@ func (c *CompanyService) GetResumeOrResultFilePath(ctx *gin.Context, userID int6
 	return filepath, nil
 }
 
-func (c *CompanyService) MyJobListings(ctx *gin.Context, userID int64) (*[]sqlc.GetJobListingsRow, error){
+func (c *CompanyService) JobListings(ctx *gin.Context, userID int64) (*[]sqlc.GetJobListingsRow, error){
 
 	// get the listings data 
 	jobListings, err := c.queries.GetJobListings(ctx, userID)
@@ -293,33 +295,17 @@ func (c *CompanyService) Reject(ctx *gin.Context, applicationid string, userID i
 	return nil
 }
 
-func (c *CompanyService) ScheduleInterview(ctx *gin.Context, data dto.NewInterview) (error) {
+func (c *CompanyService) ScheduleInterview(ctx *gin.Context, data *dto.NewInterview) (*errs.Error) {
 
-	// student name and email and job title and company name for email template
-	studentData, err := c.queries.GetScheduleInterviewData(ctx, data.ApplicationId)
-	if err != nil {
-		return err
+	if (data.DateTime.Compare(time.Now()) != 1) {
+		return &errs.Error{
+			Type: errs.PreconditionFailed,
+			Message: "Interview Date-Time cannot be in the past.",
+		}
 	}
-	year, month, day := data.Date.Date()
-	hour, min, sec := data.Time.Clock()
-	data.DateTime = time.Date(year, month, day, hour, min, sec, 0, data.Time.Location())
-
-	data.StudentName = studentData.StudentName
-	data.CompanyName = studentData.CompanyName
-	data.JobTitle = studentData.Title
-	data.FormattedTime = data.DateTime.Format("15:04")
-	data.FormattedDate = data.DateTime.Format("2006-01-02")
-
-	// execute email template
-	template, err := utils.DynamicHTML("./template/emails/interviewScheduled.html", data)
-	if err != nil {
-		return err
-	}
-	// send new interview email to student
-	go utils.SendEmailHTML(template, []string{studentData.StudentEmail})
 
 	// new insert into interviews table
-	err = c.queries.ScheduleInterview(ctx, sqlc.ScheduleInterviewParams{
+	dt, err := c.queries.ScheduleInterview(ctx, sqlc.ScheduleInterviewParams{
 		ApplicationID: data.ApplicationId,
 		UserID: data.UserId,
 		DateTime: pgtype.Timestamptz{Time: data.DateTime, Valid: true},
@@ -328,8 +314,37 @@ func (c *CompanyService) ScheduleInterview(ctx *gin.Context, data dto.NewIntervi
 		Location: data.Location,
 	})
 	if err != nil {
-		return err
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: err.Error(),
+		}
 	}
+
+	// student name and email and job title and company name for email template
+	studentData, err := c.queries.GetScheduleInterviewData(ctx, data.ApplicationId)
+	if err != nil {
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: err.Error(),
+		}
+	}
+
+	data.StudentName = studentData.StudentName
+	data.CompanyName = studentData.CompanyName
+	data.JobTitle = studentData.Title
+	data.DT = dt
+	
+	// execute email template
+	template, err := utils.DynamicHTML("./template/emails/interviewScheduled.html", data)
+	if err != nil {
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: err.Error(),
+		}
+	}
+	// send new interview email to student
+	go utils.SendEmailHTML(template, []string{studentData.StudentEmail})
+
 	// no error
 	return nil
 }
@@ -375,7 +390,7 @@ func (c *CompanyService) Offer(ctx *gin.Context, userID int64, applicationid str
 	if err != nil {
 		return fmt.Errorf("not able to execute email template : %s", err)
 	}
-	go utils.SendEmailHTMLWithAttachment(template, []string{offerData.StudentEmail}, offerLetter)
+	go utils.SendEmailHTMLWithAttachmentFileHeader(template, []string{offerData.StudentEmail}, offerLetter)
 
 	// no error
 	return nil
@@ -405,8 +420,7 @@ func (c *CompanyService) CancelInterview(ctx *gin.Context, userID int64, applica
 		StudentEmail: data.StudentEmail,
 		JobTitle: data.Title,
 		CompanyName: data.CompanyName,
-		Date: data.DateTime.Time.Format("2006-01-02"),
-		Time: data.DateTime.Time.Format("15:04"),
+		DateTime: data.DateTime,
 		RepresentativeEmail: data.RepresentativeEmail,
 		RepresentativeName: data.RepresentativeName,
 	}
@@ -474,6 +488,7 @@ func (c *CompanyService) NewTestPost(ctx *gin.Context, newtestData dto.NewTestPo
 		JobID: pgtype.Int8{Int64: newtestData.BindedJobId, Valid: true},
 		UserID: userID,
 		FileID: formID,
+		Threshold: int32(newtestData.Threshold),
 	})
 	// switch between errors as needed
 	if err != nil {
@@ -594,4 +609,152 @@ func (c *CompanyService) NewTestPostGForm(ctx *gin.Context, gformData dto.NewTes
 	}
 	
 	return formID, errs.Error{}
+}
+
+func (c *CompanyService) ScheduledData(ctx *gin.Context, userID int64, eventtype string) (*dto.Upcoming, *errs.Error) {
+	// switch between event types
+	switch eventtype {
+	case "interviews":
+		uInts, err := c.queries.ScheduledInterviewsCompany(ctx, userID)
+		if err != nil {
+			return nil, &errs.Error{
+				Type: errs.Internal,
+				Message: err.Error(),
+			}
+		}
+		return &dto.Upcoming{
+			Data: uInts,
+		}, nil
+	case "tests":
+		uTests, err := c.queries.ScheduledTestsCompany(ctx, userID)
+		if err != nil {
+			return nil, &errs.Error{
+				Type: errs.Internal,
+				Message: err.Error(),
+			}
+		}
+		return &dto.Upcoming{
+			Data: uTests,
+		}, nil
+	default:
+		return nil, &errs.Error{
+			Type: errs.NotFound,
+			Message: "No such event type exists",
+		}
+	}
+}
+
+
+func (c *CompanyService) CompletedData(ctx *gin.Context, userID int64, eventtype string) (*dto.Completed, *errs.Error) {
+	// switch betweem evemt type
+	switch eventtype {
+	case "interviews":
+		uInts, err := c.queries.CompletedInterviewsCompany(ctx, userID)
+		if err != nil {
+			return nil, &errs.Error{
+				Type: errs.Internal,
+				Message: err.Error(),
+			}
+		}
+		return &dto.Completed{
+			Data: uInts,
+		}, nil
+	case "tests":
+		uTests, err := c.queries.CompletedTestsCompany(ctx, userID)
+		if err != nil {
+			return nil, &errs.Error{
+				Type: errs.Internal,
+				Message: err.Error(),
+			}
+		}
+		return &dto.Completed{
+			Data: uTests,
+		}, nil
+	default:
+		return nil, &errs.Error{
+			Type: errs.NotFound,
+			Message: "Invalid argument, no such event type exists",
+		}
+	}
+}
+
+
+func (c *CompanyService) UpdateInterview(ctx *gin.Context, userID int64, data *dto.UpdateInterview) (error) {
+
+	newData, err := c.queries.UpdateInterview(ctx, sqlc.UpdateInterviewParams{
+		UserID: userID,
+		InterviewID: data.InterviewID,
+		DateTime: pgtype.Timestamptz{Time: data.DateTime, Valid: true},
+		Type: data.Type,
+		Notes: pgtype.Text{String: data.Notes, Valid: true},
+		Location: data.Location,
+	})
+	if err != nil {
+		return err
+	}
+
+	stdData, err := c.queries.GetScheduleInterviewData(ctx, newData.ApplicationID)
+	if err != nil {
+		return err
+	}
+	data.StudentName = stdData.StudentName
+	data.CompanyName = stdData.CompanyName
+	data.JobTitle = stdData.Title
+	data.DT = newData.DateTime
+
+	// execute email template
+	template, err := utils.DynamicHTML("./template/emails/interviewRescheduled.html", data)
+	if err != nil {
+		return err
+	}
+	// send new interview email to student
+	go utils.SendEmailHTML(template, []string{stdData.StudentEmail})
+
+	return nil
+}
+
+func (c *CompanyService) EditCutOff(ctx *gin.Context, userID int64, newData *dto.UpdateTest) (error) {
+
+	// update the new thresholds in the db
+	err := c.queries.UpdateTest(ctx, sqlc.UpdateTestParams{
+		TestID: newData.TestID,
+		UserID: userID,
+		Threshold: int32(newData.Threshold),
+	})
+	if err != nil {
+		return err
+	}
+
+	// call utils to generate the cumulative result draft
+	_, err = utils.GenerateResultDraft(c.queries, c.GAPIService, newData.TestID)
+	if err != nil {
+		return err
+	}
+
+	// all ok
+	return nil
+}
+
+
+
+
+
+
+
+func (c *CompanyService) StudentProfileData(ctx *gin.Context, userID int64, studentid string) (*sqlc.StudentProfileForCompanyRow, error) {
+
+	studentID, err := strconv.ParseInt(studentid, 10, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := c.queries.StudentProfileForCompany(ctx, sqlc.StudentProfileForCompanyParams{
+		UserID: userID,
+		StudentID: studentID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &data, nil
 }

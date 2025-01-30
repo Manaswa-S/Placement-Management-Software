@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scheduled Events</title>
+    <link rel="stylesheet" href="/static/styles/company.css">
+</head>
+
+<body>
+    <div class="container">
+        <h1 id="pageHeading">Scheduled Interviews</h1>
+
+        <div class="tabs">
+            <button id="interviewsTab" class="tab active">Interviews</button>
+            <button id="testsTab" class="tab">Tests</button>
+        </div>
+
+        <div class="top-nav no-filters">
+            <div class="searchbar">
+                <input type="text" id="searchBox" placeholder="Search..." />
+            </div>
+        </div>
+
+        <div id="dataList"></div>
+
+        <div class="spinner" id="spinner" style="display: none;">
+        </div>
+
+        <div id="paging" class="paging"> 
+            <button id="prev-btn" class="nav-btn prev-btn"> < Prev </button>
+            <button id="next-btn" class="nav-btn next-btn"> Next > </button>
+        </div>
+
+        <div class="overlay" id="overlayDiv" style="display: none;"></div>
+        <div class="semi-modal" id="modalDiv" style="display: none;">
+            <div id="modalEditable"></div>
+        </div>
+
+        <div id="toast"></div>
+    </div>
+
+    <script>
+
+        const dataList = document.getElementById('dataList');
+        
+        const tabs = document.querySelectorAll('.tab');
+        const testTb = document.getElementById('testsTab');
+        const intTb = document.getElementById('interviewsTab');
+        
+        const prevbtn = document.getElementById('prev-btn');
+        const nextbtn = document.getElementById('next-btn');
+
+        const heading = document.getElementById('pageHeading');
+
+        const mdiv = document.getElementById('modalEditable');
+
+        let alldata = [];
+        let savedPages = {};
+        let searched = [];
+
+        let dlen = 0;
+        let pageSize = 0;
+        let lastIndex = 0;
+        let currPage = 0;
+
+        let activeTemp = intTemp;
+
+        // Function to fetch data from the backend
+        function fetchData(eventtype = 'interviews') {
+            dataList.innerHTML = ''; // Clear existing jobs
+            showSpinner();
+            const url = `/laa/company/scheduleddata?eventtype=${eventtype}`;
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    hideSpinner();
+                    if (data == null) {
+                        dataList.innerHTML = `
+                            <div class="no-data">
+                                No scheduled events. Relax !
+                            </div>
+                        `;
+                        alldata = [];
+                    } else {
+                        const {Data} = data;
+                        alldata = Data;
+                        searched = alldata;
+                        middle();
+                    }
+                })
+                .catch(error => console.error('Error fetching events:', error));
+        }
+
+        function intTemp(job) {
+            return `
+                <div class="card">
+                    <div class="title">${job.StudentID} : ${job.StudentName} : ${job.RollNumber}</div>
+                    <div class="details">
+                            <p>Interview ID: ${job.InterviewID}</p>
+                            <p>Job ID: ${job.JobID}</p>
+                            <p>Status: ${job.InterviewsStatus}</p>
+                            <p>Time: ${job.DateTime}</p>
+                            <p>Type: ${job.InterviewsType}</p>
+                            <p>Location: ${job.Location}</p>
+                            <p>Notes: ${job.Notes}</p>
+                    </div>
+                    <button class="btn" onclick="editInterview(${job.InterviewID}, this)"> Edit </button>
+                    <button class="btn" onclick="viewApplication(${job.ApplicationID}, this)">Application</button>
+                </div>
+            `;
+        }
+        
+        function testTemp(job) {
+            return `
+                <div class="card">
+                    <div class="title">${job.TestID} : ${job.TestName}</div>
+                    <div class="details">
+                        <p>Description: ${job.Description} mins.</p>
+                        <p>Duration: ${job.Duration} mins.</p>
+                        <p>End Time: ${job.EndTime}</p>
+                        <p>Binded To: ${job.JobID} : ${job.Title}</p>
+                        <p>No. of Questions: ${job.QCount}</p>
+                        <p>Cutoff Percentage: ${job.Threshold}%</p>
+                        <p>Type: ${job.Type}</p>
+                    </div>
+                    <button class="btn" onclick="abcd(${job.TestID}, this)"> #Cancel </button>
+                    <button class="btn" onclick="abcd(${job.TestID}, this)"> #Edit </button>
+                </div>
+            `;
+        }
+
+        function setActiveTemplate(template) {
+            activeTemp = template;
+        }
+        function listdata() {
+            if (searched.length != 0) {
+                let i = 0;
+                for (i = lastIndex; i < dlen; i++) {
+                    if (pageSize == 0) {
+                        break;
+                    }
+
+                    let job = searched[i]; 
+                    const card = activeTemp(job);
+                    dataList.innerHTML += card;
+                    pageSize--;
+                }
+                lastIndex = i;
+            }
+        }
+        function displaybtn() {
+            prevbtn.style.visibility = currPage <= 1 ? 'hidden' : 'visible';
+
+            if (pageSize > 0) {
+                nextbtn.style.visibility = 'hidden';
+                dataList.innerHTML += `
+                    <div class="no-data">
+                        Thats all for now !
+                    </div>
+                `;
+            } else {
+                nextbtn.style.visibility = 'visible';
+            }
+        }
+        function pagination() {
+        
+            if (searched != null) {
+                dlen = searched.length;
+            }
+
+            prevbtn.onclick = function () {
+                currPage -= 1;
+                dataList.innerHTML = savedPages[currPage].Template;
+                pageSize = 10 - savedPages[currPage].Length;
+                displaybtn();
+            }
+
+            nextbtn.onclick = function () {
+                currPage += 1;
+                pageSize = 10; // this defines the number of cards per page
+                
+                if (savedPages[currPage] != null)  {
+                    dataList.innerHTML = savedPages[currPage].Template;
+                    pageSize = 10 - savedPages[currPage].Length;
+                } else {
+                    dataList.innerHTML = ``;
+
+                    if (searched != null && dlen > lastIndex) {
+                        listdata();
+                        savedPages[currPage] = {
+                            Template: dataList.innerHTML,
+                            Length: (10 - pageSize)
+                        }
+                    }
+                }
+                displaybtn();
+            }
+        }
+        function middle() {
+            pagination();
+            lastIndex = currPage = 0;
+            savedPages = {};
+            nextbtn.click();
+        }
+
+
+        function showModal(ApplicationId) {
+            document.getElementById('overlayDiv').style.display = 'block';
+            document.getElementById('modalDiv').style.display = 'block';
+        }
+        function closeModal() {
+            mdiv.innerHTML = '';
+            document.getElementById('overlayDiv').style.display = 'none';
+            document.getElementById('modalDiv').style.display = 'none';
+        }
+
+        function showSpinner() {
+            document.getElementById('spinner').style.display = 'block'; 
+        }
+        function hideSpinner() {
+            document.getElementById('spinner').style.display = 'none'; 
+        }
+
+        function showToast(message, type, timeout = 3000) {
+            const toast = document.getElementById("toast");
+            toast.innerText = message;
+            toast.className = `toast show ${type}`;
+            setTimeout(() => {
+                toast.className = toast.className.replace("show", "");
+            }, timeout);
+        }
+
+        function search() {
+            const query = searchbar.value.toLowerCase();
+            if (query == "") {
+                searched = alldata;
+                middle();
+                return;
+            }
+            const result = alldata.filter(job =>
+                Object.values(job).some(val => 
+                    val !== null && val !== undefined && val.toString().toLowerCase().includes(query)
+                )
+            );
+
+            searched = result;
+            middle();
+        }
+        const searchbar = document.getElementById('searchBox');
+        searchbar.addEventListener('input', search);
+
+        testTb.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            testTb.classList.add('active');
+            setActiveTemplate(testTemp);
+            fetchData('tests');
+            heading.innerHTML = `Scheduled Tests`;
+        });
+        intTb.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            intTb.classList.add('active');
+            setActiveTemplate(intTemp);
+            fetchData('interviews');
+            heading.innerHTML = `Scheduled Interviews`;
+        });
+
+
+
+        function viewApplication(appid) {
+            const url = `/laa/company/applicantsdata?status=all&jobid=${0}&appid=${appid}`;
+            fetch(url).then((response) => response.json())
+            .then(({Applicants}) => {
+                const data = Applicants[0];
+                mdiv.innerHTML = `
+                    <div class="title" style="cursor:pointer;" onclick="window.location.href = '/laa/company/studentprofiledata?id=${data.StudentID}'">${data.StudentID} : ${data.StudentName} : ${data.RollNumber}</div>
+                    <div class="details">
+                        <p><strong>Application ID:</strong> ${data.ApplicationID}</p>
+                        <p><strong>Applied to : </strong>${data.JobID}  ${data.Title}</p>
+
+                        <p><strong>Gender:</strong> ${data.Gender}</p>
+                        <p><strong>Department:</strong> ${data.Department}</p>
+                        <p><strong>Email:</strong> ${data.StudentEmail}</p>
+                        <p><strong>Contact No.:</strong> ${data.ContactNo}</p>
+                        <p><strong>CGPA:</strong> ${data.Cgpa}</p>
+                        <p><strong>Skills:</strong> ${data.Skills}</p>
+                        <p><strong>Status:</strong> ${data.Status}</p>
+                    </div>
+                    <div class="semi-button">
+                        <button class="btn" onclick="closeModal()">Close</button>
+                    </div>
+                `;
+                showModal();
+            })
+            .catch((error) => console.log(error));
+        }
+        
+        function editInterview(interviewId) {
+            const result = alldata.filter(job => 
+                job.InterviewID == interviewId
+            )[0];
+
+            const datetime = result.DateTime;
+            const [time, period, date] = datetime.split(' ');
+            const [day, month, year] = date.split('-');
+            let [hours, mins] = time.split(':');
+
+            if (period == 'PM' && hours != 12) hours = String(Number(hours) + 12);
+            if (period == 'AM' && hours == 12) hours = '00';
+
+            const fDateTime = `${year}-${month}-${day}T${hours}:${mins}`;
+
+            mdiv.innerHTML = `
+                <label class="title">${interviewId}</label>
+                <div class="form-section">
+                    <form id="newInterviewDetails">
+                            <input type="hidden" id="InterviewID" name="InterviewID" value="${interviewId}" required>
+                            
+                            <label for="DateTime">Date:</label>
+                            <input type="datetime-local" id="DateTime" name="DateTime" value="${fDateTime}" required />
+
+                            <label for="Type">Type:</label>
+                            <select id="Type" name="Type" required>
+                                <option value="InPerson">In-Person</option>
+                                <option value="Virtual">Virtual</option>
+                                <option value="Hybrid">Hybrid</option>
+                            </select>
+
+                            <label for="Location">Location/Link:</label>
+                            <input type="text" id="Location" name="Location" value="${result.Location}"/>
+
+                            <label for="Notes">Notes:</label>
+                            <input type="text" id="Notes" name="Notes" value="${result.Notes}" />
+
+                        <div class="semi-button">
+                            <button class="btn" onclick="closeModal()">Close</button>
+                            <button class="btn" onclick="submitInterview(event)">Submit</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            document.getElementById('Type').value = result.InterviewsType;
+            showModal();
+        }
+        function submitInterview(event) {
+            event.preventDefault();
+
+            const formdata = document.getElementById('newInterviewDetails');
+            const form = new FormData(formdata);
+            console.log(formdata);
+
+            const url = `/laa/company/updateinterview`;
+            fetch((url), {
+                method: 'POST',
+                body: form
+            })
+            .then((response) => {
+                if (!response.ok) {
+                    const msg = response.json().Message;
+                    showToast('Failed to updated Interview : ' + msg, 'red');
+                    return;
+                } 
+                showToast('Interview Updated Successfully', 'green');
+                closeModal();
+                fetchData();
+            })
+            .catch((error) => {
+                console.log(error);
+            });
+        }
+        // TODO: 
+        function viewProfile(studentID) {
+            
+            // const url = `/laa/company/studentprofiledata?id=${studentID}`;
+            // fetch(url).then((response) => response.json())
+            // .then((data) => {
+            //     console.log(data);
+
+            //     mdiv.innerHTML = `
+            //         <div id="details" class="card">
+                       
+            //             <div class="topcard">
+            //                 <label class="title">${data.StudentName}</label>
+            //             </div>
+            //         </div>
+            //         <div class="title" style="cursor:pointer;" onclick="window.location.href = '/laa/company/studentinfo?appid=${data.ApplicationID}'">${data.StudentName}</div>
+            //         <div class="details">
+            //             <p><strong>${data.JobID}:</strong> ${data.Title}</p>
+            //             <p><strong>Roll Number:</strong> ${data.RollNumber}</p>
+            //             <p><strong>Gender:</strong> ${data.Gender}</p>
+            //             <p><strong>Department:</strong> ${data.Department}</p>
+            //             <p><strong>Email:</strong> ${data.StudentEmail}</p>
+            //             <p><strong>Contact No.:</strong> ${data.ContactNo}</p>
+            //             <p><strong>CGPA:</strong> ${data.Cgpa}</p>
+            //             <p><strong>Skills:</strong> ${data.Skills}</p>
+            //             <p><strong>Status:</strong> ${data.Status}</p>
+            //         </div>
+            //         <div class="semi-button">
+            //             <button class="btn" onclick="closeModal()">Close</button>
+            //         </div>
+            //     `;
+            // })
+            // .catch((error) => console.log(error));
+            // showModal();
+        }
+
+
+        function editTest(testID) {
+            mdiv.innerHTML = `
+                <label class="title">${testID}</label>
+                <div class="form-section">
+                    <form id="newCutoffForm">
+                        <input type="hidden" id="TestID" name="TestID" value="${testID}" required>
+                        
+                        <label for="Threshold">New Cutoff (%)</label>
+                        <input type="number" id="Threshold" name="Threshold" placeholder="Percentage of total marks to pass" required>                
+                        <div class="semi-button">
+                            <button class="btn" onclick="closeModal()">Close</button>
+                            <button class="btn" onclick="submitCutoff(event)">Submit</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            showModal();
+        }
+        function submitTest(event) {
+            event.preventDefault();
+
+            const formdata = document.getElementById('newCutoffForm');
+            const form = new FormData(formdata);
+            console.log(formdata);
+
+            const url = `/laa/company/updatetest`;
+            fetch((url), {
+                method: 'POST',
+                body: form
+            })
+            .then((response) => {
+                if (!response.ok) {
+                    console.log("error");
+                    return
+                } 
+                console.log(response.json());
+            })
+            .catch((error) => {
+                console.log(error);
+            });
+        }
+
+
+
+
+        fetchData();
+    </script>
+</body>
+
+</html>

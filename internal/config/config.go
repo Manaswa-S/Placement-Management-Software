@@ -1,12 +1,14 @@
 package config
 
+// unit // conversion
+
 const (
 	JWTAccessExpiration = 60 // mins // reduce later 
 	JWTRefreshExpiration = 168 // hours // 7 days 
 )
 
 const (
-	TestResultPollerTimeout = 5 // seconds
+	TestResultPollerTimeout = 900 // seconds // 15 mins
 )
 
 const (

@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interview Cancellation</title>
+    <title>Interview Re-Schedule</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -78,26 +79,29 @@
         }
     </style>
 </head>
+
 <body>
     <div class="email-container">
         <div class="email-header">
-            <h1>Interview Cancellation</h1>
+            <h1>Interview Re-Scheduled Notice</h1>
         </div>
         <div class="email-body">
             <p>Dear {{.StudentName}},</p>
-            <p>We regret to inform you that the interview scheduled for the position of 
-                <strong>{{.JobTitle }}</strong> with 
-                <strong>{{.CompanyName}}</strong> on 
-                <strong>{{.DateTime}}</strong> has been canceled.</p>
-            <p>We apologize for any inconvenience caused and appreciate your understanding. If the interview is rescheduled, we will notify you promptly with the new details.</p>
-            <p>If you have any questions or require further assistance, feel free to reach out to us at {{.RepresentativeEmail}}.</p>
-            <p>Thank you for your interest in joining us. We wish you the best in your job search.</p>
-            <p>Kind regards,<br>{{.RepresentativeName}}</p>
+            <p>We are reaching out to inform you that the interview for the position of <strong>{{.JobTitle}}</strong> 
+                at <strong>{{.CompanyName}}</strong> has been rescheduled. Please find the new details below:</p>
+            <div class="interview-details">
+                <p><strong>Time:</strong> {{.DT}}</p>
+                <p><strong>Type:</strong> {{.Type}}</p>
+                <p><strong>Location/Link:</strong> {{.Location}}</p>
+                <p><strong>Additional Notes:</strong> {{.Notes}}</p>
+            </div>
         </div>
+        
         <div class="email-footer">
             <p>Thank you and best wishes,<br>{{.CompanyName}} Recruitment Team</p>
             <p>PMS @ Auto-Generated</p>
         </div>
     </div>
 </body>
+
 </html>

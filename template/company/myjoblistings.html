@@ -318,7 +318,7 @@
         // Function to fetch job listings from the backend
         function fetchJobs() {
             showSpinner();
-            const url = `/laa/company/myjoblistings`;
+            const url = `/laa/company/joblistingsdata`;
             fetch(url)
                 .then(response => response.json())
                 .then(data => {
@@ -379,7 +379,7 @@
                             </button>
                             <button class="btn" onclick="deletePosting(${job.JobID}, this)">Delete</button>
                             
-                            <button class="btn" onclick="window.location.href = '/laa/company/myappsstatic?jobid=${job.JobID}'">Applicants</button>
+                            <button class="btn" onclick="window.location.href = '/laa/company/applicants?jobid=${job.JobID}'">Applicants</button>
                         </div>
                     `;
                     dataList.innerHTML += card;
@@ -536,7 +536,10 @@
             const job = result[0];
 
             mdiv.innerHTML = `
+                <label class="job-title">${job.JobID}</label>
+
                 <div class="form-section">
+
                     <form id="EditedJobPosting"> 
                         <input type="hidden" id="JobId" name="JobId" value="${job.JobID}" />
 

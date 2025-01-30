@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
+	errs "go.mod/internal/const"
 	"go.mod/internal/dto"
 	"go.mod/internal/services"
 )
@@ -24,22 +25,22 @@ func (h *CompanyHandler) RegisterRoute(companyRoute *gin.RouterGroup) {
 	// get dashboard
 	companyRoute.GET("/dashboard", h.CompanyDashboard)
 	// get new job posting form
-	companyRoute.GET("/newjobget", h.NewJobGet)
+	companyRoute.GET("/newjob", h.NewJob)
 	// post new job form
 	companyRoute.POST("/newjobpost", h.NewJobPost)
 
 	// get the template for all applicants
-	companyRoute.GET("/myappsstatic", h.MyApplicantsStatic)
+	companyRoute.GET("/applicants", h.ApplicantsStatic)
 	// get all applicants data
-	companyRoute.GET("/myapplicants", h.MyApplicants)
+	companyRoute.GET("/applicantsdata", h.ApplicantsData)
 
 	// get any file (resume, result)
 	companyRoute.GET("/getfile", h.GetResumeOrResultFile)
 	// get my job listings static
-	companyRoute.GET("/myjobliststatic", h.MyJobListStatic)
+	companyRoute.GET("/joblistings", h.JobListingsStatic)
 	// get my job listings
-	companyRoute.GET("/myjoblistings", h.MyJobListings)
-	// cancel job listing
+	companyRoute.GET("/joblistingsdata", h.JobListingsData)
+	// close job listing
 	companyRoute.GET("/closejob", h.CloseJob)
 	// delete job listing
 	companyRoute.GET("/deletejob", h.DeleteJob)
@@ -54,13 +55,37 @@ func (h *CompanyHandler) RegisterRoute(companyRoute *gin.RouterGroup) {
 	companyRoute.GET("/newtest", h.NewTestStatic)
 	companyRoute.POST("/newtestpost", h.NewTestPost)
 
+	// get the scheduled events template
+	companyRoute.GET("/scheduled", h.ScheduledStatic)
+	// get the scheduled events data
+	companyRoute.GET("/scheduleddata", h.ScheduledData)
+	// update interview details
+	companyRoute.POST("/updateinterview", h.UpdateInterview)
+
+
+
+	// get the completed events template
+	companyRoute.GET("/completed", h.CompletedStatic)
+	// get the completed events data
+	companyRoute.GET("/completeddata", h.CompletedData)
+
+	companyRoute.POST("/editcutoff", h.EditCutOff)
+
+
+
+
+
+	// TODO:
+	companyRoute.GET("/studentprofiledata", h.StudentProfileData)
+
+
 }
 
 func (h *CompanyHandler) CompanyDashboard(ctx *gin.Context) {
 	ctx.File("./template/dashboard/companydashboard.html")
 }
 
-func (h *CompanyHandler) NewJobGet(ctx *gin.Context) {
+func (h *CompanyHandler) NewJob(ctx *gin.Context) {
 
 	// we can use an external form or on-site html too
 	GoogleFormLink := os.Getenv("NewJobFormLink")
@@ -101,25 +126,26 @@ func (h *CompanyHandler) NewJobPost(ctx *gin.Context) {
 }
 
 
-func (h *CompanyHandler) MyApplicantsStatic(ctx *gin.Context) {
+func (h *CompanyHandler) ApplicantsStatic(ctx *gin.Context) {
 	// return the html template
-	// the template then indirectly calls /myapplicants
+	// the template then indirectly calls /applicantsdata
 	ctx.File("./template/company/myapplicants.html")
 }
 
-func (h *CompanyHandler) MyApplicants(ctx *gin.Context) {
-	// get jobid and userid off the request
+func (h *CompanyHandler) ApplicantsData(ctx *gin.Context) {
+	// get jobid and userid and application id off the request
 	jobid := ctx.Query("jobid")
+	appid := ctx.Query("appid")
 	userID, exists := ctx.Get("ID")
-	if !exists { 
+	if !exists || jobid == "" || appid == "" { 
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": "user ID not found in token",
+			"error": "missing user id or query parameters",
 		})
 		return
 	}
 
 	// service call
-	applicantsData, err := h.CompanyService.MyApplicants(ctx, userID.(int64), jobid)
+	applicantsData, err := h.CompanyService.ApplicantsData(ctx, userID.(int64), jobid, appid)
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
@@ -162,11 +188,11 @@ func (h *CompanyHandler) GetResumeOrResultFile(ctx *gin.Context) {
 }
 
 
-func (h *CompanyHandler) MyJobListStatic(ctx *gin.Context) {
+func (h *CompanyHandler) JobListingsStatic(ctx *gin.Context) {
 	ctx.File("./template/company/myjoblistings.html")
 }
 
-func (h *CompanyHandler) MyJobListings(ctx *gin.Context) {
+func (h *CompanyHandler) JobListingsData(ctx *gin.Context) {
 	// get userid off token, to identify company
 	userid, exists := ctx.Get("ID")
 	if !exists || userid == "" {
@@ -177,7 +203,7 @@ func (h *CompanyHandler) MyJobListings(ctx *gin.Context) {
 	}
 
 	//service delegation
-	jobListings, err := h.CompanyService.MyJobListings(ctx, userid.(int64))
+	jobListings, err := h.CompanyService.JobListings(ctx, userid.(int64))
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
@@ -294,12 +320,13 @@ func (h *CompanyHandler) Reject(ctx *gin.Context) {
 func (h *CompanyHandler) ScheduleInterview(ctx *gin.Context) {
 
 	// bind the POST form for new interview (time, date, etc)
-	var data dto.NewInterview
-	err := ctx.Bind(&data)
+	data :=  new(dto.NewInterview)
+	err := ctx.Bind(data)
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
+		fmt.Println(err)
 		return
 	}
 	// get userID from token
@@ -313,11 +340,15 @@ func (h *CompanyHandler) ScheduleInterview(ctx *gin.Context) {
 	data.UserId = userid.(int64)
 
 	// service delegation
-	err = h.CompanyService.ScheduleInterview(ctx, data)
-	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+	errf := h.CompanyService.ScheduleInterview(ctx, data)
+	if errf != nil {
+		if errf.Type != errs.Internal {
+			fmt.Println(errf.Message)
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"Type": errf.Type,
+				"Message": errf.Message,
+			})
+		}
 		return
 	}
 
@@ -376,7 +407,7 @@ func (h *CompanyHandler) CancelInterview(ctx *gin.Context) {
 func (h *CompanyHandler) NewTestStatic(ctx *gin.Context) {
 	collaboratorEmail := os.Getenv("NewTestGoogleFormsCollaboratorEmail")
 	userid := ctx.GetInt64("ID")
-	jobidtoBind, err := h.CompanyService.MyJobListings(ctx, userid)
+	jobidtoBind, err := h.CompanyService.JobListings(ctx, userid)
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
@@ -413,3 +444,140 @@ func (h *CompanyHandler) NewTestPost(ctx *gin.Context) {
 	// 200OK
 	ctx.Status(http.StatusOK)
 }
+
+
+func (h *CompanyHandler) ScheduledStatic(ctx *gin.Context) {
+	ctx.File("./template/company/scheduled.html")
+}
+
+func (h *CompanyHandler) ScheduledData(ctx *gin.Context) {
+	// get userid and eventtype from the request
+	userid, exist := ctx.Get("ID")
+	eventtype := ctx.Query("eventtype")
+	if !exist || eventtype == "" {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": "missing user id or event type",
+		})
+		return
+	}
+
+	// service delegation
+	uData, errf := h.CompanyService.ScheduledData(ctx, userid.(int64), eventtype)
+	if errf != nil {
+		ctx.JSON(http.StatusBadRequest, errf)
+		return
+	}
+	// return the data with 200OK
+	ctx.JSON(http.StatusOK, uData)
+}
+
+func (h *CompanyHandler) UpdateInterview(ctx *gin.Context) {
+	// get user id and bind incoming data
+	data := new(dto.UpdateInterview)
+	userid, exists := ctx.Get("ID")
+	err := ctx.Bind(data)
+	if err != nil || !exists {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"Message": err.Error(),
+		})
+		fmt.Println(err)
+		return
+	}
+	// service delegation
+	err = h.CompanyService.UpdateInterview(ctx, userid.(int64), data)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"Message": err.Error(),
+		})
+		fmt.Println(err)
+		return
+	}
+
+	ctx.Status(http.StatusOK)
+}
+
+func (h *CompanyHandler) CompletedStatic(ctx *gin.Context) {
+	ctx.File("./template/company/completed.html")
+}
+
+func (h *CompanyHandler) CompletedData(ctx *gin.Context) {
+	// get user id and event type from request
+	userid, exist := ctx.Get("ID")
+	eventtype := ctx.Query("eventtype")
+	if !exist || eventtype == "" {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": "missing user id or event type",
+		})
+		return
+	}
+	// service delegation
+	uData, errf := h.CompanyService.CompletedData(ctx, userid.(int64), eventtype)
+	if errf != nil {
+		ctx.JSON(http.StatusBadRequest, errf)
+		return
+	}
+	// respond with data and 200OK
+	ctx.JSON(http.StatusOK, uData)
+}
+
+
+func (h *CompanyHandler) EditCutOff(ctx *gin.Context) {
+	
+	newData := new(dto.UpdateTest)
+	// get the user id and bind remaining data
+	userid, exists := ctx.Get("ID")
+	err := ctx.Bind(newData)
+	if err != nil || !exists {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	// service delegation
+	err = h.CompanyService.EditCutOff(ctx, userid.(int64), newData)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	// 200OK
+	ctx.Status(http.StatusOK)
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+func (h *CompanyHandler) StudentProfileData(ctx *gin.Context) {
+	studentid := ctx.Query("id")
+	userid, exists := ctx.Get("ID")
+	if !exists || studentid == "" {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": "missing userid or query parameters",
+		})
+		fmt.Println("error: missing userid or query parameters")
+		return
+	}
+
+	data, err := h.CompanyService.StudentProfileData(ctx, userid.(int64), studentid)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		fmt.Println(err)
+		return
+	}
+	
+	ctx.JSON(http.StatusOK, data)
+}	

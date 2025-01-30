@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"go.mod/internal/services"
@@ -30,7 +31,7 @@ func (h *AdminHandler) RegisterRoute(adminRoute *gin.RouterGroup) {
 	// get the 'manage students' data
 	adminRoute.GET("/managestudentsdata", h.ManageStudents)
 
-	adminRoute.GET("/verify", h.VerifyStudent)
+	adminRoute.GET("/verifyst", h.VerifyStudent)
 
 	// generates the test results, returns them, and triggers other funcs
 	adminRoute.GET("/testresult", h.GenerateTestResult)
@@ -105,13 +106,12 @@ func (h *AdminHandler) VerifyStudent(ctx *gin.Context) {
 }
 
 
-
-
 func (h *AdminHandler) GenerateTestResult(ctx *gin.Context) {
 
 	err := h.AdminService.GenerateTestResult(ctx, "10084")
+	if err != nil {
+		fmt.Println(err)
+	}
 
-	fmt.Println(err)
-
-	ctx.Status(http.StatusOK)
+	ctx.File(os.Getenv("ResultDraftStorage"))
 }

@@ -148,6 +148,7 @@ JOIN students ON applications.student_id = students.student_id
 LEFT JOIN interviews ON applications.application_id = interviews.application_id
 WHERE jobs.company_id = (SELECT companies.company_id FROM companies WHERE companies.user_id = $1)
 AND (jobs.job_id = $2 OR $2 = 0)
+AND (applications.application_id = $3 OR $3 = 0)
 AND (applications.status != 'Rejected')
 ORDER BY jobs.job_id;
 
@@ -207,7 +208,8 @@ WHERE jobs.company_id = (
     SELECT 
         companies.company_id 
     FROM companies 
-    WHERE companies.user_id = $1);
+    WHERE companies.user_id = $1)
+ORDER BY jobs.job_id;
 
 
 -- name: CloseJob :exec
@@ -248,9 +250,10 @@ SET status = $1
 WHERE application_id = $2;
 
 
--- name: ScheduleInterview :exec
+-- name: ScheduleInterview :one
 INSERT INTO interviews (application_id, company_id, date_time, type, notes, location)
-VALUES ($1, (SELECT company_id FROM companies WHERE user_id = $2), $3, $4, $5, $6);
+VALUES ($1, (SELECT company_id FROM companies WHERE user_id = $2), $3, $4, $5, $6)
+RETURNING TO_CHAR(date_time, 'HH12:MI AM DD-MM-YYYY') AS date_time;
 
 
 -- name: GetScheduleInterviewData :one
@@ -289,7 +292,7 @@ SELECT
     students.student_email,
     j.title,
     c.company_name,
-    t.date_time,
+    TO_CHAR(t.date_time, 'HH12:MI AM DD-MM-YYYY') AS date_time,
     c.representative_name,
     c.representative_email
 FROM students
@@ -306,7 +309,7 @@ JOIN (SELECT job_id, title, company_id FROM jobs) AS j ON j.job_id = t.job_id
 JOIN (SELECT company_id, company_name, representative_name, representative_email FROM companies) AS c ON j.company_id = c.company_id;
 
 
--- name: UpcomingInterviews :many
+-- name: UpcomingInterviewsStudent :many
 SELECT 
     companies.company_name,
     jobs.title,
@@ -323,7 +326,7 @@ JOIN companies ON jobs.company_id = companies.company_id
 WHERE applications.student_id = (SELECT student_id FROM students WHERE students.user_id = $1)
 AND interviews.date_time > NOW();
 
--- name: UpcomingTests :many
+-- name: UpcomingTestsStudent :many
 SELECT 
     tests.test_id,
     tests.test_name,
@@ -343,11 +346,54 @@ AND NOT EXISTS (SELECT 1 FROM testresults WHERE testresults.test_id = tests.test
 AND tests.end_time > NOW();
 
 
--- name: CompletedTests :many
+-- name: ScheduledInterviewsCompany :many
+SELECT 
+    interviews.interview_id,
+    TO_CHAR(interviews.date_time, 'HH12:MI AM DD-MM-YYYY') AS date_time,
+    interviews.type::TEXT,
+    interviews.status::TEXT,
+    interviews.notes,
+    interviews.location,
+    interviews.extras,
+    applications.application_id,
+    applications.job_id,
+    students.student_id,
+    students.student_name,
+    students.roll_number
+FROM interviews
+JOIN applications ON interviews.application_id = applications.application_id
+JOIN students ON applications.student_id = students.student_id
+WHERE interviews.company_id = (SELECT companies.company_id FROM companies WHERE companies.user_id = $1)
+AND interviews.status = 'Scheduled' AND interviews.date_time > NOW()
+ORDER BY interviews.date_time;
+
+-- name: ScheduledTestsCompany :many
+SELECT 
+    tests.test_id,
+    tests.test_name,
+    tests.description,
+    tests.duration,
+    tests.q_count,
+    TO_CHAR(tests.end_time, 'HH12:MI AM DD-MM-YYYY') AS end_time,
+    tests.type,
+    tests.threshold,
+    jobs.job_id,
+    jobs.title
+FROM tests
+JOIN jobs ON tests.job_id = jobs.job_id
+WHERE tests.company_id = (SELECT companies.company_id FROM companies WHERE companies.user_id = $1)
+AND tests.end_time > NOW()
+ORDER BY tests.end_time;
+
+
+
+
+
+-- name: CompletedTestsStudent :many
 SELECT 
     testresults.result_id,
-    TO_CHAR(testresults.start_time, 'DD-MM-YYYY HH12:MI AM') AS start_time,
-    TO_CHAR(testresults.end_time, 'DD-MM-YYYY HH12:MI AM') AS end_time,
+    TO_CHAR(testresults.start_time, 'HH12:MI AM DD-MM-YYYY') AS start_time,
+    TO_CHAR(testresults.end_time, 'HH12:MI AM DD-MM-YYYY') AS end_time,
     companies.company_name,
     jobs.title
 FROM testresults
@@ -358,13 +404,13 @@ WHERE testresults.user_id = $1
 AND testresults.end_time IS NOT NULL
 ORDER BY testresults.result_id;
 
--- name: CompletedInterviews :many
+-- name: CompletedInterviewsStudent :many
 SELECT 
     jobs.title,
     companies.company_name,
     interviews.interview_id,
     interviews.application_id,
-    TO_CHAR(interviews.date_time, 'DD-MM-YYYY HH12:MI AM') AS date_time,
+    TO_CHAR(interviews.date_time, 'HH12:MI AM DD-MM-YYYY') AS date_time,
     interviews.extras
 FROM interviews
 JOIN applications ON interviews.application_id = applications.application_id
@@ -372,6 +418,36 @@ JOIN jobs ON applications.job_id = jobs.job_id
 JOIN companies ON jobs.company_id = companies.company_id
 WHERE applications.student_id = (SELECT student_id FROM students WHERE students.user_id = $1)
 AND interviews.status = 'Completed';
+
+
+
+-- name: CompletedTestsCompany :many
+SELECT 
+    tests.test_id,
+    tests.test_name,
+    TO_CHAR(tests.end_time, 'HH12:MI AM DD-MM-YYYY') AS end_time,
+    tests.threshold
+FROM tests
+WHERE tests.end_time < NOW()
+AND tests.company_id = (SELECT company_id FROM companies WHERE companies.user_id = $1);
+
+-- name: CompletedInterviewsCompany :many
+SELECT 
+    students.student_name,
+    students.student_id,
+    interviews.interview_id,
+    interviews.application_id,
+    TO_CHAR(interviews.date_time, 'HH12:MI AM DD-MM-YYYY') AS date_time,
+    interviews.extras
+FROM interviews
+JOIN applications ON interviews.application_id = applications.application_id
+JOIN students ON students.student_id = applications.student_id
+WHERE interviews.company_id = (SELECT company_id FROM companies WHERE companies.user_id = $1)
+AND interviews.status = 'Completed';
+
+
+
+
 
 
 -- name: TestMetadata :one
@@ -394,8 +470,8 @@ AND tests.test_id = $2;
 
 
 -- name: NewTest :exec
-INSERT INTO tests (test_name, description, duration, q_count, end_time, type, upload_method, job_id, company_id, file_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, (SELECT company_id FROM companies WHERE user_id = $9), $10);
+INSERT INTO tests (test_name, description, duration, q_count, end_time, type, upload_method, job_id, company_id, file_id, threshold)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, (SELECT company_id FROM companies WHERE user_id = $9), $10, $11);
 
 
 -- name: TakeTest :one
@@ -490,16 +566,14 @@ ORDER BY interviews.created_at DESC;
 
 -- name: ApplicationsStatusCounts :one
 SELECT
-    COUNT(applications.status) AS applied_count,
-    COUNT(CASE WHEN applications.status = 'UnderReview' THEN 1 END) AS under_review_count,
-    COUNT(CASE WHEN applications.status = 'ShortListed' THEN 1 END) AS shortlisted_count,
-    COUNT(CASE WHEN applications.status = 'Rejected' THEN 1 END) AS rejected_count,
-    COUNT(CASE WHEN applications.status = 'Offered' THEN 1 END) AS offered_count,
-    COUNT(CASE WHEN applications.status = 'Hired' THEN 1 END) AS hired_count
+    CAST(COALESCE(COUNT(applications.status), 0) AS BIGINT) AS applied_count,
+    CAST(COALESCE(SUM(CASE WHEN applications.status = 'UnderReview' THEN 1 END), 0) AS BIGINT) AS under_review_count,
+    CAST(COALESCE(SUM(CASE WHEN applications.status = 'ShortListed' THEN 1 END), 0) AS BIGINT) AS shortlisted_count,
+    CAST(COALESCE(SUM(CASE WHEN applications.status = 'Rejected' THEN 1 END), 0) AS BIGINT) AS rejected_count,
+    CAST(COALESCE(SUM(CASE WHEN applications.status = 'Offered' THEN 1 END), 0) AS BIGINT) AS offered_count,
+    CAST(COALESCE(SUM(CASE WHEN applications.status = 'Hired' THEN 1 END), 0) AS BIGINT) AS hired_count
 FROM applications
-WHERE applications.student_id = (SELECT students.student_id FROM students WHERE students.user_id = $1)
-GROUP BY applications.student_id;
-
+WHERE applications.student_id = (SELECT students.student_id FROM students WHERE students.user_id = $1);
 
 -- name: UsersTableData :one
 SELECT 
@@ -549,32 +623,54 @@ SET
 WHERE user_id = $2;
 
 
+-- name: UpdateTest :exec
+UPDATE tests 
+SET 
+    threshold = $3
+WHERE tests.test_id = $1
+AND tests.company_id = (SELECT companies.company_id FROM companies WHERE companies.user_id = $2);
+
+
+-- name: UpdateInterview :one
+UPDATE interviews
+SET 
+    date_time = $3,
+    type = $4,
+    notes = $5,
+    location = $6
+WHERE company_id = (SELECT companies.company_id FROM companies WHERE companies.user_id = $1)
+AND interview_id = $2
+RETURNING application_id, TO_CHAR(date_time, 'HH12:MI AM DD-MM-YYYY') AS date_time;
 
 
 
-
--- >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
--- Admin Functions --------------------------------
-
-
--- name: TestResultPoller :many
+-- name: TestResultPoller :one
 SELECT  
     tests.test_id
 FROM tests
 WHERE tests.end_time < NOW()
-AND tests.result_url IS NULL;
+AND tests.result_url IS NULL
+LIMIT 1;
 
--- name: TestFileId :one
+-- name: TestData :one
 SELECT 
-    file_id
-FROM tests WHERE tests.test_id = $1;
+    tests.file_id,
+    tests.test_id,
+    tests.test_name,
+    TO_CHAR(tests.end_time, 'HH12:MI AM DD-MM-YYYY') AS end_time,
+    tests.threshold,
+    companies.company_name,
+    companies.representative_email
+FROM tests
+JOIN companies ON tests.company_id = companies.company_id
+WHERE tests.test_id = $1;
+
+-- name: ClearAnswersTable :exec
+DELETE FROM temp_correct_answers;
 
 -- name: InsertAnswers :exec
 INSERT INTO temp_correct_answers (question_id, correct_answer, points)
 VALUES ($1, $2, $3);
-
--- name: ClearAnswersTable :exec
-DELETE FROM temp_correct_answers;
 
 -- name: EvaluateTestResult :one
 WITH tr AS (
@@ -602,7 +698,6 @@ SELECT
     SUM(temp_correct_answers.points) AS totalpoints
 FROM temp_correct_answers;
 
-
 -- name: CumulativeResultData :many
 WITH tr AS (
     SELECT 
@@ -625,10 +720,15 @@ main AS (
     JOIN tr ON testresults.result_id = tr.result_id
     WHERE testresults.test_id = $1
 )
-
 SELECT * 
 FROM main;
 
+-- name: TestPassFailCount :one
+SELECT
+    COUNT(CASE WHEN testresults.score >= $2 THEN 1 ELSE NULL END) AS pass_count,
+    COUNT(CASE WHEN testresults.score < $2 THEN 1 ELSE NULL END) AS fail_count
+FROM testresults
+WHERE testresults.test_id = $1;
 
 
 
@@ -644,6 +744,42 @@ FROM main;
 
 
 
+
+
+
+
+
+
+
+
+
+
+-- name: StudentProfileForCompany :one
+SELECT
+    students.student_name,
+    students.roll_number,
+    students.student_dob,
+    students.gender,
+    students.course,
+    students.department,
+    students.year_of_study,
+    students.cgpa,
+    students.contact_no,
+    students.student_email,
+    students.address,
+    students.skills,
+    students.extras
+FROM applications
+JOIN jobs ON applications.job_id = jobs.job_id
+JOIN companies ON jobs.company_id = companies.company_id
+JOIN students ON applications.student_id = students.student_id
+WHERE applications.student_id = $1 AND companies.user_id = $2;
+
+
+
+
+-- >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+-- Admin Functions --------------------------------
 
 
 

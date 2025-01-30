@@ -6,8 +6,10 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-ping/ping"
 	"github.com/joho/godotenv"
 	"go.mod/internal/apicalls"
 	"go.mod/internal/config"
@@ -34,8 +36,15 @@ func main() {
 		fmt.Println("Error loading environment variables: ", errenv)
 		return
 	}
+
+	err := internetCheck()
+	if err != nil {
+		fmt.Printf("Error checking internet connection : %v \n", err)
+		return
+	}
+
 	// initialize the database, cache connections 
-	err := config.InitDB()
+	err = config.InitDB()
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -82,6 +91,42 @@ func main() {
 	fmt.Println("Shutdown complete.")
 }
 
+func internetCheck() (error) {
+
+	fmt.Println("Pinging...")
+
+	pinger, err := ping.NewPinger("8.8.8.8")
+	if err != nil {
+		return err
+	}
+	pinger.Timeout = time.Second * 3
+	pinger.Count = 10
+	err = pinger.Run()
+	if err != nil {
+		return err
+	}
+	stats := pinger.Statistics()
+	
+	fmt.Printf("Pinged %s : %s .\n" + 
+			   "Packets: \n" + 
+			   "       Sent : %d \n" + 
+			   "   Recieved : %d \n" + 
+			   "       Loss : %.2f %%\n" + 
+			   "Average RTT : %.2f ms\n" + 
+			   "Minimum RTT : %.2f ms\n" + 
+			   "Maximum RTT : %.2f ms\n",	
+			   						stats.Addr, 
+			   						stats.IPAddr, 
+									stats.PacketsSent, 
+									stats.PacketsRecv, 
+									stats.PacketLoss,
+									stats.AvgRtt.Seconds() * 1000,
+									stats.MinRtt.Seconds() * 1000,
+									stats.MaxRtt.Seconds() * 1000)
+
+
+	return nil
+}
 
 func routes(router *gin.Engine) {
 

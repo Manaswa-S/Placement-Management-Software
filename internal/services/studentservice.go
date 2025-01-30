@@ -101,24 +101,24 @@ func (s *StudentService) CancelApplication(ctx *gin.Context, userID int64, jobid
 	return nil
 }
 
-func (s *StudentService) MyApplications(ctx *gin.Context, userId any, status string) ([]sqlc.GetMyApplicationsStatusFilterRow, error) {
+func (s *StudentService) MyApplications(ctx *gin.Context, userId any, status string) (*[]sqlc.GetMyApplicationsStatusFilterRow, error) {
 
 	applicationsData, err := s.queries.GetMyApplicationsStatusFilter(ctx, sqlc.GetMyApplicationsStatusFilterParams{
 		UserID: userId.(int64),
 		Column2: status,
 	})
 	if err != nil {
-		return []sqlc.GetMyApplicationsStatusFilterRow{}, err
+		return nil, err
 	}
 
-	return applicationsData, nil
+	return &applicationsData, nil
 }
 
 func (s *StudentService) UpcomingData(ctx *gin.Context, userID int64, eventtype string)  (*dto.Upcoming, error) {
 
 	switch eventtype {
 	case "interviews":
-		uInts, err := s.queries.UpcomingInterviews(ctx, userID)
+		uInts, err := s.queries.UpcomingInterviewsStudent(ctx, userID)
 		if err != nil {
 			return nil, err
 		}
@@ -126,7 +126,7 @@ func (s *StudentService) UpcomingData(ctx *gin.Context, userID int64, eventtype 
 			Data: uInts,
 		}, nil
 	case "tests":
-		uTests, err := s.queries.UpcomingTests(ctx, userID)
+		uTests, err := s.queries.UpcomingTestsStudent(ctx, userID)
 		if err != nil {
 			return nil, err
 		}
@@ -187,7 +187,7 @@ func (s *StudentService) TakeTest(ctx *gin.Context, userID int64, testid string,
 			Message: fmt.Sprintf("failed to get test metadata : %v", err),
 		}
 	}
-
+	// compares the returned test end_time with time.Now() and returns error if end_time was in the past
 	if testData.EndTime.Time.Compare(time.Now()) == -1 {
 		return nil, &errs.Error{
 			Type: errs.Unauthorized,
@@ -195,40 +195,7 @@ func (s *StudentService) TakeTest(ctx *gin.Context, userID int64, testid string,
 		}
 	}
 
-	// check if column exists in testResult with testID and userID ie. test is already given
-	resultData, err := s.queries.IsTestGiven(ctx, sqlc.IsTestGivenParams{
-		UserID: userID,
-		TestID: testID,
-	})
-	if err != nil {
-		if err.Error() == errs.NoRowsMatch {
-			// the user has not yet given the test
-			// add a new entry with the now timestamp
-			err := s.queries.NewTestResult(ctx, sqlc.NewTestResultParams{
-				UserID: userID,
-				TestID: testID,
-				StartTime: pgtype.Timestamptz{Time: time.Now(), Valid: true},
-			})
-			if err != nil {
-				return nil, &errs.Error{
-					Type: errs.Internal,
-					Message: fmt.Sprintf("failed to update test result : %v", err),
-				}
-			}
-		} else {
-			return nil, &errs.Error{
-				Type: errs.Internal,
-				Message: fmt.Sprintf("failed to check if entry exists in testresult : %v", err),
-			}
-		}
-	}
-	// the user has started the test, check if finished
-	if (resultData.EndTime.Valid) {
-		return nil, &errs.Error{
-			Type: errs.ObjectExists,
-			Message: "The user has already given the test.",
-		}	
-	}
+	
 
 	// define the redis keys
 	itemIdOrder := fmt.Sprintf("%sorder", testid)
@@ -314,6 +281,45 @@ func (s *StudentService) TakeTest(ctx *gin.Context, userID int64, testid string,
 		}
 	}
 
+	// this should ideally be done at the start of the test, but a new row was being inserted at the very start 
+	// and if the later code errors out, 
+	// the row stays, effectively saying the the user has started the test whereas he received an error
+	// this is still error prone, but errors further down are all native and will be detected instantly
+	// check if column exists in testResult with testID and userID ie. test is already given
+	resultData, err := s.queries.IsTestGiven(ctx, sqlc.IsTestGivenParams{
+		UserID: userID,
+		TestID: testID,
+	})
+	if err != nil {
+		if err.Error() == errs.NoRowsMatch {
+			// the user has not yet given the test
+			// add a new entry with the now timestamp
+			err := s.queries.NewTestResult(ctx, sqlc.NewTestResultParams{
+				UserID: userID,
+				TestID: testID,
+				StartTime: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+			})
+			if err != nil {
+				return nil, &errs.Error{
+					Type: errs.Internal,
+					Message: fmt.Sprintf("failed to update test result : %v", err),
+				}
+			}
+		} else {
+			return nil, &errs.Error{
+				Type: errs.Internal,
+				Message: fmt.Sprintf("failed to check if entry exists in testresult : %v", err),
+			}
+		}
+	}
+	// the user has started the test, check if finished
+	if (resultData.EndTime.Valid) {
+		return nil, &errs.Error{
+			Type: errs.ObjectExists,
+			Message: "The user has already given the test.",
+		}	
+	}
+
 	// here, either the test data has been called and set in the cache or it was already present
 	// either way, we have the complete test data here and its order list 
 	// get the entire order list
@@ -332,7 +338,6 @@ func (s *StudentService) TakeTest(ctx *gin.Context, userID int64, testid string,
 	if currentItemId != "cover" {
 		// update the responses in the db
 		if (response.ItemID != "") {
-			
 			err = s.queries.UpdateResponse(ctx, sqlc.UpdateResponseParams{
 				ResultID: resultData.ResultID,
 				QuestionID: response.ItemID,
@@ -476,7 +481,7 @@ func (s *StudentService) Completed(ctx *gin.Context, userID int64, tab string) (
 
 	switch tab {
 	case "tests":
-		cTests, err := s.queries.CompletedTests(ctx, userID)
+		cTests, err := s.queries.CompletedTestsStudent(ctx, userID)
 		if err != nil {
 			return nil, err
 		}
@@ -484,7 +489,7 @@ func (s *StudentService) Completed(ctx *gin.Context, userID int64, tab string) (
 			Data: cTests,
 		}, nil
 	case "interviews":
-		cInts, err := s.queries.CompletedInterviews(ctx, userID)
+		cInts, err := s.queries.CompletedInterviewsStudent(ctx, userID)
 		if err != nil {
 			return nil, err
 		}
@@ -497,12 +502,11 @@ func (s *StudentService) Completed(ctx *gin.Context, userID int64, tab string) (
 }
 
 func (s *StudentService) ProfileData(ctx *gin.Context, userID int64) (*dto.ProfileData, error) {
-	
 	overData, err := s.queries.ApplicationsStatusCounts(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
-
+	
 	userData, err := s.queries.UsersTableData(ctx, userID)
 	if err != nil {
 		return nil, err

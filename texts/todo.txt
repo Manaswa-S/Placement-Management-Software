@@ -6,42 +6,35 @@ Enable Go's pprof HTTP server for runtime profiling:
 
 introduce concurrency
 
-implement graceful shutdown 
-
 refresh token is useless as of now
 
 handler functions are structed wrong, need to use gin.HandlerFunc
 
-point to data man, dont juggle it all around
+in myapplicants or similar pages, you might want to reduce the info directly in cards and instead direct to profile pages for info
 
+we havent accounted for sections in test forms
 
 for everything there is not a check if the time for that event has gone by, i can still give tests that were meant to be over by yesterday
 
-refactor the get resume/result to use utils.GetFile
+in the public.ConfirmSignup , we send a valid JWT token directly, which is ... stupid!
+
+there are alot of endpoints like /company/editcutoff that need to be rate limited heavily
 
 in logger if 'explicit_error' is true, log it as CRITICAL error in a separate area
 
 custom 'alert' ui
 
+need to attach all internal/critical errors to the context so that they can be logged
+
 implement TTL to all data in redis for automatic cleanup
-
-export redis cache when shutting down
-
-the test can be binded to an existing job listing or none
 
 add a safety measure that saves all redis cache data before shutting down
 
 none of our endpoints are type safe, you can send illegal data and it will still proceed, the checks are only for the client side
 
-add unique constraint on the testresults table (userid and testid)
-
 there is currently no mechanism to evaluate subjective questions
 
 there should be a created_at in every table
-
-reduce font size of every h1
-
-if a test was started for the first time by a user, it updates the test results table, but if it fails to retrieve the test form, the entry in testresults in invalid and should be removed
 
 you can send multiple extrainfo post requests from one link, it does not check for duplicates
 
@@ -72,19 +65,32 @@ Rescheduling: Provide a way for the company to reschedule the interview in case 
 
 the myapplicants page refreshes EVERYTHING everytime an action is performed (shortlist/ etc)
 
-add search box wherever needed
-
-later on add edit functions in job listings and applications
-
-redirect to login page when token invalid
+later on add edit functions in applications
 
 user cannot apply for any further jobs when he has been hired for atleast one job and similar constraints
 
 set a timer to delete the rejected/offered/hired applications after 7 days
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 there should be a notifications thing for every role
 
 the interview process should be variable
-
 
 after singup as admin it still sends a company extra info , the methods consider only two roles (company or student) and misbehave for anything else

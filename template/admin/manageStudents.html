@@ -524,7 +524,7 @@
                 const {Data} = data;
                 mdiv.innerHTML = `
                         <div class="topcard">
-                            <img src="data:image/jpeg;base64,${Data.Profilepic}" style="max-width: 100%; height: auto;" id="ProfileImage">
+                            <img src="data:image/jpeg;base64,${Data.Profilepic}" style="max-width: 80%; max-height: 300px;" id="ProfileImage">
                         </div>
                         <div class="topcard">
                             <label class="title">${Data.StudentID}: ${Data.StudentName}</label>
@@ -583,7 +583,7 @@
 
     function verifyStudent(userid) {
         console.log(userid);
-        const url = `/laa/admin/verify?id=${userid}`;
+        const url = `/laa/admin/verifyst?id=${userid}`;
         fetch(url)
             .then(response => {
                 if (response.ok) {
@@ -615,7 +615,7 @@
             middle();
             return;
         }
-        console.log(alldata);
+        
         const result = alldata.filter(job =>
             Object.values(job).some(val => 
                 val !== null && val !== undefined && val.toString().toLowerCase().includes(query)

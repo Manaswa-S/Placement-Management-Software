@@ -175,8 +175,7 @@ func (h *PublicHandler) ExtraInfoPost(ctx *gin.Context) {
 		})
 	}
 
-	var userData interface{}
-	var errf *errs.Error
+	errf := new(errs.Error)
 	
 	role, ok := claims["role"]
 	if !ok {
@@ -199,9 +198,9 @@ func (h *PublicHandler) ExtraInfoPost(ctx *gin.Context) {
 
 	switch roleInt {
 	case RoleStudent:
-		userData, errf = h.PublicService.ExtraInfoPostStudent(ctx, claims)
+		_, errf = h.PublicService.ExtraInfoPostStudent(ctx, claims)
 	case RoleCompany:
-		userData, errf = h.PublicService.ExtraInfoPostCompany(ctx, claims)
+		_, errf = h.PublicService.ExtraInfoPostCompany(ctx, claims)
 	default:
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 			"Type": errs.Unauthorized,
@@ -219,7 +218,6 @@ func (h *PublicHandler) ExtraInfoPost(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{
-		"Data": userData,
 		"Status": "Sign up complete. Proceed with further instructions as given in the email.",
 	})
 }
@@ -238,7 +236,7 @@ func (h *PublicHandler) SendConfirmationEmail(ctx *gin.Context){
 	err := h.PublicService.SendConfirmEmail(ctx, email)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
-			"Message": "Failed to send confirmation email. Try again.",
+			"Message": "Failed to send confirmation email. Try again." + err.Error(),
 		})
 		return
 	}

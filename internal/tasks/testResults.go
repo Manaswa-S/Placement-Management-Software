@@ -11,30 +11,35 @@ import (
 )
 
 var errored = 0
+var errQuota = 4
 
+// TestResultsPoller polls the database with a fixed timeout.
+// A row is selected only if its end_time has expired and result_url is NULL, which is updated once a result is generated.
+// So the test poller generates only for the first time after the test has expired.
+// Has an error quota that suppresses errors for some time depending upon the poller interval.
 func (a *AsyncService) TestResultsPoller(ctx context.Context) error {
-	fmt.Println("Starting the test results poller...")
 
 	timeout := config.TestResultPollerTimeout * time.Second
+
+	fmt.Printf("Starting the test results poller : Timeout: %d\n", timeout)
+
 	ticker := time.NewTicker(timeout)
 	defer ticker.Stop()
 
 	for range ticker.C {
 		testID, err := a.Queries.TestResultPoller(ctx)
-		if err != nil {
-			if err.Error() != errs.NoRowsMatch {
-				fmt.Println(err)
-				errored += 1
-				if errored > 4 {
-					return err
-				}
+		if err != nil && err.Error() != errs.NoRowsMatch {
+			fmt.Println(err)
+			errored += 1
+			if errored > errQuota {
+				// TODO: raise a critical error
+				return err
 			}
 		} else {
-			if len(testID) > 0 {
-				err = utils.GenerateTestResult(a.Queries, a.GAPIService, testID[0])
-				if err != nil {
-					return err
-				}
+			// calls the generate test result draft util
+			_, err := utils.GenerateResultDraft(a.Queries, a.GAPIService, testID)
+			if err != nil {
+				return err
 			}
 		}
 	}

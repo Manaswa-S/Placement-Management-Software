@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Completed</title>
+    <link rel="stylesheet" href="/static/styles/company.css">
+</head>
+<body>
+    <div class="container">
+        <h1 id="pageHeading">Completed Tests</h1>
+
+        <div class="tabs">
+            <button id="testsTab" class="tab active">Tests</button>
+            <button id="interviewsTab" class="tab">Interviews</button>
+        </div>
+
+
+        <div id="dataList"></div>
+
+        <div class="spinner" id="spinner" style="display: none;">
+        </div>
+
+        <div id="paging" class="paging"> 
+            <button id="prev-btn" class="nav-btn prev-btn"> < Prev </button>
+            <button id="next-btn" class="nav-btn next-btn"> Next > </button>
+        </div>
+
+        <div class="overlay" id="overlayDiv" style="display: none;"></div>
+        <div class="semi-modal" id="modalDiv" style="display: none;">
+            <div id="modalEditable"></div>
+        </div>
+
+        <div id="toast"></div>
+    </div>
+<script>
+
+    let alldata = [];
+    let savedPages = {};
+    let searched = [];
+
+    let dlen = 0;
+    let pageSize = 0;
+    let lastIndex = 0;
+    let currPage = 0;
+
+    let activeTemp = testTemp;
+    
+    const dataList = document.getElementById('dataList');
+
+    const prevbtn = document.getElementById('prev-btn');
+    const nextbtn = document.getElementById('next-btn');
+
+    const tabs = document.querySelectorAll('.tab');
+    const testTb = document.getElementById('testsTab');
+    const intTb = document.getElementById('interviewsTab');
+
+    const heading = document.getElementById('pageHeading');
+    const mdiv = document.getElementById('modalEditable');
+
+
+    function fetchData(tab = 'tests') {
+        showSpinner();
+        const url = `/laa/company/completeddata?eventtype=${tab}`;
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                const {Data} = data;
+                alldata = Data;
+                console.log(data);
+                hideSpinner();
+                if (alldata == null) {
+                    dataList.innerHTML = `
+                        <div class="no-data">
+                            No completed events at the moment. Please check back later.
+                        </div>
+                    `;
+                    return;
+                } else {
+                    searched = alldata;
+                    middle();
+                }
+            })
+            .catch(error => console.error('Error fetching data:', error));
+    }
+
+    function intTemp(job) {
+        return `
+            <div class="card">
+                <div class="title">Interview ID : ${job.InterviewID}</div>
+                <div class="details"><strong>Application ID : </strong>${job.ApplicationID}</div>
+                <div class="details">
+                    <p><strong>Student ID:</strong> ${job.StudentID}</p>
+                    <p><strong>Student Name:</strong> ${job.StudentName}</p>
+                    <p><strong>Time:</strong> ${job.DateTime}</p>
+                    <p><strong>Extras(Feedback):</strong> ${job.Extras}</p>
+                </div>
+            </div>
+        `;
+    }
+    function testTemp(job) {
+        return `
+            <div class="card">
+                <div class="title">${job.TestID} : ${job.TestName}</div>
+                <div class="details">
+                    <p><strong>End Time: </strong> ${job.EndTime}</p>
+                    <p><strong>CutOff: </strong> ${job.Threshold} %</p>
+                </div>
+                <button class="btn" onclick="editCutoff(${job.TestID}, this)"> Edit Cutoff </button>
+                <button class="btn" onclick="takeTest(${job.TestID}, this)"> Download Result </button>
+                <button class="btn" onclick="takeTest(${job.TestID}, this)"> Publish </button>
+
+            </div>
+        `;
+    }
+
+
+    function setActiveTemplate(template) {
+        activeTemp = template;
+    }
+
+
+    function listdata() {
+        if (searched.length != 0) {
+            let i = 0;
+            for (i = lastIndex; i < dlen; i++) {
+                if (pageSize == 0) {
+                    break;
+                }
+
+                let job = searched[i]; 
+                const card = activeTemp(job);
+                dataList.innerHTML += card;
+                pageSize--;
+            }
+            lastIndex = i;
+        }
+    }
+
+    function pagination() {
+    
+        if (searched != null) {
+            dlen = searched.length;
+        }
+
+        prevbtn.onclick = function () {
+            currPage -= 1;
+            dataList.innerHTML = savedPages[currPage].Template;
+            pageSize = 10 - savedPages[currPage].Length;
+            displaybtn();
+        }
+
+        nextbtn.onclick = function () {
+            currPage += 1;
+            pageSize = 10; // this defines the number of cards per page
+            
+            if (savedPages[currPage] != null)  {
+                dataList.innerHTML = savedPages[currPage].Template;
+                pageSize = 10 - savedPages[currPage].Length;
+            } else {
+                dataList.innerHTML = ``;
+
+                if (searched != null && dlen > lastIndex) {
+                    listdata();
+                    savedPages[currPage] = {
+                        Template: dataList.innerHTML,
+                        Length: (10 - pageSize)
+                    }
+                }
+            }
+            displaybtn();
+        }
+
+    }
+
+    function displaybtn() {
+        prevbtn.style.visibility = currPage <= 1 ? 'hidden' : 'visible';
+
+        if (pageSize > 0) {
+            nextbtn.style.visibility = 'hidden';
+            dataList.innerHTML += `
+                <div class="no-data">
+                    Thats all for now !
+                </div>
+            `;
+        } else {
+            nextbtn.style.visibility = 'visible';
+        }
+    }
+
+    function showModal(ApplicationId) {
+        document.getElementById('overlayDiv').style.display = 'block';
+        document.getElementById('modalDiv').style.display = 'block';
+    }
+    function closeModal() {
+        mdiv.innerHTML = '';
+        document.getElementById('overlayDiv').style.display = 'none';
+        document.getElementById('modalDiv').style.display = 'none';
+    }
+
+    function showSpinner() {
+        document.getElementById('spinner').style.display = 'block'; 
+    }
+    function hideSpinner() {
+        document.getElementById('spinner').style.display = 'none'; 
+    }
+
+    function showToast(message, type, timeout = 3000) {
+        const toast = document.getElementById("toast");
+        toast.innerText = message;
+        toast.className = `toast show ${type}`;
+        setTimeout(() => {
+            toast.className = toast.className.replace("show", "");
+        }, timeout);
+    }
+
+
+    function middle() {
+        pagination();
+        lastIndex = currPage = 0;
+        savedPages = {};
+        nextbtn.click();
+    }
+
+
+    function editCutoff(testID) {
+        mdiv.innerHTML = `
+            <label class="job-title">${testID}</label>
+            <div class="form-section">
+                <form id="newCutoffForm">
+                    <input type="hidden" id="TestID" name="TestID" value="${testID}" required>
+                    
+                    <label for="Threshold"><strong> New Cutoff (%) </strong></label>
+                    <input type="number" id="Threshold" name="Threshold" placeholder="Percentage of total marks to pass" required>                
+                    <div class="semi-button">
+                        <button class="btn" onclick="closeModal()">Close</button>
+                        <button class="btn" onclick="submitCutoff(event)">Submit</button>
+                    </div>
+                </form>
+            </div>
+        `;
+        showModal();
+        
+    }
+    function submitCutoff(event) {
+        event.preventDefault();
+
+        const formdata = document.getElementById('newCutoffForm');
+        const form = new FormData(formdata);
+
+        closeModal();
+        showSpinner();
+        
+        const url = `/laa/company/editcutoff`;
+        fetch((url), {
+            method: 'POST',
+            body: form
+        })
+        .then((response) => {
+            hideSpinner();
+            if (!response.ok) {
+                const msg = response.json().Message;
+                showToast('Failed to updated Test : ' + msg, 'red');
+                return
+            } 
+            showToast('Test Updated Successfully. An email with the new result draft has been sent.', 'green');
+            fetchData();
+        })
+        .catch((error) => {
+            console.log(error);
+        });
+    }
+
+
+
+    fetchData();
+
+    testTb.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        testTb.classList.add('active');
+        setActiveTemplate(testTemp);
+        fetchData('tests');
+        heading.innerHTML = `Completed Tests`;
+    });
+    intTb.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        intTb.classList.add('active');
+        setActiveTemplate(intTemp);
+        fetchData('interviews');
+        heading.innerHTML = `Completed Interviews`;
+    });
+</script>
+
+</body>
+</html>

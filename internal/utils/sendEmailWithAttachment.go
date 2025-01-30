@@ -11,7 +11,7 @@ import (
 )
 
 
-func SendEmailHTMLWithAttachment(body bytes.Buffer, to_Email []string, fileHeader *multipart.FileHeader)  {
+func SendEmailHTMLWithAttachment(body bytes.Buffer, to_Email []string, attachment *[]byte, name string) (error)  {
 	// Email headers
 	subject := "Subject: PMS\n"
 	fromEmail := os.Getenv("SMTP_GO_From")
@@ -51,28 +51,15 @@ func SendEmailHTMLWithAttachment(body bytes.Buffer, to_Email []string, fileHeade
 	}
 
 	// Add the file attachment
-	if fileHeader != nil {
-		// Open the file from the FileHeader
-		file, err := fileHeader.Open()
-		if err != nil {
-			fmt.Println("failed to open file: %w", err)
-		}
-		defer file.Close()
-
-		// Read the file content
-		fileContent := new(bytes.Buffer)
-		_, err = fileContent.ReadFrom(file)
-		if err != nil {
-			fmt.Println("failed to read file content: %w", err)
-		}
+	if attachment != nil {
 
 		// Encode file in Base64
-		encoded := base64.StdEncoding.EncodeToString(fileContent.Bytes())
+		encoded := base64.StdEncoding.EncodeToString(*attachment)
 
 		// Create attachment part
 		attachmentPart, err := writer.CreatePart(map[string][]string{
-			"Content-Type":              {fmt.Sprintf("%s; name=%s", "application/octet-stream", filepath.Base(fileHeader.Filename))},
-			"Content-Disposition":       {fmt.Sprintf("attachment; filename=%s", filepath.Base(fileHeader.Filename))},
+			"Content-Type":              {fmt.Sprintf("%s; name=%s", "application/octet-stream", name)},
+			"Content-Disposition":       {fmt.Sprintf("attachment; filename=%s", name)},
 			"Content-Transfer-Encoding": {"base64"},
 		})
 		if err != nil {
@@ -97,4 +84,39 @@ func SendEmailHTMLWithAttachment(body bytes.Buffer, to_Email []string, fileHeade
 	if err != nil {
 		fmt.Println("failed to send email: %w", err)
 	}
+	return nil
+}
+
+func SendEmailHTMLWithAttachmentFileHeader(body bytes.Buffer, to_Email []string, fileHeader *multipart.FileHeader) (error) {
+
+	file, err := fileHeader.Open()
+	if err != nil {
+		fmt.Println("failed to open file: %w", err)
+	}
+	defer file.Close()
+
+	// Read the file content
+	fileContent := new(bytes.Buffer)
+	_, err = fileContent.ReadFrom(file)
+	if err != nil {
+		fmt.Println("failed to read file content: %w", err)
+	}
+
+	fileName := filepath.Base(fileHeader.Filename)
+	fileBytes := fileContent.Bytes()
+
+	return SendEmailHTMLWithAttachment(body, to_Email, &fileBytes, fileName)
+}
+
+func SendEmailHTMLWithAttachmentFileBytes(body bytes.Buffer, to_Email []string, fileBytes []byte, fileName string) (error) {
+	return SendEmailHTMLWithAttachment(body, to_Email, &fileBytes, fileName)
+}
+func SendEmailHTMLWithAttachmentFilePath(body bytes.Buffer, to_Email []string, filePath string, fileName string) (error) {
+
+	fileBytes, err := os.ReadFile(filePath)
+	if err != nil {
+		return err
+	}
+
+	return SendEmailHTMLWithAttachment(body, to_Email, &fileBytes, fileName)
 }

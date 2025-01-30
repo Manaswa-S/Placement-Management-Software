@@ -63,11 +63,7 @@ type ExtraInfoStudent struct {
 type NewInterview struct {
 	ApplicationId int64
 	UserId int64
-	Date time.Time `form:"Date" time_format:"2006-01-02"`
-	Time time.Time `form:"Time" time_format:"15:04"`
-	DateTime time.Time
-	FormattedTime string
-	FormattedDate string
+	DateTime time.Time `form:"DateTime" time_format:"2006-01-02T15:04"`
 	Type string
 	Location string
 	Notes string
@@ -75,6 +71,20 @@ type NewInterview struct {
 	StudentEmail string
 	JobTitle string
 	CompanyName string
+	DT string
+}
+
+type UpdateInterview struct {
+	InterviewID int64
+	DateTime time.Time `form:"DateTime" time_format:"2006-01-02T15:04"`
+	Type string
+	Location string
+	Notes string
+
+	StudentName string
+	JobTitle string
+	CompanyName string
+	DT string
 }
 
 type Offer struct {
@@ -86,8 +96,7 @@ type CancelInterview struct {
 	StudentEmail string
 	JobTitle string
 	CompanyName string
-	Date string
-	Time string
+	DateTime string
 	RepresentativeEmail string
 	RepresentativeName string
 }
@@ -109,7 +118,9 @@ type NewTestPost struct {
 	BindedJobId int64
 	Type string
 	UploadMethod string
+	Threshold int64
 
+	// TODO: this is kinda useless, remove it !
 	FormattedEndDate string
 	FormattedEndTime string 
 	JobTitle string
@@ -134,6 +145,11 @@ type TestResponse struct {
 	Response []string
 	TimeTaken int64
 }
+// TODO: replace this later with the 'NewTestPost' struct
+type UpdateTest struct {
+	TestID int64
+	Threshold int64
+}
 
 type Token struct {
 	Issuer string
@@ -149,8 +165,6 @@ type JWTTokens struct {
 	JWTAccess string
 	JWTRefresh string
 }
-
-
 
 type ProfileData struct {
 	OverData *sqlc.ApplicationsStatusCountsRow
@@ -179,6 +193,13 @@ type Report struct {
 	IpAddress string
 }
 
+type CumulativeChartsData struct {
+	Xaxis []string
+	Yaxis []int64
+
+	PassCount int64
+	FailCount int64
+}
 
 
 

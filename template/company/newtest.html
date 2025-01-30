@@ -194,6 +194,9 @@
                 <label for="QuestionCount">Number of Questions</label>
                 <input type="number" id="QuestionCount" name="QuestionCount" placeholder="Enter total questions" required>
 
+                <label for="Threshold">Cutoff Percentage (as percentage of total marks, this can be changed later)</label>
+                <input type="number" id="Threshold" name="Threshold" placeholder="Enter minimum percentage of total marks to pass." required>                
+
                 <label for="EndDateTime">End Date Time</label>
                 <input type="datetime-local" id="EndDateTime" name="EndDateTime" placeholder="Enter the date and time to end the test" required>
 
@@ -237,6 +240,7 @@
                 <div class="form-instructions">
                     <label>Instructions: </label>
                     <ul class="form-section">
+                        <li>    The system does not support multiple sections as of now, it renders the test as empty. However it will be updated in further revisions.</li>
                         <li>Make sure to have the following options ticked in the settings of the form :
                             <br>    1) Make this a quiz
                             <br>    2) Release Marks > Later

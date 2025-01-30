@@ -112,7 +112,6 @@
                 .then(response => response.json())
                 .then(data => {
                     console.log(data);
-
                     if (data == null) {
                         dataList.innerHTML = `
                             <div class="no-data">
@@ -156,14 +155,10 @@
                 .then(img => {
                     const imgurl = URL.createObjectURL(img);
                     PPUrl = imgurl;
-                    dataList.innerHTML += cards;
-                    setChart();
                     document.getElementById('ProfileImage').src = PPUrl;
                     hideSpinner();
                 });
             } else {
-                dataList.innerHTML += cards;
-                setChart();
                 document.getElementById('ProfileImage').src = PPUrl;
             }
         }
@@ -180,7 +175,7 @@
                 });
                 document.getElementById('chrtdwnld').href = lnk;
             });
-
+            console.log('chrtdwnld');
         }
 
         let cards = ``;
@@ -257,10 +252,16 @@
                         </div>
                     </div>
                 `;
+                dataList.innerHTML += cards;
+                cards = ``;
+                setTimeout(() => {setChart();}, 1000)
+                // setChart();
             } else {
                 cards += `
                     <div id="details" class="card">
-                        <a class="title no-data" href="/laa/student/jobslist">Apply to Jobs to see Insights</a>
+                        <div class="no-data">
+                            <label><a href="/laa/student/jobslist">Apply to Jobs</a> to see Insights</label>
+                        </div>
                     </div>
                 `;
             }
@@ -281,6 +282,7 @@
                     </div>
                 </div>
             `;
+            dataList.innerHTML += cards;
 
             setPP();
         }
@@ -386,7 +388,9 @@
             }
             else {
                 cards += `
-                    <label class="title no-data">No Applications activity.</a>
+                    <div class="no-data">
+                        <label>No Applications activity.</a>
+                    </div>
                 `;
             }
             cards += ` 
@@ -405,7 +409,9 @@
             }
             else {
                 cards += `
-                    <label class="title no-data">No Interviews activity.</a>
+                    <div class="no-data">
+                        <label>No Interviews activity.</a>
+                    </div>
                 `;
             }
             cards += ` 
@@ -424,7 +430,9 @@
             }
             else {
                 cards += `
-                    <label class="title no-data">No Tests activity.</a>
+                    <div class="no-data">
+                        <label>No Tests activity.</a>
+                    </div>
                 `;
             }
             cards += ` 

@@ -96,6 +96,7 @@ type Test struct {
 	CompanyID    int64
 	FileID       string
 	ResultUrl    pgtype.Text
+	Threshold    int32
 }
 
 type Testresponse struct {

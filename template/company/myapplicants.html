@@ -305,11 +305,9 @@
             <form id="interviewForm" action="/laa/company/scheduleinterview" method="POST" enctype="multipart/form-data" onsubmit="submitForm(event)">
                 <input type="hidden" id="ApplicationId" name="ApplicationId" />
 
-                <label for="Date">Date:</label>
-                <input type="date" id="Date" name="Date" required />
-
-                <label for="Time">Time:</label>
-                <input type="time" id="Time" name="Time" required />
+                <!-- // TODO: change to datetime-local -->
+                <label for="DateTime">Date:</label>
+                <input type="datetime-local" id="DateTime" name="DateTime" required />
 
                 <label for="Type">Type:</label>
                 <select id="Type" name="Type" required>
@@ -388,9 +386,9 @@
         updateHeading();
 
         // Function to fetch applicants from the backend
-        function fetchJobs(status = 'all') {
+        function fetchJobs(status = 'all', appid = 0) {
             showSpinner();
-            const url = `/laa/company/myapplicants?status=${status}&jobid=${jobid}`;
+            const url = `/laa/company/applicantsdata?status=${status}&jobid=${jobid}&appid=${appid}`;
             fetch(url)
                 .then(response => response.json())
                 .then(data => {
@@ -424,10 +422,9 @@
                     let job = searched[i]; 
                     const card = `
                         <div class="job-card">
-                            <div class="job-title" onclick="window.location.href = '/laa/company/studentinfo?appid=${job.ApplicationID}'">${job.StudentName}</div>
+                            <div class="job-title" onclick="window.location.href = '/laa/company/studentinfo?appid=${job.ApplicationID}'">${job.StudentID} : ${job.StudentName} : ${job.RollNumber}</div>
                             <div class="job-details">
-                                <p><strong>${job.JobID}:</strong> ${job.Title}</p>
-                                <p><strong>Roll Number:</strong> ${job.RollNumber}</p>
+                                <p><strong>To: ${job.JobID}:</strong> ${job.Title}</p>
                                 <p><strong>Gender:</strong> ${job.Gender}</p>
                                 <p><strong>Department:</strong> ${job.Department}</p>
                                 <p><strong>Email:</strong> ${job.StudentEmail}</p>
@@ -671,7 +668,7 @@
         }
 
         function submitForm(event) {
-            event.preventDefault(); // Prevent default form submission behavior
+            event.preventDefault();
 
             const form = event.target;
             const formData = new FormData(form);
@@ -681,13 +678,18 @@
                 body: formData,
             })
                 .then(response => {
+                    closeScheduleModal();
                     if (response.ok) {
                         showToast('Interview scheduled successfully.\nThe applicant will be notified via email for the upcoming interview.', 'green');
                         fetchJobs();
-                    } else {
-                        showToast('Failed to schedule interview', 'red');
+                        return null;
                     }
-                    closeScheduleModal(); // Close the modal
+                    return response.json();
+                })
+                .then((data) => {
+                    if (data) {
+                        showToast('Failed to schedule interview. ' + '\n' + data.Message, 'red');
+                    }
                 })
                 .catch(error => {
                     console.error('Error:', error);
