@@ -114,6 +114,8 @@ CREATE TABLE tests (
     file_id TEXT NOT NULL,
     result_url TEXT,
     threshold INTEGER NOT NULL DEFAULT 40,
+    published BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT companies_tests_pkey FOREIGN KEY (company_id) REFERENCES companies(company_id),
     CONSTRAINT jobs_pkey FOREIGN KEY (jod_id) REFERENCES jobs(job_id)
 );

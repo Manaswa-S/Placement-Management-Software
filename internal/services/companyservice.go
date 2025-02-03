@@ -36,6 +36,18 @@ func NewCompanyService(queriespool *sqlc.Queries, gapiService *apicalls.Caller, 
 	}
 }
 
+func (c *CompanyService) DashboardData(ctx *gin.Context, userID int64) (*sqlc.CompanyDashboardDataRow, error) {
+
+	data, err := c.queries.CompanyDashboardData(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+
+
+	return &data, nil
+}
+
 func (c *CompanyService) NewJobPost(ctx *gin.Context, jobdata *dto.NewJobData, userID int64) (error) {	
 	// split skills into []text
 	skills := strings.Split(jobdata.SkillsRequired, ",")
@@ -646,7 +658,7 @@ func (c *CompanyService) ScheduledData(ctx *gin.Context, userID int64, eventtype
 
 
 func (c *CompanyService) CompletedData(ctx *gin.Context, userID int64, eventtype string) (*dto.Completed, *errs.Error) {
-	// switch betweem evemt type
+	// switch betweem event type
 	switch eventtype {
 	case "interviews":
 		uInts, err := c.queries.CompletedInterviewsCompany(ctx, userID)
@@ -713,27 +725,135 @@ func (c *CompanyService) UpdateInterview(ctx *gin.Context, userID int64, data *d
 	return nil
 }
 
-func (c *CompanyService) EditCutOff(ctx *gin.Context, userID int64, newData *dto.UpdateTest) (error) {
+
+
+
+
+func (c *CompanyService) EditCutOff(ctx *gin.Context, userID int64, newData *dto.UpdateTest) (*errs.Error) {
+
+	if newData.Threshold > 99 || newData.Threshold < 1 {
+		return &errs.Error{
+			Type: errs.PreconditionFailed,
+			Message: "Cutoff threshold must be between 1 and 99.",
+		}
+	}
+
+	published, err := c.queries.IsTestPublished(ctx, newData.TestID)
+	if err != nil {
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: err.Error(),
+		}
+	}
+	if published {
+		return &errs.Error{
+			Type: errs.CheckViolation,
+			Message: "This test is already published. Cannot edit now.",
+		}
+	}
 
 	// update the new thresholds in the db
-	err := c.queries.UpdateTest(ctx, sqlc.UpdateTestParams{
+	err = c.queries.UpdateTest(ctx, sqlc.UpdateTestParams{
 		TestID: newData.TestID,
 		UserID: userID,
-		Threshold: int32(newData.Threshold),
+		Threshold: pgtype.Int4{Int32: int32(newData.Threshold), Valid: true},
+		Published: pgtype.Bool{Valid: false},
 	})
 	if err != nil {
-		return err
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: err.Error(),
+		}
 	}
 
 	// call utils to generate the cumulative result draft
-	_, err = utils.GenerateResultDraft(c.queries, c.GAPIService, newData.TestID)
+	_, err = utils.GenerateTestResultDraft(c.queries, c.GAPIService, newData.TestID)
 	if err != nil {
-		return err
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: err.Error(),
+		}
 	}
 
 	// all ok
 	return nil
 }
+
+
+func (c *CompanyService) PublishTestResults(ctx *gin.Context, userID int64, testid string) (*errs.Error) {
+
+	testID, err := strconv.ParseInt(testid, 10, 64)
+	if err != nil {
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: fmt.Sprintf("unable to parse test id : %v", err),
+		}
+	}
+
+	_, err = c.queries.TestAuthorization(ctx, sqlc.TestAuthorizationParams{
+		UserID: userID,
+		TestID: testID,
+	})
+	if err != nil {
+		if err.Error() == errs.NoRowsMatch {
+			return &errs.Error{
+				Type: errs.Unauthorized,
+				Message: "You are not authorized to operate on this Test. This test belongs to a different user. Or the test does not exist.",
+			}
+		}
+	}
+
+	published, err := c.queries.IsTestPublished(ctx, testID)
+	if err != nil {
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: err.Error(),
+		}
+	}
+	if published {
+		return &errs.Error{
+			Type: errs.CheckViolation,
+			Message: "This test is already published. Cannot publish again.",
+		}
+	}
+
+	go func() {
+		err = utils.PublishTestResults(c.queries, c.GAPIService, testID)
+		if err != nil {
+			fmt.Println(err)
+		} else {
+			err := c.queries.UpdateTest(ctx, sqlc.UpdateTestParams{
+				TestID: testID,
+				UserID: userID,
+				Threshold: pgtype.Int4{Valid: false},
+				Published: pgtype.Bool{Bool: true, Valid: true},
+			})
+			if err != nil {
+				fmt.Println(err)
+			}
+			fmt.Printf("Test results for %d have been published.", testID)
+		}
+	} ()
+
+	return nil
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

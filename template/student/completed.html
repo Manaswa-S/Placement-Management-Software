@@ -88,20 +88,22 @@
         `;
     }
     function testTemp(job) {
+        console.log(job);
         return `
             <div class="card">
-                <div class="title">Result ID : ${job.ResultID}</div>
-                <div class="details"><strong>${job.Title} @ ${job.CompanyName}</strong></div>
+                <div class="title"><strong>${job.TestID} @ ${job.TestName}</strong></div>
 
                 <div class="details">
+                    <p><strong>Result ID:</strong> ${job.ResultID}</p>
+                    <p><strong>For:</strong>${job.Title} @ ${job.CompanyName}</p>
                     <p><strong>Start Time:</strong> ${job.StartTime}</p>
                     <p><strong>End Time:</strong> ${job.EndTime}</p>
                 </div>
                 <button class="btn" 
-                    onclick="applyToJob(${job.JobID}, this)" 
-                    ${job.ActiveStatus ? '' : 'disabled'} 
-                    style="background-color: ${job.ActiveStatus ? '#6C63FF' : '#d3d3d3'}; color: ${job.ActiveStatus ? '#fff' : '#000'};">
-                    ${job.ActiveStatus ? 'Result' : 'Result will be available soon!'}
+                    onclick="applyToJob(${job.ResultID}, this)" 
+                    ${job.Published ? '' : 'disabled'} 
+                    style="background-color: ${job.Published ? '#6C63FF' : '#d3d3d3'}; color: ${job.Published ? '#fff' : '#000'};">
+                    ${job.Published ? '#Result' : 'Result will be available soon!'}
                 </button>
             </div>
         `;

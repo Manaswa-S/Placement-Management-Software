@@ -28,15 +28,19 @@ var GAPIService *apicalls.Caller
 
 func main() {
 
+	fmt.Println("Starting the PMS server...")
+
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 
+	// load environment variables
 	errenv := godotenv.Load()
 	if errenv != nil {
 		fmt.Println("Error loading environment variables: ", errenv)
 		return
 	}
 
+	// check for internet connectivity by pinging popular public DNS like 8.8.8.8 or 1.1.1.1
 	err := internetCheck()
 	if err != nil {
 		fmt.Printf("Error checking internet connection : %v \n", err)
@@ -62,18 +66,19 @@ func main() {
 		return
 	}
 
-
+	// a default router, uses additional logger too
 	router := gin.Default()
 	router.Use(middlewares.Logger())
 	routes(router)
 
+	// serve static files, load dynamic templates
 	router.Static("/static", "./template/static")
-
 	router.LoadHTMLFiles("./template/company/newtest.html", "./template/student/takeTest.html")
+
 	go func() {
 		err := router.Run(os.Getenv("PORT"))
 		if err != nil {
-			fmt.Println("failed to run main router: ", err)
+			fmt.Printf("Failed to run main router : %v", err)
 			return
 		}
 	} ()
@@ -93,9 +98,9 @@ func main() {
 
 func internetCheck() (error) {
 
-	fmt.Println("Pinging...")
+	fmt.Println("Checking for internet connectivity...")
 
-	pinger, err := ping.NewPinger("8.8.8.8")
+	pinger, err := ping.NewPinger(config.PingTesterIP)
 	if err != nil {
 		return err
 	}

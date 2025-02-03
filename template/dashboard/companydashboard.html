@@ -9,7 +9,7 @@
 <body>
     <div class="sidebar">
         <h4>PMS Dashboard</h4>
-        <a href="#" class="nav-item active">Dashboard</a>
+        <a href="/laa/company/dashboard" class="nav-item active">Dashboard</a>
         <a href="/laa/company/newjob" class="nav-item">New Job</a>
         <a href="/laa/company/newtest" class="nav-item">New Test</a>
         <a href="/laa/company/joblistings" class="nav-item">Job Listings</a>
@@ -45,6 +45,34 @@
             </div>
         </div>
     </div>
+
+    <script>
+
+        function data() {
+            const url = `/laa/company/dashboarddata`;
+
+            fetch(url)
+            .then((response) => {
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    console.log(response.status);
+                    return;
+                }
+            })
+            .then(data => {
+                console.log(data);
+            })
+            .catch((error) => {
+                console.log(error);
+            });
+        }
+
+
+
+
+        data();
+    </script>
 </body>
 </html>
 

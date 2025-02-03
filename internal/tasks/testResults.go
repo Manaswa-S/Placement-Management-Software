@@ -28,16 +28,18 @@ func (a *AsyncService) TestResultsPoller(ctx context.Context) error {
 
 	for range ticker.C {
 		testID, err := a.Queries.TestResultPoller(ctx)
-		if err != nil && err.Error() != errs.NoRowsMatch {
-			fmt.Println(err)
-			errored += 1
-			if errored > errQuota {
-				// TODO: raise a critical error
-				return err
+		if err != nil {
+			if err.Error() != errs.NoRowsMatch {
+				fmt.Println(err)
+				errored += 1
+				if errored > errQuota {
+					// TODO: raise a critical error
+					return err
+				}
 			}
 		} else {
 			// calls the generate test result draft util
-			_, err := utils.GenerateResultDraft(a.Queries, a.GAPIService, testID)
+			_, err := utils.GenerateTestResultDraft(a.Queries, a.GAPIService, testID)
 			if err != nil {
 				return err
 			}

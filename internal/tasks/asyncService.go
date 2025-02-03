@@ -19,7 +19,7 @@ func NewAsyncService(queries *sqlc.Queries, gapiService *apicalls.Caller) *Async
 	}
 }
 
-// the handler for the async services for tasks like auto-result generation, database cleanups and triggers, etc
+// StartAsyncs is the handler for the async services for tasks like auto-result generation, database cleanups and triggers, etc
 func (a *AsyncService) StartAsyncs() error {
 	// has its own context
 	ctx := context.Background()

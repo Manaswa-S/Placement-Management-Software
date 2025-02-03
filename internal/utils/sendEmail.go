@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-
+// TODO: this is stupid
 type EmailData struct {
 	Name string
 	Email string

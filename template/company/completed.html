@@ -103,12 +103,18 @@
             <div class="card">
                 <div class="title">${job.TestID} : ${job.TestName}</div>
                 <div class="details">
+                    <p><strong>Created On: </strong> ${job.CreatedAt}</p>
                     <p><strong>End Time: </strong> ${job.EndTime}</p>
                     <p><strong>CutOff: </strong> ${job.Threshold} %</p>
                 </div>
-                <button class="btn" onclick="editCutoff(${job.TestID}, this)"> Edit Cutoff </button>
-                <button class="btn" onclick="takeTest(${job.TestID}, this)"> Download Result </button>
-                <button class="btn" onclick="takeTest(${job.TestID}, this)"> Publish </button>
+                ${job.Published ? '' : 
+                    `<button class="btn" onclick="editCutoff(${job.TestID}, this)"> Edit Cutoff </button>`}
+                
+                    <button class="btn" onclick="publishResults(${job.TestID}, this)" 
+                        ${job.Published ? 'disabled' : ''} 
+                        style="background-color: ${job.Published ? '#d3d3d3' : '#6C63FF'}; color: ${job.Published ? '#000' : '#fff'};"> 
+                        ${job.Published ? 'Published' : 'Publish' }</button>
+                <button class="btn" onclick="takeTest(${job.TestID}, this)"> #Download Result </button>
 
             </div>
         `;
@@ -188,7 +194,7 @@
         }
     }
 
-    function showModal(ApplicationId) {
+    function showModal() {
         document.getElementById('overlayDiv').style.display = 'block';
         document.getElementById('modalDiv').style.display = 'block';
     }
@@ -258,18 +264,45 @@
         })
         .then((response) => {
             hideSpinner();
-            if (!response.ok) {
-                const msg = response.json().Message;
-                showToast('Failed to updated Test : ' + msg, 'red');
-                return
+            if (response.ok) {
+                showToast('Test Updated Successfully. An email with the new result draft has been sent.', 'green');
+                fetchData();
+            } else {
+                response.json().then((msg) => {
+                    alert(msg.Message);
+                    showToast('Failed to updated test.', 'red');
+                });
             } 
-            showToast('Test Updated Successfully. An email with the new result draft has been sent.', 'green');
-            fetchData();
         })
         .catch((error) => {
             console.log(error);
         });
     }
+
+
+    function publishResults(testID) {
+        if (!confirm('Publish results ? This will send the students their results and cannot be undone.')) {
+            return;
+        }
+        const url = `/laa/company/publishresults?testid=${testID}`;
+
+        fetch((url))
+        .then((response) => {
+            if (response.ok) {
+                confirm('The process has been started. The result will be out shortly.');
+            } else {
+                response.json().then(error => {
+                    alert(error.Message);
+                });
+            }
+        })
+        .catch((error) => {
+            console.error(error);
+        });
+    }
+
+
+
 
 
 

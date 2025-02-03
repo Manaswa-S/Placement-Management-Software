@@ -31,6 +31,32 @@ FROM users
 WHERE users.user_id = $1;
 
 
+-- name: CompanyDashboardData :one
+WITH company AS (
+    SELECT company_id FROM companies WHERE user_id = $1
+),
+jc AS (
+    SELECT COUNT(jobs.job_id) AS jobs_count
+    FROM jobs
+    WHERE jobs.company_id = (SELECT company_id FROM company)
+),
+ac AS (
+    SELECT COUNT(applications.application_id) AS applications_count
+    FROM applications
+    JOIN jobs ON applications.job_id = jobs.job_id
+    WHERE jobs.company_id = (SELECT company_id FROM company)
+)
+SELECT * 
+FROM jc
+CROSS JOIN ac;
+
+
+
+
+
+
+
+
 -- >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 -- Company queries 
 
@@ -391,9 +417,14 @@ ORDER BY tests.end_time;
 
 -- name: CompletedTestsStudent :many
 SELECT 
+    tests.test_id,
+    tests.test_name,
+    tests.published,
+
     testresults.result_id,
     TO_CHAR(testresults.start_time, 'HH12:MI AM DD-MM-YYYY') AS start_time,
     TO_CHAR(testresults.end_time, 'HH12:MI AM DD-MM-YYYY') AS end_time,
+
     companies.company_name,
     jobs.title
 FROM testresults
@@ -426,7 +457,9 @@ SELECT
     tests.test_id,
     tests.test_name,
     TO_CHAR(tests.end_time, 'HH12:MI AM DD-MM-YYYY') AS end_time,
-    tests.threshold
+    tests.threshold,
+    tests.published,
+    TO_CHAR(tests.created_at, 'HH12:MI AM DD-MM-YYYY') AS created_at
 FROM tests
 WHERE tests.end_time < NOW()
 AND tests.company_id = (SELECT company_id FROM companies WHERE companies.user_id = $1);
@@ -623,10 +656,17 @@ SET
 WHERE user_id = $2;
 
 
+-- name: IsTestPublished :one
+SELECT 
+    tests.published
+FROM tests
+WHERE tests.test_id = $1;
+
 -- name: UpdateTest :exec
 UPDATE tests 
 SET 
-    threshold = $3
+    threshold = COALESCE(sqlc.narg('threshold'), threshold),
+    published = COALESCE(sqlc.narg('published'), published)
 WHERE tests.test_id = $1
 AND tests.company_id = (SELECT companies.company_id FROM companies WHERE companies.user_id = $2);
 
@@ -652,17 +692,28 @@ WHERE tests.end_time < NOW()
 AND tests.result_url IS NULL
 LIMIT 1;
 
+-- name: TestAuthorization :one
+SELECT 
+    tests.test_id
+FROM tests
+WHERE tests.test_id = $1
+AND tests.company_id = (SELECT company_id FROM companies WHERE companies.user_id = $2)
+AND tests.end_time < NOW();
+
 -- name: TestData :one
 SELECT 
     tests.file_id,
     tests.test_id,
     tests.test_name,
+    tests.q_count,
     TO_CHAR(tests.end_time, 'HH12:MI AM DD-MM-YYYY') AS end_time,
     tests.threshold,
+    jobs.title,
     companies.company_name,
     companies.representative_email
 FROM tests
 JOIN companies ON tests.company_id = companies.company_id
+JOIN jobs ON tests.job_id = jobs.job_id
 WHERE tests.test_id = $1;
 
 -- name: ClearAnswersTable :exec
@@ -671,6 +722,12 @@ DELETE FROM temp_correct_answers;
 -- name: InsertAnswers :exec
 INSERT INTO temp_correct_answers (question_id, correct_answer, points)
 VALUES ($1, $2, $3);
+
+-- name: UpdateTestResultURLUnprotected :exec
+UPDATE tests
+SET 
+    result_url = $2
+WHERE test_id = $1;
 
 -- name: EvaluateTestResult :one
 WITH tr AS (
@@ -730,6 +787,37 @@ SELECT
 FROM testresults
 WHERE testresults.test_id = $1;
 
+-- name: StudentTestResult :many
+WITH tr AS (
+    SELECT 
+        result_id,
+        SUM(time_taken) AS total_time_taken,
+        COUNT(result_id) AS questions_attempted,
+        COUNT(CASE WHEN points > 0 THEN 1 ELSE NULL END) AS correct_response
+    FROM testresponses
+    GROUP BY result_id
+)
+SELECT 
+    testresults.result_id,
+    TO_CHAR(testresults.start_time, 'HH12:MI:SS AM DD-MM-YYYY') AS start_time,
+    TO_CHAR(testresults.end_time, 'HH12:MI:SS AM DD-MM-YYYY') AS end_time,
+    testresults.score,
+
+    students.student_id,
+    students.student_name,
+    students.roll_number,
+    students.student_email,
+
+    tr.total_time_taken,
+    tr.questions_attempted,
+    tr.correct_response,
+
+    users.user_uuid
+FROM testresults
+JOIN students ON testresults.user_id = students.user_id
+JOIN users ON testresults.user_id = users.user_id
+JOIN tr ON testresults.result_id = tr.result_id
+WHERE testresults.test_id = $1;
 
 
 

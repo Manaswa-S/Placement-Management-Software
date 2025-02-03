@@ -97,6 +97,8 @@ type Test struct {
 	FileID       string
 	ResultUrl    pgtype.Text
 	Threshold    int32
+	Published    bool
+	CreatedAt    pgtype.Timestamptz
 }
 
 type Testresponse struct {

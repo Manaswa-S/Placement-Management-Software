@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/go-echarts/go-echarts/v2/charts"
+	"github.com/go-echarts/go-echarts/v2/opts"
 	sqlc "go.mod/internal/sqlc/generate"
 	"google.golang.org/api/forms/v1"
 )
@@ -201,7 +202,13 @@ type CumulativeChartsData struct {
 	FailCount int64
 }
 
+type IndividualChartsData struct {
+	FunnelDimensions []string
+	FunnelValues []int64
 
+	RadarNames []*opts.Indicator
+	RadarValues []float32
+}
 
 
 

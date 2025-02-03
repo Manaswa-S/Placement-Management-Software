@@ -214,6 +214,38 @@ func (q *Queries) CloseJob(ctx context.Context, arg CloseJobParams) error {
 	return err
 }
 
+const companyDashboardData = `-- name: CompanyDashboardData :one
+WITH company AS (
+    SELECT company_id FROM companies WHERE user_id = $1
+),
+jc AS (
+    SELECT COUNT(jobs.job_id) AS jobs_count
+    FROM jobs
+    WHERE jobs.company_id = (SELECT company_id FROM company)
+),
+ac AS (
+    SELECT COUNT(applications.application_id) AS applications_count
+    FROM applications
+    JOIN jobs ON applications.job_id = jobs.job_id
+    WHERE jobs.company_id = (SELECT company_id FROM company)
+)
+SELECT jobs_count, applications_count 
+FROM jc
+CROSS JOIN ac
+`
+
+type CompanyDashboardDataRow struct {
+	JobsCount         int64
+	ApplicationsCount int64
+}
+
+func (q *Queries) CompanyDashboardData(ctx context.Context, userID int64) (CompanyDashboardDataRow, error) {
+	row := q.db.QueryRow(ctx, companyDashboardData, userID)
+	var i CompanyDashboardDataRow
+	err := row.Scan(&i.JobsCount, &i.ApplicationsCount)
+	return i, err
+}
+
 const completedInterviewsCompany = `-- name: CompletedInterviewsCompany :many
 SELECT 
     students.student_name,
@@ -322,7 +354,9 @@ SELECT
     tests.test_id,
     tests.test_name,
     TO_CHAR(tests.end_time, 'HH12:MI AM DD-MM-YYYY') AS end_time,
-    tests.threshold
+    tests.threshold,
+    tests.published,
+    TO_CHAR(tests.created_at, 'HH12:MI AM DD-MM-YYYY') AS created_at
 FROM tests
 WHERE tests.end_time < NOW()
 AND tests.company_id = (SELECT company_id FROM companies WHERE companies.user_id = $1)
@@ -333,6 +367,8 @@ type CompletedTestsCompanyRow struct {
 	TestName  string
 	EndTime   string
 	Threshold int32
+	Published bool
+	CreatedAt string
 }
 
 func (q *Queries) CompletedTestsCompany(ctx context.Context, userID int64) ([]CompletedTestsCompanyRow, error) {
@@ -349,6 +385,8 @@ func (q *Queries) CompletedTestsCompany(ctx context.Context, userID int64) ([]Co
 			&i.TestName,
 			&i.EndTime,
 			&i.Threshold,
+			&i.Published,
+			&i.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -362,9 +400,14 @@ func (q *Queries) CompletedTestsCompany(ctx context.Context, userID int64) ([]Co
 
 const completedTestsStudent = `-- name: CompletedTestsStudent :many
 SELECT 
+    tests.test_id,
+    tests.test_name,
+    tests.published,
+
     testresults.result_id,
     TO_CHAR(testresults.start_time, 'HH12:MI AM DD-MM-YYYY') AS start_time,
     TO_CHAR(testresults.end_time, 'HH12:MI AM DD-MM-YYYY') AS end_time,
+
     companies.company_name,
     jobs.title
 FROM testresults
@@ -377,6 +420,9 @@ ORDER BY testresults.result_id
 `
 
 type CompletedTestsStudentRow struct {
+	TestID      int64
+	TestName    string
+	Published   bool
 	ResultID    int64
 	StartTime   string
 	EndTime     string
@@ -394,6 +440,9 @@ func (q *Queries) CompletedTestsStudent(ctx context.Context, userID int64) ([]Co
 	for rows.Next() {
 		var i CompletedTestsStudentRow
 		if err := rows.Scan(
+			&i.TestID,
+			&i.TestName,
+			&i.Published,
 			&i.ResultID,
 			&i.StartTime,
 			&i.EndTime,
@@ -411,17 +460,6 @@ func (q *Queries) CompletedTestsStudent(ctx context.Context, userID int64) ([]Co
 }
 
 const cumulativeResultData = `-- name: CumulativeResultData :many
-
-
-
-
-
-
-
-
-
-
-
 WITH tr AS (
     SELECT 
         result_id,
@@ -457,8 +495,6 @@ type CumulativeResultDataRow struct {
 	QuestionsAttempted int64
 }
 
-// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-// Admin Functions --------------------------------
 func (q *Queries) CumulativeResultData(ctx context.Context, testID int64) ([]CumulativeResultDataRow, error) {
 	rows, err := q.db.Query(ctx, cumulativeResultData, testID)
 	if err != nil {
@@ -1387,7 +1423,24 @@ func (q *Queries) IsTestGiven(ctx context.Context, arg IsTestGivenParams) (IsTes
 	return i, err
 }
 
+const isTestPublished = `-- name: IsTestPublished :one
+SELECT 
+    tests.published
+FROM tests
+WHERE tests.test_id = $1
+`
+
+func (q *Queries) IsTestPublished(ctx context.Context, testID int64) (bool, error) {
+	row := q.db.QueryRow(ctx, isTestPublished, testID)
+	var published bool
+	err := row.Scan(&published)
+	return published, err
+}
+
 const listToVerifyStudent = `-- name: ListToVerifyStudent :many
+
+
+
 SELECT 
     users.user_id,
     users.email,
@@ -1406,6 +1459,8 @@ type ListToVerifyStudentRow struct {
 	Confirmed bool
 }
 
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// Admin Functions --------------------------------
 func (q *Queries) ListToVerifyStudent(ctx context.Context) ([]ListToVerifyStudentRow, error) {
 	rows, err := q.db.Query(ctx, listToVerifyStudent)
 	if err != nil {
@@ -1851,6 +1906,87 @@ func (q *Queries) StudentProfileForCompany(ctx context.Context, arg StudentProfi
 	return i, err
 }
 
+const studentTestResult = `-- name: StudentTestResult :many
+WITH tr AS (
+    SELECT 
+        result_id,
+        SUM(time_taken) AS total_time_taken,
+        COUNT(result_id) AS questions_attempted,
+        COUNT(CASE WHEN points > 0 THEN 1 ELSE NULL END) AS correct_response
+    FROM testresponses
+    GROUP BY result_id
+)
+SELECT 
+    testresults.result_id,
+    TO_CHAR(testresults.start_time, 'HH12:MI:SS AM DD-MM-YYYY') AS start_time,
+    TO_CHAR(testresults.end_time, 'HH12:MI:SS AM DD-MM-YYYY') AS end_time,
+    testresults.score,
+
+    students.student_id,
+    students.student_name,
+    students.roll_number,
+    students.student_email,
+
+    tr.total_time_taken,
+    tr.questions_attempted,
+    tr.correct_response,
+
+    users.user_uuid
+FROM testresults
+JOIN students ON testresults.user_id = students.user_id
+JOIN users ON testresults.user_id = users.user_id
+JOIN tr ON testresults.result_id = tr.result_id
+WHERE testresults.test_id = $1
+`
+
+type StudentTestResultRow struct {
+	ResultID           int64
+	StartTime          string
+	EndTime            string
+	Score              pgtype.Int8
+	StudentID          int64
+	StudentName        string
+	RollNumber         string
+	StudentEmail       string
+	TotalTimeTaken     int64
+	QuestionsAttempted int64
+	CorrectResponse    int64
+	UserUuid           pgtype.UUID
+}
+
+func (q *Queries) StudentTestResult(ctx context.Context, testID int64) ([]StudentTestResultRow, error) {
+	rows, err := q.db.Query(ctx, studentTestResult, testID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StudentTestResultRow
+	for rows.Next() {
+		var i StudentTestResultRow
+		if err := rows.Scan(
+			&i.ResultID,
+			&i.StartTime,
+			&i.EndTime,
+			&i.Score,
+			&i.StudentID,
+			&i.StudentName,
+			&i.RollNumber,
+			&i.StudentEmail,
+			&i.TotalTimeTaken,
+			&i.QuestionsAttempted,
+			&i.CorrectResponse,
+			&i.UserUuid,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const studentsOverview = `-- name: StudentsOverview :many
 SELECT 
     students.student_id,
@@ -1969,17 +2105,41 @@ func (q *Queries) TakeTest(ctx context.Context, arg TakeTestParams) (TakeTestRow
 	return i, err
 }
 
+const testAuthorization = `-- name: TestAuthorization :one
+SELECT 
+    tests.test_id
+FROM tests
+WHERE tests.test_id = $1
+AND tests.company_id = (SELECT company_id FROM companies WHERE companies.user_id = $2)
+AND tests.end_time < NOW()
+`
+
+type TestAuthorizationParams struct {
+	TestID int64
+	UserID int64
+}
+
+func (q *Queries) TestAuthorization(ctx context.Context, arg TestAuthorizationParams) (int64, error) {
+	row := q.db.QueryRow(ctx, testAuthorization, arg.TestID, arg.UserID)
+	var test_id int64
+	err := row.Scan(&test_id)
+	return test_id, err
+}
+
 const testData = `-- name: TestData :one
 SELECT 
     tests.file_id,
     tests.test_id,
     tests.test_name,
+    tests.q_count,
     TO_CHAR(tests.end_time, 'HH12:MI AM DD-MM-YYYY') AS end_time,
     tests.threshold,
+    jobs.title,
     companies.company_name,
     companies.representative_email
 FROM tests
 JOIN companies ON tests.company_id = companies.company_id
+JOIN jobs ON tests.job_id = jobs.job_id
 WHERE tests.test_id = $1
 `
 
@@ -1987,8 +2147,10 @@ type TestDataRow struct {
 	FileID              string
 	TestID              int64
 	TestName            string
+	QCount              int64
 	EndTime             string
 	Threshold           int32
+	Title               string
 	CompanyName         string
 	RepresentativeEmail string
 }
@@ -2000,8 +2162,10 @@ func (q *Queries) TestData(ctx context.Context, testID int64) (TestDataRow, erro
 		&i.FileID,
 		&i.TestID,
 		&i.TestName,
+		&i.QCount,
 		&i.EndTime,
 		&i.Threshold,
+		&i.Title,
 		&i.CompanyName,
 		&i.RepresentativeEmail,
 	)
@@ -2482,7 +2646,8 @@ func (q *Queries) UpdateStudentResume(ctx context.Context, arg UpdateStudentResu
 const updateTest = `-- name: UpdateTest :exec
 UPDATE tests 
 SET 
-    threshold = $3
+    threshold = COALESCE($3, threshold),
+    published = COALESCE($4, published)
 WHERE tests.test_id = $1
 AND tests.company_id = (SELECT companies.company_id FROM companies WHERE companies.user_id = $2)
 `
@@ -2490,11 +2655,34 @@ AND tests.company_id = (SELECT companies.company_id FROM companies WHERE compani
 type UpdateTestParams struct {
 	TestID    int64
 	UserID    int64
-	Threshold int32
+	Threshold pgtype.Int4
+	Published pgtype.Bool
 }
 
 func (q *Queries) UpdateTest(ctx context.Context, arg UpdateTestParams) error {
-	_, err := q.db.Exec(ctx, updateTest, arg.TestID, arg.UserID, arg.Threshold)
+	_, err := q.db.Exec(ctx, updateTest,
+		arg.TestID,
+		arg.UserID,
+		arg.Threshold,
+		arg.Published,
+	)
+	return err
+}
+
+const updateTestResultURLUnprotected = `-- name: UpdateTestResultURLUnprotected :exec
+UPDATE tests
+SET 
+    result_url = $2
+WHERE test_id = $1
+`
+
+type UpdateTestResultURLUnprotectedParams struct {
+	TestID    int64
+	ResultUrl pgtype.Text
+}
+
+func (q *Queries) UpdateTestResultURLUnprotected(ctx context.Context, arg UpdateTestResultURLUnprotectedParams) error {
+	_, err := q.db.Exec(ctx, updateTestResultURLUnprotected, arg.TestID, arg.ResultUrl)
 	return err
 }
 

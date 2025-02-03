@@ -24,6 +24,9 @@ func NewCompanyHandler(companyService *services.CompanyService) *CompanyHandler 
 func (h *CompanyHandler) RegisterRoute(companyRoute *gin.RouterGroup) {
 	// get dashboard
 	companyRoute.GET("/dashboard", h.CompanyDashboard)
+	companyRoute.GET("/dashboarddata", h.DashboardData)
+
+
 	// get new job posting form
 	companyRoute.GET("/newjob", h.NewJob)
 	// post new job form
@@ -68,12 +71,14 @@ func (h *CompanyHandler) RegisterRoute(companyRoute *gin.RouterGroup) {
 	companyRoute.GET("/completed", h.CompletedStatic)
 	// get the completed events data
 	companyRoute.GET("/completeddata", h.CompletedData)
-
+	// post the new test cut off
 	companyRoute.POST("/editcutoff", h.EditCutOff)
 
+	// publish individual results
+	companyRoute.GET("/publishresults", h.PublishTestResults)
 
 
-
+	
 
 	// TODO:
 	companyRoute.GET("/studentprofiledata", h.StudentProfileData)
@@ -84,6 +89,31 @@ func (h *CompanyHandler) RegisterRoute(companyRoute *gin.RouterGroup) {
 func (h *CompanyHandler) CompanyDashboard(ctx *gin.Context) {
 	ctx.File("./template/dashboard/companydashboard.html")
 }
+
+func (h *CompanyHandler) DashboardData(ctx *gin.Context) {
+
+	userid, exists := ctx.Get("ID")
+	if !exists {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, &errs.Error{
+			Type: errs.MissingRequiredField,
+			Message: "Missing user ID in request.",
+		})
+		return
+	}
+
+	data, err := h.CompanyService.DashboardData(ctx, userid.(int64))
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, &errs.Error{
+			Type: errs.MissingRequiredField,
+			Message: err.Error(),
+		})
+		fmt.Println(err)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, data)
+}
+
 
 func (h *CompanyHandler) NewJob(ctx *gin.Context) {
 
@@ -520,7 +550,6 @@ func (h *CompanyHandler) CompletedData(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, uData)
 }
 
-
 func (h *CompanyHandler) EditCutOff(ctx *gin.Context) {
 	
 	newData := new(dto.UpdateTest)
@@ -534,18 +563,48 @@ func (h *CompanyHandler) EditCutOff(ctx *gin.Context) {
 		return
 	}
 	// service delegation
-	err = h.CompanyService.EditCutOff(ctx, userid.(int64), newData)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+	errf := h.CompanyService.EditCutOff(ctx, userid.(int64), newData)
+	if errf != nil {
+		if errf.Type != errs.Internal {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"Type": errf.Type,
+				"Message": errf.Message,
+			})
+			return
+		}
 		return
 	}
 	// 200OK
 	ctx.Status(http.StatusOK)
 }
 
+func (h *CompanyHandler) PublishTestResults(ctx *gin.Context) {
 
+	testid := ctx.Query("testid")
+	userid, exists := ctx.Get("ID")
+	if !exists || testid == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"Type": errs.MissingRequiredField,
+			"Message": "Missing user ID or test ID",
+		})
+		return 
+	}
+
+	errf := h.CompanyService.PublishTestResults(ctx, userid.(int64), testid)
+	if errf != nil {
+		if errf.Type != errs.Internal {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"Type": errf.Type,
+				"Message": errf.Message,
+			})
+			return
+		}
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.Status(http.StatusOK)
+}
 
 
 

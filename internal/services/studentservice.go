@@ -233,6 +233,7 @@ func (s *StudentService) TakeTest(ctx *gin.Context, userID int64, testid string,
 				case b.QuestionItem != nil && b.QuestionItem.Image != nil:
 					attr = b.QuestionItem.Image
 				}
+				// TODO: this should ideally be done concurrently, for a real test with even 30 images thats like 45s of buffering for the user
 				fileByte, err := utils.GetFileFromPath(attr.ContentUri , config.TempFileStorage)
 				if err != nil {
 					return nil, &errs.Error{

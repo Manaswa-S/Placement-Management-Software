@@ -29,3 +29,15 @@ var (
 		"image/png": 300000,
 	}
 )
+
+const (
+	PingTesterIP = "8.8.8.8"
+)
+
+const (
+	TestResultTaskQueueBufferCapacity = 100
+	TestResultFailedQueueBufferCapacity = 10
+
+	NoOfTestResultTaskWorkers = 1
+	NoOfTestResultFailedWorkers = 1
+)

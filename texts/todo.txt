@@ -22,6 +22,12 @@ there are alot of endpoints like /company/editcutoff that need to be rate limite
 
 in logger if 'explicit_error' is true, log it as CRITICAL error in a separate area
 
+we'll need to consider using better email delivery options with better security and surity or atleast a fall back strategy
+
+email sending services have rigourous rate limits, so we cannot send out alot of emails at once, maybe switch to the send-on-demand logic
+
+there is very less type safety in the whole codebase, client can send anything and it will accept anything
+
 custom 'alert' ui
 
 need to attach all internal/critical errors to the context so that they can be logged
