@@ -19,12 +19,14 @@ func Authenticator() gin.HandlerFunc {
 		access_token, err := c.Cookie("access_token")
 		if err != nil {
 			c.Redirect(http.StatusSeeOther, "/public/login")
+			c.Abort()
 			return
 		}
 		// parse refresh token string from cookie in the request
 		refresh_token, err := c.Cookie("refresh_token")
 		if err != nil {
 			c.Redirect(http.StatusSeeOther, "/public/login")
+			c.Abort()
 			return
 		}
 
@@ -38,32 +40,35 @@ func Authenticator() gin.HandlerFunc {
 				mapClaims, err := utils.ParseJWT(refresh_token)
 				if err != nil {
 					c.Redirect(http.StatusSeeOther, "/public/login")
+					c.Abort()
 					return
 				}
 				// generate new access token using refresh token claims
 				new_access_token, err := utils.GenerateJWT(dto.Token{
 					Issuer: "loginFunc@PMS",
 					Subject: "access_token",
-					ExpiresAt: time.Now().Add(config.JWTAccessExpiration * time.Minute).Unix(),
+					ExpiresAt: time.Now().Add(config.JWTAccessExpiration * time.Second).Unix(),
 					IssuedAt: time.Now().Unix(),
 					Role: int64(mapClaims["role"].(float64)),
 					ID: int64(mapClaims["id"].(float64)),
 				})
 				if err != nil {
 					c.Redirect(http.StatusSeeOther, "/public/login")
+					c.Abort()
 					return
 				}
 				// generate new refresh token using refresh token claims
 				new_refresh_token, err := utils.GenerateJWT(dto.Token{
 					Issuer: "loginFunc@PMS",
 					Subject: "refresh_token",
-					ExpiresAt: time.Now().Add(config.JWTRefreshExpiration * time.Hour).Unix(),
+					ExpiresAt: time.Now().Add(config.JWTRefreshExpiration * time.Second).Unix(),
 					IssuedAt: time.Now().Unix(),
 					Role: int64(mapClaims["role"].(float64)),
 					ID: int64(mapClaims["id"].(float64)),
 				})
 				if err != nil {
 					c.Redirect(http.StatusSeeOther, "/public/login")
+					c.Abort()
 					return
 				}
 				// set cookies for tokens

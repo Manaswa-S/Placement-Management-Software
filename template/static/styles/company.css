@@ -1,9 +1,70 @@
+
+/* main color of our theme for light mode is : #532ff3 */
+/* main color of our theme for dark mode is : #101110 */
+
+:root {
+    --body-bg-color: linear-gradient(135deg, #5951f5, #abafea);
+    --body-text-color: #333;
+
+    --normal-text-color: #333;
+    --h1-text-color: #532ff3;
+
+    --card-bg-color: #fff;
+    --card-hover-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+    --card-title-text-color: #532ff3;
+    --card-details-text-color: #555;
+
+    --button-bg-color: #532ff3;
+    --button-hover-bg-color: #8E94F2;
+    --button-text-color: #fff;
+
+    --searchbar-bg-color: #fff;
+
+    --nodata-text-color: #555;
+
+    --paging-btn-bg-color: #532ff3;
+
+    --tab-text-color: #fff;
+    --tab-hover-bg-color: #fff;
+    --tab-active-text-color: #532ff3;
+
+}
+  
+[data-theme="dark"] {
+    --body-bg-color: linear-gradient(135deg, #010110, #2c2c5f);
+    --body-text-color: #dbdbdb;
+
+    --normal-text-color: #dbdbdb;
+    --h1-text-color: #dbdbdb;
+
+    --card-bg-color: #8e91b7;
+    --card-hover-shadow: 0 6px 15px rgba(255, 255, 255, 0.393);
+    --card-title-text-color: #000000;
+    --card-details-text-color: #222121;
+
+    --button-bg-color: #3f3f7e;
+    --button-hover-bg-color: #6060bd;
+    --button-text-color: #dbdbdb;
+
+    --searchbar-bg-color: #dbdbdb;
+
+    --nodata-text-color: #dbdbdb;
+
+    --paging-btn-bg-color: #3f3f7e;
+
+    --tab-text-color: #dbdbdb;
+    --tab-hover-bg-color: #3f3f7e;
+    --tab-active-text-color: #dbdbdb;
+
+}
+
+
 body {
     font-family: 'Arial', sans-serif;
     margin: 0;
     padding: 0;
-    background: linear-gradient(135deg, #ece9e6, #ffffff);
-    color: #333;
+    background: var(--body-bg-color);
+    color: var(--body-text-color);
 }
 
 .container {
@@ -39,14 +100,14 @@ body {
 
 h1 {
     text-align: center;
-    color: #6C63FF;
+    color: var(--h1-text-color);
     margin-bottom: 5px;
     margin-top: 5px;
 
 }
 
 .card {
-    background: #fff;
+    background: var(--card-bg-color);
     border: 1px solid #ddd;
     border-radius: 10px;
     padding: 10px 20PX;
@@ -56,7 +117,7 @@ h1 {
 }
 
 .card:hover {
-    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--card-hover-shadow);
 }
 
 .card .upload-section {
@@ -69,7 +130,7 @@ h1 {
 
 .title {
     font-size: 1.2em;
-    color: #6C63FF;
+    color: var(--card-title-text-color);
     margin-bottom: 4px;
 }
 
@@ -83,9 +144,29 @@ h1 {
     display:grid; 
     grid-template-columns: repeat(2, 1fr); 
     font-size: 0.9em;
-    color: #555;
+    font-weight:500;
+    color: var(--card-details-text-color);
     column-gap: 15px;
 }
+
+.profile {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 15px;
+}
+
+.details.profile label {
+    display: flex;
+    gap: 5%;
+    justify-content:space-between;
+    font-size: 16px;
+    padding: 6px 12px;
+    background-color: white;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+}
+
 .details label {
     margin: 3px 0; 
     line-height: 1.4;
@@ -146,8 +227,8 @@ h1 {
     margin-bottom: 1px;
 
 
-    background: #6C63FF;
-    color: #fff;
+    background: var(--button-bg-color);
+    color: var(--button-text-color);
     font-size: 12px;
     font-weight: bold;
     border: none;
@@ -158,7 +239,7 @@ h1 {
     transition: background-color 0.3s;
 }
 .btn:hover {
-    background: #8E94F2;
+    background: var(--button-hover-bg-color);
 }
 
 
@@ -175,6 +256,7 @@ h1 {
     font-size: 14px;
     border-radius: 5px;
     border: 1px solid #ddd;
+    background-color: var(--searchbar-bg-color);
 }
 .searchbar input {
     margin-left: auto;
@@ -182,6 +264,7 @@ h1 {
     font-size: 14px;
     border: 1px solid #ddd;
     border-radius: 5px;
+    background-color: var(--searchbar-bg-color);
 }
 .no-filters {
     justify-content: flex-end;
@@ -213,7 +296,7 @@ h1 {
     top:50%; 
     text-align: center;
     font-size: 0.8em;
-    color: #555;
+    color: var(--nodata-text-color);
 }
 
 
@@ -243,8 +326,8 @@ h1 {
 .nav-btn {
     visibility:hidden;
     position:relative;
-    background: #6C63FF;
-    color: #fff;
+    background: var(--paging-btn-bg-color);
+    color: var(--button-text-color);
     font-size: 14px;
     padding: 10px 15px;
     border-radius: 5px;
@@ -271,17 +354,19 @@ h1 {
     padding: 10px 20px;
     cursor: pointer;
     border: none;
-    background-color:transparent;
+    background-color: transparent;
     font-size: 16px;
     font-weight: 500;
     transition: background-color 0.3s ease;
+    border-radius: 5px;
+    color: var(--tab-text-color);
 }
 .tab:hover {
-    background-color: #e0e0e0;
+    background-color: var(--tab-hover-bg-color);
 }
 .tab.active {
     border-bottom: 3px solid #6C63FF;
-    color: #6C63FF;
+    color: var(--tab-active-text-color);
 }
 
 

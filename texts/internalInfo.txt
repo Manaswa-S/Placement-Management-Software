@@ -1,15 +1,15 @@
-Roles >>>
-    0 : undefined
-    1 : student
-    2 : company
-    3 : admin
-    4 : superuser
-    5 : public access
 
-application status >>>
-    0 = Pending
-    1 = Applied
-    2 = Interview Scheduled
-    3 = Offer Extended
-    4 = Hired
-    5 = Rejected
+
+Types of explicit errors (ctx.Set(?)) >
+    1. "debug" > for debugging and troubleshooting purposes, lowest priority, ignored
+    2. "info" > operations (good or bad) that need to be reported
+    3. "warn" > unexpected operation in per request basic, request went bad but system keeps running
+    4. "error" > failures, ex. 'failed to send email/notification', runtime files not found , etc 
+    5. "critical" > major failure affecting system functionality
+    6. "fatal" > system failure, shuts down
+
+errors, when directly returned/responded to client should follow the following format > 
+    ctx.JSON(http.StatusBadRequest, &errs.Error{
+        Type: errs.{ErrorConst},
+        Message: {error message, user readable},
+    })

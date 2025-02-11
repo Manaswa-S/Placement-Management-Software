@@ -9,6 +9,8 @@ const (
 	ObjectExists = "OBJECT_EXISTS"
 	Unauthorized = "UNAUTHORIZED"
 	NotFound = "NOT_FOUND"
+	InvalidFormat = "INVALID_FORMAT"
+	IncompleteForm = "INCOMPLETE_FORM"
 
 	// Postgres error codes
 	UniqueViolation = "23505"
@@ -18,6 +20,7 @@ const (
 )
 
 type Error struct {
-	Type string
-	Message string
+	Type string // error type, used from errs.{Type}
+	Message string // the actual error message
+	ToRespondWith bool // send the error message directly to user if true
 }

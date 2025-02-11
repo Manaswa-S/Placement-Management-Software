@@ -723,7 +723,7 @@
         }
 
         function getFile(applicationId, type) {
-            const url = `/laa/company/getfile?applicationid=${applicationId}&type=${type}`;
+            const url = `/laa/company/getstudentfile?applicationid=${applicationId}&type=${type}`;
 
             fetch(url, { method: 'GET' })
                 .then(response => {

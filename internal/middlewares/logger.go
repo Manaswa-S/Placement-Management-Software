@@ -7,56 +7,34 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"go.mod/internal/dto"
 )
 
-type LoggerFormat struct {
-	StartTime time.Time
-	ClientIP string
-	Method string
-	Path string
-	StatusCode int
-	ErrorMsg string
-	Latency time.Duration
-}
 
-func Logger() gin.HandlerFunc {
-	return func(c *gin.Context) {
 
-		before := LoggerFormat {
-			StartTime: time.Now(),
-			ClientIP: c.ClientIP(),
-			Method: c.Request.Method,
-			Path: c.Request.URL.Path,
+
+func Logger(errorsChan chan *dto.ErrorData) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+
+		startTime := time.Now()
+
+		ctx.Next()
+
+		logData := dto.LoggerData {
+			StartTime: startTime,
+			ClientIP: ctx.ClientIP(),
+			Method: ctx.Request.Method,
+			Path: ctx.Request.URL.Path,
+			StatusCode: ctx.Writer.Status(),
+			InternalError: ctx.Errors.String(),
+			Latency: time.Duration(time.Since(startTime).Microseconds()),
 		}
 
-		c.Next()
+		errorCheck(ctx, errorsChan, &logData)
 
-		statusCode := c.Writer.Status()
-		after := LoggerFormat {
-			StatusCode: statusCode,
-			ErrorMsg: c.Errors.String(),
-			Latency: time.Duration(time.Since(before.StartTime).Microseconds()),
-		}
-
-		var explicit_err any
-		experr, exists := c.Get("error")
-		if exists {
-			explicit_err = experr
-		} else {
-			explicit_err = "nil"
-		}
-
-		logData := map[string]interface{}{
-			"client_ip": before.ClientIP,
-			"method":    before.Method,
-			"path":      before.Path,
-			"status":    after.StatusCode,
-			"internal_error":     after.ErrorMsg,
-			"explicit_error":     explicit_err.(string),
-			"latency":   after.Latency.String(),
-		}
 		jsonLog, _ := json.Marshal(logData)
-		
+
+		// TODO: dont onen and close the file every time 
 		f, err := os.OpenFile("./texts/logger.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			fmt.Println("error opening logger file: ", err.Error())
@@ -71,3 +49,41 @@ func Logger() gin.HandlerFunc {
 		}
 	}
 }
+
+
+func errorCheck(ctx *gin.Context, errorsChan chan *dto.ErrorData, logData *dto.LoggerData) {
+
+	errData := new(dto.ErrorData)
+	var erred bool
+
+	if debugErr, exists := ctx.Get("debug"); exists {
+		errData.Debug = fmt.Sprintf("%s", debugErr)
+		erred = true
+	} 
+	if infoErr, exists := ctx.Get("info"); exists {
+		errData.Info = fmt.Sprintf("%s", infoErr)
+		erred = true
+	}
+	if warnErr, exists := ctx.Get("warn"); exists {
+		errData.Warn = fmt.Sprintf("%s", warnErr)
+		erred = true
+	}
+	if errorErr, exists := ctx.Get("error"); exists {
+		errData.Error = fmt.Sprintf("%s", errorErr)
+		erred = true
+	}
+	if criticalErr, exists := ctx.Get("critical"); exists {
+		errData.Critical = fmt.Sprintf("%s", criticalErr)
+		erred = true
+	}
+	if fatalErr, exists := ctx.Get("fatal"); exists {
+		errData.Fatal = fmt.Sprintf("%s", fatalErr)
+		erred = true
+	}
+	if erred {
+		errData.LogData = logData
+		errorsChan <- errData
+		// TODO: have another logging file for explicit errors
+	}
+} 
+

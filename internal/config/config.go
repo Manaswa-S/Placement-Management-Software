@@ -1,10 +1,12 @@
 package config
 
+import "go.mod/internal/config/filepaths"
+
 // unit // conversion
 
 const (
-	JWTAccessExpiration = 60 // mins // reduce later 
-	JWTRefreshExpiration = 168 // hours // 7 days 
+	JWTAccessExpiration = 3600 // seconds //  
+	JWTRefreshExpiration = 604800 // seconds // 7 days // 604800 seconds
 )
 
 const (
@@ -41,3 +43,19 @@ const (
 	NoOfTestResultTaskWorkers = 1
 	NoOfTestResultFailedWorkers = 1
 )
+
+const (
+	// 0 : infinite blocking
+	// x : waits for x milliseconds to return
+	NotificationsXReadBlock = 1 
+	// number of notifications to read in a batch
+	NotificationsXReadCount = 10 
+)
+
+
+
+var (
+	Paths = filepaths.LoadFilePaths()
+)
+
+

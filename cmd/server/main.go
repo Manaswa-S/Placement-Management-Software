@@ -2,19 +2,26 @@ package main
 
 import (
 	"context"
+	"errors"
+	"flag"
 	"fmt"
+	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	firebase "firebase.google.com/go/v4"
 	"github.com/gin-gonic/gin"
 	"github.com/go-ping/ping"
 	"github.com/joho/godotenv"
 	"go.mod/internal/apicalls"
 	"go.mod/internal/config"
+	"go.mod/internal/dto"
 	"go.mod/internal/handlers"
 	"go.mod/internal/middlewares"
+	"go.mod/internal/notify"
 	"go.mod/internal/services"
 	"go.mod/internal/tasks"
 	"go.mod/internal/utils"
@@ -25,13 +32,18 @@ import (
 
 var GAPIService *apicalls.Caller
 
-
 func main() {
+
+	skipTests := flag.Bool("skip-tests", false, "Skip time-consuming startup tests like connectivity checks.")
+	flag.Parse()
 
 	fmt.Println("Starting the PMS server...")
 
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+
+	errorsChan := make(chan *dto.ErrorData, 50)
+
 
 	// load environment variables
 	errenv := godotenv.Load()
@@ -40,11 +52,20 @@ func main() {
 		return
 	}
 
-	// check for internet connectivity by pinging popular public DNS like 8.8.8.8 or 1.1.1.1
-	err := internetCheck()
+	err := ErrorHandler(errorsChan)
 	if err != nil {
-		fmt.Printf("Error checking internet connection : %v \n", err)
-		return
+		fmt.Println(err)
+	}
+
+
+	// skips time-consuming startup tests is flag passed
+	if !*skipTests {
+		// check for internet connectivity by pinging popular public DNS like 8.8.8.8 or 1.1.1.1
+		err := internetCheck()
+		if err != nil {
+			fmt.Printf("Error checking internet connection : %v \n", err)
+			return
+		}
 	}
 
 	// initialize the database, cache connections 
@@ -65,35 +86,44 @@ func main() {
 		fmt.Println(err)
 		return
 	}
+	// initialize the main router
+	err = routerInit(errorsChan)
+	if err != nil {
+		fmt.Printf("Failed to initialize router : %v", err)
+		return 
+	}
+
+	<-signals
+
+	fmt.Println("\nReceived shutdown signal ...")
+	// TODO: perform additional cleanup (if needed), like stopping background tasks
+	config.Close()
+	// Finally, exit the program
+	fmt.Println("Shutdown complete.")
+}
+
+func routerInit(errorsChan chan *dto.ErrorData) error {
 
 	// a default router, uses additional logger too
 	router := gin.Default()
-	router.Use(middlewares.Logger())
+	router.Use(middlewares.Logger(errorsChan))
 	routes(router)
 
 	// serve static files, load dynamic templates
 	router.Static("/static", "./template/static")
-	router.LoadHTMLFiles("./template/company/newtest.html", "./template/student/takeTest.html")
+	router.Static("/scripts", "./template/scripts")
 
+	router.LoadHTMLFiles("./template/company/newtest.html", "./template/student/takeTest.html")
+	
 	go func() {
 		err := router.Run(os.Getenv("PORT"))
 		if err != nil {
-			fmt.Printf("Failed to run main router : %v", err)
+			fmt.Printf("Failed to run main router: %v\n", err)
 			return
 		}
 	} ()
 
-	<-signals
-
-
-	fmt.Println("\nReceived shutdown signal ...")
-
-	// TODO: perform additional cleanup (if needed), like stopping background tasks
-
-	config.Close()
-
-	// Finally, exit the program
-	fmt.Println("Shutdown complete.")
+	return nil
 }
 
 func internetCheck() (error) {
@@ -152,41 +182,38 @@ func routes(router *gin.Engine) {
 	queries := config.QueriesPool
 	redis := config.RedisClient
 
-// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	notifyService := notify.NewNotifyService(redis, queries)
+
 	openService := services.NewOpenService(queries)
 	openHandler := handlers.NewOpenHandler(openService)
 	openRoute := womid.Group("/open")
 	openHandler.RegisterRoute(openRoute)
 
-// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 	publicService := services.NewPublicService(queries, redis)
 	publicHandler := handlers.NewPublicHandler(publicService)
 	publicRoute := womid.Group("/public")
 	publicHandler.RegisterRoute(publicRoute)
 
-// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-	adminService := services.NewAdminService(queries, GAPIService)
+	adminService := services.NewAdminService(queries, GAPIService, notifyService)
 	adminHandler := handlers.NewAdminHandler(adminService)
 	adminRoute := wmid.Group("/admin")
 	adminHandler.RegisterRoute(adminRoute)
 
-// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-	companyService := services.NewCompanyService(queries, GAPIService, redis)
+	companyService := services.NewCompanyService(queries, GAPIService, redis, notifyService)
 	companyHandler := handlers.NewCompanyHandler(companyService)
 	companyRoute := wmid.Group("/company")
 	companyHandler.RegisterRoute(companyRoute)
 
-// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-	studentService := services.NewStudentService(queries, redis, GAPIService)
+	studentService := services.NewStudentService(queries, redis, GAPIService, notifyService)
 	studentHandler := handlers.NewStudentHandler(studentService)
 	studentRoute := wmid.Group("/student")
 	studentHandler.RegisterRoute(studentRoute)
 
-// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 	superuserService := services.NewSuperService(queries)
 	superuserHandler := handlers.NewSuperUserHandler(superuserService)
 	superuserRoute := wmid.Group("/superuser")
 	superuserHandler.RegisterRoute(superuserRoute)
+
 }
 
 func GoogleAPIService() (error) {
@@ -195,16 +222,32 @@ func GoogleAPIService() (error) {
 	if serviceAccountKey == "" {
 		return fmt.Errorf("path to service account key not found in environment variables")
 	}
-	driveService, err := drive.NewService(context.Background(), option.WithCredentialsFile(serviceAccountKey))
+
+	opts := option.WithCredentialsFile(serviceAccountKey)
+
+	driveService, err := drive.NewService(context.Background(), opts)
 	if err != nil {
-		return fmt.Errorf("error creating new drive service : %s", err)
+		return fmt.Errorf("error creating new drive service : %v", err)
 	}
-	formsService, err := forms.NewService(context.Background(), option.WithCredentialsFile(serviceAccountKey))
+	formsService, err := forms.NewService(context.Background(), opts)
 	if err != nil {
-		return fmt.Errorf("error creating new forms service : %s", err)
+		return fmt.Errorf("error creating new forms service : %v", err)
 	}
 
-	GAPIService = apicalls.NewCaller(driveService, formsService)
+
+
+	// this is unused as of now
+	firebaseApp, err := firebase.NewApp(context.Background(), nil, opts)
+	if err != nil {
+		return fmt.Errorf("error creating new firebase app : %s", err)
+	}
+	fireMsgClient, err := firebaseApp.Messaging(context.Background())
+	if err != nil {
+		return fmt.Errorf("error creating new firebase messaging client : %s", err)
+	}
+
+
+	GAPIService = apicalls.NewCaller(driveService, formsService, firebaseApp, fireMsgClient)
 
 	fmt.Println("Getting New DrivePageToken to start with ...")
 	_, err  = GAPIService.DriveChanges()
@@ -225,4 +268,88 @@ func AsyncsInit() error {
 	}
 
 	return nil
+}
+
+func ErrorHandler(errorsChan chan *dto.ErrorData) error {
+
+	telegramBotToken, exists := os.LookupEnv("TelegramBotToken")
+	if !exists || telegramBotToken == "" {
+		return errors.New("TelegramBotToken not found or is empty string")
+	}
+
+	telegramChatID, exists := os.LookupEnv("TelegramChatID")
+	if !exists || telegramChatID == "" {
+		return errors.New("TelegramChatID not found or is empty string")
+	} 
+
+	go func() {
+		for report := range errorsChan {
+			// TODO: add the error handler logic where we send notifications to admin
+
+			err := TelegramBot(report, telegramBotToken, telegramChatID)
+			if err != nil {
+				fmt.Println(err)
+			}
+		}
+	} ()
+
+	return nil
+}
+
+func TelegramBot(report *dto.ErrorData, bot_token string, chat_id string) error {
+
+	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", bot_token)
+
+	textToSend := ""
+
+	if report.Debug != "" {
+		textToSend += fmt.Sprintf("<b>🔵 Debug:</b> %s\n", report.Debug)
+	}
+	if report.Info != "" {
+		textToSend += fmt.Sprintf("<b>ℹ️ Info:</b> %s\n", report.Info)
+	}
+	if report.Warn != "" {
+		textToSend += fmt.Sprintf("<b>⚠️ Warn:</b> %s\n", report.Warn)
+	}
+	if report.Error != "" {
+		textToSend += fmt.Sprintf("<b>🔴 Error:</b> %s\n", report.Error)
+	}
+	if report.Critical != "" {
+		textToSend += fmt.Sprintf("<b>🔥 Critical:</b> %s\n", report.Critical)
+	}
+	if report.Fatal != "" {
+		textToSend += fmt.Sprintf("<b>☠️ Fatal:</b> %s\n", report.Fatal)
+	}
+
+
+	textToSend += fmt.Sprintf(
+		"\n" +
+		"<b>Start Time:</b> %s\n" + 
+		"<b>Client IP:</b> %s\n" +
+		"<b>Method:</b> %s\n" + 
+		"<b>Path:</b> %s\n" + 
+		"<b>Status Code:</b> %d\n" +
+		"<b>Internal Error:</b> %s\n" + 
+		"<b>Latency:</b> %s\n", 
+
+		report.LogData.StartTime.Format("2006-01-02 15:04:05"), report.LogData.ClientIP, report.LogData.Method, report.LogData.Path,
+		report.LogData.StatusCode, report.LogData.InternalError, report.LogData.Latency,
+	)
+
+	data := url.Values{}
+	data.Set("chat_id", chat_id)
+	data.Set("text", textToSend)
+	data.Set("parse_mode", "HTML")
+
+
+	var err error
+	for i := 0; i < 3; i++ {
+		_, err = http.PostForm(apiURL, data)
+		if err == nil {
+			return nil
+		}
+		time.Sleep(2 * time.Second)
+	}
+
+	return err
 }

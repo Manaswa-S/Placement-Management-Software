@@ -3,6 +3,8 @@ package apicalls
 import (
 	"fmt"
 
+	firebase "firebase.google.com/go/v4"
+	"firebase.google.com/go/v4/messaging"
 	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/forms/v1"
 )
@@ -10,12 +12,18 @@ import (
 type Caller struct {
 	DriveService *drive.Service
 	FormsService *forms.Service
+
+	FirebaseApp *firebase.App
+	FireMsg *messaging.Client
 }
 
-func NewCaller(driveService *drive.Service, formsService *forms.Service) *Caller {
+func NewCaller(driveService *drive.Service, formsService *forms.Service, firebaseApp *firebase.App, msgClient *messaging.Client) *Caller {
 	return &Caller{
 		DriveService: driveService,
 		FormsService: formsService,
+
+		FirebaseApp: firebaseApp,
+		FireMsg: msgClient,
 	}
 }
 
@@ -57,4 +65,13 @@ func (p *Caller) GetCompleteForm(formID string) (*forms.Form, error) {
 	}
 
 	return formData, nil
+}
+
+func (p *Caller) SendFireNotification() error {
+
+	// TODO:
+
+
+
+	return nil
 }

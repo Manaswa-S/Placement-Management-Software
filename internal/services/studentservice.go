@@ -21,6 +21,7 @@ import (
 	errs "go.mod/internal/const"
 	"go.mod/internal/dto"
 	gocharts "go.mod/internal/go-charts"
+	"go.mod/internal/notify"
 	sqlc "go.mod/internal/sqlc/generate"
 	"go.mod/internal/utils"
 	"google.golang.org/api/forms/v1"
@@ -30,17 +31,27 @@ type StudentService struct {
 	queries *sqlc.Queries
 	RedisClient *redis.Client
 	ApiCalls *apicalls.Caller
+	Notify *notify.Notify
 }
-func NewStudentService(queriespool *sqlc.Queries, redisclient *redis.Client, apicalls *apicalls.Caller) *StudentService {
+func NewStudentService(queriespool *sqlc.Queries, redisclient *redis.Client, apicalls *apicalls.Caller, notifyService *notify.Notify) *StudentService {
 	return &StudentService{
 		queries: queriespool,
 		RedisClient: redisclient,
 		ApiCalls: apicalls,
+		Notify: notifyService,
 	}
 }
 
-func (s *StudentService) StudentFunc() {
-	fmt.Println("student func")
+func (c *StudentService) DashboardData(ctx *gin.Context, userID int64) (*sqlc.StudentDashboardDataRow, error) {
+
+	data, err := c.queries.StudentDashboardData(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+
+
+	return &data, nil
 }
 
 
@@ -502,7 +513,7 @@ func (s *StudentService) Completed(ctx *gin.Context, userID int64, tab string) (
 	}
 }
 
-func (s *StudentService) ProfileData(ctx *gin.Context, userID int64) (*dto.ProfileData, error) {
+func (s *StudentService) ProfileData(ctx *gin.Context, userID int64) (*dto.StudentProfileData, error) {
 	overData, err := s.queries.ApplicationsStatusCounts(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -513,7 +524,7 @@ func (s *StudentService) ProfileData(ctx *gin.Context, userID int64) (*dto.Profi
 		return nil, err
 	}
 
-	data, err := s.queries.ProfileData(ctx, userID)
+	data, err := s.queries.StudentProfileData(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -534,9 +545,10 @@ func (s *StudentService) ProfileData(ctx *gin.Context, userID int64) (*dto.Profi
 	}
 
 	// let us try to send a 'Sankey' type graph
+	// TODO: this should also return an error
 	sankeyChrt := gocharts.SankeyApplications(&overData)
 	
-	return &dto.ProfileData{
+	return &dto.StudentProfileData{
 		OverData: &overData,
 		UsersData: &userData,
 		ProData: &data,
@@ -549,7 +561,7 @@ func (s *StudentService) ProfileData(ctx *gin.Context, userID int64) (*dto.Profi
 
 func (s *StudentService) GetStudentFile(ctx *gin.Context, userID int64, fileType string) (string, *errs.Error) {
 	// get paths to all available files
-	filePaths, err := s.queries.GetAllFilePaths(ctx, userID)
+	filePaths, err := s.queries.GetAllFilePathsStudent(ctx, userID)
 	if err != nil {
 		return "", &errs.Error{
 			Type: errs.Internal,
@@ -578,7 +590,7 @@ func (s *StudentService) GetStudentFile(ctx *gin.Context, userID int64, fileType
 }
 
 func (s *StudentService) UpdateDetails(ctx *gin.Context, userID int64, details *dto.UpdateStudentDetails) (error) {
-
+	// TODO: verify incoming data
 	err := s.queries.UpdateStudentDetails(ctx, sqlc.UpdateStudentDetailsParams{
 		Course: details.Course,
 		Department: details.Department,

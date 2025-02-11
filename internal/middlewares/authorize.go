@@ -14,18 +14,21 @@ func Authorizer() gin.HandlerFunc {
 		role, exists := ctx.Get("role")
 		if !exists {
 			ctx.Redirect(http.StatusSeeOther, "/public/login")
+			ctx.Abort()
 			return
 		}
 		// get full path of the request of context
 		reqPath := ctx.FullPath()
 		if reqPath == "" {
 			ctx.Redirect(http.StatusSeeOther, "/public/login")
+			ctx.Abort()
 			return
 		}
 		// split in array
 		splitPath := strings.Split(reqPath, "/")
 		if len(splitPath) < 3 {
 			ctx.Redirect(http.StatusSeeOther, "/public/login")
+			ctx.Abort()
 			return
 		}
 
@@ -41,10 +44,12 @@ func Authorizer() gin.HandlerFunc {
 		if expectedPath, ok := rolePathMapping[role.(int64)]; ok {
 			if splitPath[2] != expectedPath {
 				ctx.Redirect(http.StatusSeeOther, "/public/login")
+				ctx.Abort()
 				return
 			}
 		} else {
 			ctx.Redirect(http.StatusSeeOther, "/public/login")
+			ctx.Abort()
 			return
 		}
 

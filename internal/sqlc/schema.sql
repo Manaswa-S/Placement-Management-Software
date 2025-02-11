@@ -20,6 +20,11 @@ CREATE TABLE companies (
     representative_name character varying(50) NOT NULL,
     data_url text,
     user_id bigint NOT NULL,
+    address TEXT NOT NULL DEFAULT 'pune'::text,
+    picture_url TEXT,
+    website TEXT,
+    description TEXT,
+    industry CHARACTER VARYING(255) NOT NULL,
     CONSTRAINT companies_pkey PRIMARY KEY (company_id),
     CONSTRAINT uni_comp_name UNIQUE (company_name),
     CONSTRAINT uni_email UNIQUE (email),
@@ -116,8 +121,8 @@ CREATE TABLE tests (
     threshold INTEGER NOT NULL DEFAULT 40,
     published BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT companies_tests_pkey FOREIGN KEY (company_id) REFERENCES companies(company_id),
-    CONSTRAINT jobs_pkey FOREIGN KEY (jod_id) REFERENCES jobs(job_id)
+    CONSTRAINT companies_tests_pkey FOREIGN KEY (company_id) REFERENCES companies(company_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT jobs_pkey FOREIGN KEY (jod_id) REFERENCES jobs(job_id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE testresults(
@@ -153,3 +158,18 @@ CREATE TABLE IF NOT EXISTS temp_correct_answers (
     correct_answer TEXT[],
     points INT
 );
+
+CREATE TABLE notifications
+(
+    notif_id BIGINT NOT NULL DEFAULT nextval('notifications_notif_id_seq'::regclass),
+    user_id BIGINT NOT NULL,
+    title CHARACTER VARYING(255) COLLATE pg_catalog."default",
+    description TEXT COLLATE pg_catalog."default",
+    read_status BOOLEAN NOT NULL DEFAULT false,
+    "timestamp" BIGINT NOT NULL DEFAULT 0,
+    CONSTRAINT notifications_pkey PRIMARY KEY (notif_id),
+    CONSTRAINT notifs_users_fkey FOREIGN KEY (user_id)
+        REFERENCES public.users (user_id) MATCH SIMPLE
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+)

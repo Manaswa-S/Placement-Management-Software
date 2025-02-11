@@ -318,7 +318,7 @@ func (s *PublicService) LoginPost(ctx *gin.Context, loginData UserInputData) (in
 	accesstokenData := dto.Token{
 			Issuer: "loginFunc@PMS",	
 			Subject: "access_token",
-			ExpiresAt: time.Now().Add(config.JWTAccessExpiration * time.Minute).Unix(),
+			ExpiresAt: time.Now().Add(config.JWTAccessExpiration * time.Second).Unix(),
 			IssuedAt: time.Now().Unix(),
 			Role: userData.Role,
 			ID: userData.UserID,
@@ -335,7 +335,7 @@ func (s *PublicService) LoginPost(ctx *gin.Context, loginData UserInputData) (in
 	refreshtokenData := dto.Token{
 		Issuer: "loginFunc@PMS",	
 		Subject: "refresh_token",
-		ExpiresAt: time.Now().Add(config.JWTRefreshExpiration * time.Hour).Unix(),
+		ExpiresAt: time.Now().Add(config.JWTRefreshExpiration * time.Second).Unix(),
 		IssuedAt: time.Now().Unix(),
 		Role: userData.Role,
 		ID: userData.UserID,
@@ -471,15 +471,85 @@ func (s *PublicService) ExtraInfoPostCompany(ctx *gin.Context, claims jwt.MapCla
 			Message: "unable to bind company data. try again",
 		}
 	}
+
+	// we take 2 containers, one stores the file type, the other stores the file
+	mp := []string{"ProfilePic"}
+	savedFiles := map[string]*multipart.FileHeader{}
+	// loop over 'mp' and extract the files from form, check and validate and insert them into 'savedFiles' 
+	for _, t := range mp {
+		// get the file with type t
+		file, err := ctx.FormFile(t)
+		if err != nil {
+			return nil, &errs.Error{
+				Type: errs.Internal,
+				Message: err.Error(),
+			}
+		}
+
+		// get the file size and content-type
+		fileSize := file.Size
+		ext := file.Header.Get("Content-Type")
+		// get the expected size for the content type 
+		expected := config.FileSizeForContentType[ext] 
+		if (expected == 0) {
+			// invalid file content type
+			return nil, &errs.Error{
+				Type: errs.PreconditionFailed,
+				Message: fmt.Sprintf("Invalid %s file type.", t),
+			}
+		} else if (expected < fileSize) {
+			// file size more than expected
+			return nil, &errs.Error{
+				Type: errs.PreconditionFailed,
+				Message: fmt.Sprintf("%s file size exceeds the limit.", t),
+			}
+		}
+		savedFiles[t] = file
+	}
+
+	data.CompanyEmail = claims["email"].(string)
+	// get the user's uuid that is used to store files along with time.Now().Unix()
+	userUUID, err := s.queries.GetUserUUIDFromEmail(ctx, data.CompanyEmail)
+	if err != nil {
+		return nil, &errs.Error{
+			Type: errs.Internal,
+			Message: err.Error(),
+		}
+	}
+	strUUID := hex.EncodeToString(userUUID.Bytes[:])
+
+	// take another container to store the file's saved path in external storage
+	savedPaths := map[string]string{}
+	// loop over 'mp' , get the particular file from 'savedFiles', construct path url and save it
+	// add the path to 'savedPaths'
+	for _,t := range mp {
+		// save the file
+		file := savedFiles[t]
+		fDir := fmt.Sprintf("%sStorageDir", t)
+		fileStoragePath := fmt.Sprintf("%s%s&%d&%s%s", os.Getenv(fDir), strUUID, time.Now().Unix(), strings.ToLower(t), filepath.Ext(file.Filename))
+		fileSavePath, err := utils.SaveFile(ctx, fileStoragePath, file)
+		if err != nil {
+			return nil, &errs.Error{
+				Type: errs.Internal,
+				Message: err.Error(),
+			}
+		}	
+		savedPaths[t] = fileSavePath
+	}
+
 	// update db
-	data.RepresentativeEmail = claims["email"].(string)
 	companyData, err := s.queries.ExtraInfoCompany(ctx, sqlc.ExtraInfoCompanyParams{
 		CompanyName: data.CompanyName,
 		RepresentativeEmail: data.RepresentativeEmail,
 		RepresentativeContact: data.RepresentativeContact,
 		RepresentativeName: data.RepresentativeName,
 		DataUrl: pgtype.Text{String: ""},
-		Email: data.RepresentativeEmail,
+		Email: data.CompanyEmail,
+		Address: data.CompanyAddress,
+		PictureUrl: pgtype.Text{String: savedPaths["ProfilePic"], Valid: true},
+		Website: pgtype.Text{String: data.CompanyWebsite, Valid: true},
+		Description: pgtype.Text{String: data.CompanyDescription, Valid: true},
+		Industry: data.IndustryType,
 	})
 	if err != nil {
 		return nil, &errs.Error{

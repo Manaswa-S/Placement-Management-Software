@@ -1,22 +1,28 @@
 package services
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"mime/multipart"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-echarts/go-echarts/v2/charts"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/redis/go-redis/v9"
 	"go.mod/internal/apicalls"
+	"go.mod/internal/config"
 	errs "go.mod/internal/const"
 	"go.mod/internal/dto"
+	gocharts "go.mod/internal/go-charts"
+	"go.mod/internal/notify"
 	sqlc "go.mod/internal/sqlc/generate"
 	"go.mod/internal/utils"
 )
@@ -26,29 +32,32 @@ type CompanyService struct {
 	queries *sqlc.Queries
 	GAPIService *apicalls.Caller
 	RedisClient *redis.Client
+	Notify *notify.Notify
 }
 
-func NewCompanyService(queriespool *sqlc.Queries, gapiService *apicalls.Caller, redisClient *redis.Client) *CompanyService {
+func NewCompanyService(queriespool *sqlc.Queries, gapiService *apicalls.Caller, redisClient *redis.Client, notifyService *notify.Notify) *CompanyService {
 	return &CompanyService{
 		queries: queriespool,
 		GAPIService: gapiService,
 		RedisClient: redisClient,
+		Notify: notifyService,
 	}
 }
 
-func (c *CompanyService) DashboardData(ctx *gin.Context, userID int64) (*sqlc.CompanyDashboardDataRow, error) {
+func (c *CompanyService) DashboardData(ctx *gin.Context, userID int64) (*sqlc.CompanyDashboardDataRow, *errs.Error) {
 
 	data, err := c.queries.CompanyDashboardData(ctx, userID)
 	if err != nil {
-		return nil, err
+		return nil, &errs.Error{
+			Type: errs.Internal,
+			Message: err.Error(),
+		}
 	}
-
-
 
 	return &data, nil
 }
 
-func (c *CompanyService) NewJobPost(ctx *gin.Context, jobdata *dto.NewJobData, userID int64) (error) {	
+func (c *CompanyService) NewJobPost(ctx *gin.Context, jobdata *dto.NewJobData, userID int64) (*errs.Error) {	
 	// split skills into []text
 	skills := strings.Split(jobdata.SkillsRequired, ",")
 	for i, skill := range skills {
@@ -74,13 +83,15 @@ func (c *CompanyService) NewJobPost(ctx *gin.Context, jobdata *dto.NewJobData, u
 			}
 		}
 	}
-	// jobdata.Extras = extras
 
 	extraJson, err := json.Marshal(extras)
 	if err != nil {
-		return errors.New("unable to marshal extras to json")
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: "Failed to marshal extra params : " + err.Error(),
+		}
 	}
-
+	// TODO: also used to update the job, can be a vulnerability
 	if (jobdata.JobId != 0) {
 		err = c.queries.UpdateJob(ctx, sqlc.UpdateJobParams{
 			Location: jobdata.JobLocation,
@@ -95,8 +106,19 @@ func (c *CompanyService) NewJobPost(ctx *gin.Context, jobdata *dto.NewJobData, u
 			UserID: userID,
 		})
 		if err != nil {
-			return err
+			if err.Error() == errs.NoRowsMatch {
+				return &errs.Error{
+					Type: errs.Unauthorized,
+					Message: "You are not allowed to alter this job, or it does not exist.",
+					ToRespondWith: true,
+				}
+			}
+			return &errs.Error{
+				Type: errs.Internal,
+				Message: "Failed to update job listing : " + err.Error(),
+			}
 		}
+
 		return nil
 	}
 
@@ -115,23 +137,32 @@ func (c *CompanyService) NewJobPost(ctx *gin.Context, jobdata *dto.NewJobData, u
 		Description: pgtype.Text{String: jobdata.JobDescription, Valid: true},
 	})
 	if err != nil {
-		return err
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: "Failed to insert new job data : " + err.Error(),
+		}
 	}
 
 	return nil
 }
 
-func (c *CompanyService) ApplicantsData(ctx *gin.Context, userID int64, jobid string, appid string) (*[]sqlc.GetApplicantsRow, error){
+func (c *CompanyService) ApplicantsData(ctx *gin.Context, userID int64, jobid string, appid string) (*[]sqlc.GetApplicantsRow, *errs.Error){
 
 
 	// parse jobid to int64
 	jobID, err := strconv.ParseInt(jobid, 10, 64)
 	if err != nil {
-		return nil, err
+		return nil, &errs.Error{
+			Type: errs.Internal,
+			Message: "Failed to parse job ID string to int : " + err.Error(),
+		}
 	}
 	appID, err := strconv.ParseInt(appid, 10, 64)
 	if err != nil {
-		return nil, err
+		return nil, &errs.Error{
+			Type: errs.Internal,
+			Message: "Failed to parse application ID string to int : " + err.Error(),
+		}
 	}
 	
 	// db call
@@ -141,18 +172,31 @@ func (c *CompanyService) ApplicantsData(ctx *gin.Context, userID int64, jobid st
 		ApplicationID: appID,
 	})
 	if err != nil {
-		return nil, err
+		if err.Error() == errs.NoRowsMatch {
+			return nil, &errs.Error{
+				Type: errs.NotFound,
+				Message: "No applications found for the given user ID, job ID and application ID",
+				ToRespondWith: true,
+			}	
+		}
+		return nil, &errs.Error{
+			Type: errs.Internal,
+			Message: "Failed to parse job ID string to int : " + err.Error(),
+		}
 	}
 
 	// return 
 	return &applicantsData, nil
 }
 
-func (c *CompanyService) GetResumeOrResultFilePath(ctx *gin.Context, userID int64, applicationid string, filetype string) (string, error) {
+func (c *CompanyService) GetResumeOrResultFilePath(ctx *gin.Context, userID int64, applicationid string, filetype string) (string, *errs.Error) {
 	// parse applicationid to int64
 	applicationId, err := strconv.ParseInt(applicationid, 10, 64)
 	if err != nil {
-		return "", fmt.Errorf("invalid application ID '%s': %w", applicationid, err)
+		return "", &errs.Error{
+			Type: errs.InvalidFormat,
+			Message: "Invalid application ID, failed to parse to int : " + err.Error(),
+		}
 	}
 
 	// get both file paths (resume and result)
@@ -161,7 +205,17 @@ func (c *CompanyService) GetResumeOrResultFilePath(ctx *gin.Context, userID int6
 		ApplicationID: applicationId,
 	})
 	if err != nil {
-		return "", fmt.Errorf("failed to fetch file paths for application ID %d: %w", applicationId, err)
+		if err.Error() == errs.NoRowsMatch {
+			return "", &errs.Error{
+				Type: errs.Unauthorized,
+				Message: "The given user ID is not authorized to view the requested file.",
+				ToRespondWith: true,
+			}
+		}
+		return "", &errs.Error{
+			Type: errs.Internal,
+			Message: "Could not get resume and result path : " + err.Error(),
+		}
 	}
 
 	// check what type is requested
@@ -172,40 +226,58 @@ func (c *CompanyService) GetResumeOrResultFilePath(ctx *gin.Context, userID int6
 
     // Check if the file exists
     if _, err := os.Stat(filepath); err != nil {
-        return "", fmt.Errorf("file not found at path '%s': %w", filepath, err)
+        return "", &errs.Error{
+			Type: errs.Internal,
+			Message: "File not found at path : " + filepath + " : " + err.Error(),
+		}
     }
 
 	// by default updates the application status to UnderReview from Applied
-	err = c.queries.ApplicationStatusToAnd(ctx, sqlc.ApplicationStatusToAndParams{
+	_, err = c.queries.ApplicationStatusToAnd(ctx, sqlc.ApplicationStatusToAndParams{
 		Status: "UnderReview",
 		ApplicationID: applicationId,
 		Status_2: "Applied",
 	})
 	if err != nil {
-		return "", fmt.Errorf("failed to update application status for ID %d: %w", applicationId, err)
+		return "", &errs.Error{
+			Type: errs.Internal,
+			Message: "Failed to update application status : " + err.Error(),
+		}
 	}
 
 	// return file path 
 	return filepath, nil
 }
 
-func (c *CompanyService) JobListings(ctx *gin.Context, userID int64) (*[]sqlc.GetJobListingsRow, error){
+func (c *CompanyService) JobListings(ctx *gin.Context, userID int64) (*[]sqlc.GetJobListingsRow, *errs.Error){
 
-	// get the listings data 
 	jobListings, err := c.queries.GetJobListings(ctx, userID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch job listings for user %d: %w", userID, err)
+		if err.Error() == errs.NoRowsMatch {
+			return nil, &errs.Error{
+				Type: errs.Unauthorized,
+				Message: "The given user ID is not authorized to view requested data.",
+				ToRespondWith: true,
+			}
+		}
+		return nil, &errs.Error{
+			Type: errs.Internal,
+			Message: "Failed to get job listings data for company : " + err.Error(),
+		}
 	}
 
 	return &jobListings, nil
 }
 
-func (c *CompanyService) CloseJob(ctx *gin.Context, jobid string, userID int64) (error){
+func (c *CompanyService) CloseJob(ctx *gin.Context, jobid string, userID int64) (*errs.Error){
 
 	// parse jobid from string to int64
 	jobID, err := strconv.ParseInt(jobid, 10, 64)
 	if err != nil {
-		return fmt.Errorf("invalid job ID: %v", err)
+		return &errs.Error{
+			Type: errs.InvalidFormat,
+			Message: "Invalid job ID, failed to parse to int : " + err.Error(),
+		}
 	}
 
 	// db query to change jobs.active_status to false
@@ -214,86 +286,137 @@ func (c *CompanyService) CloseJob(ctx *gin.Context, jobid string, userID int64) 
 		UserID: userID,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to close job with ID %d: %v", jobID, err)
+		if err.Error() == errs.NoRowsMatch {
+			return &errs.Error{
+				Type: errs.Unauthorized,
+				Message: "The given user ID is not authorized to change status of requested job.",
+				ToRespondWith: true,
+			}	
+		}
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: fmt.Sprintf("Failed to close job for job ID : %d : %v", jobID, err.Error()),
+		}
 	}
 
 	return nil
 }
 
-func (c *CompanyService) DeleteJob(ctx *gin.Context, jobid string, userID int64) (error){
-	// parse jobid from string to int64
+func (c *CompanyService) DeleteJob(ctx *gin.Context, jobid string, userID int64) (*errs.Error){
+
 	jobID, err := strconv.ParseInt(jobid, 10, 64)
 	if err != nil {
-		return fmt.Errorf("invalid job ID: %v", err)
+		return &errs.Error{
+			Type: errs.InvalidFormat,
+			Message: "Invalid job ID, failed to parse to int : " + err.Error(),
+		}
 	}
-	// db query to delete job if exists
+
 	err = c.queries.DeleteJob(ctx, sqlc.DeleteJobParams{
 		JobID: jobID,
 		UserID: userID,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to delete job with ID %d: %v", jobID, err)	}
+		if err.Error() == errs.NoRowsMatch {
+			return &errs.Error{
+				Type: errs.Unauthorized,
+				Message: "The given user ID is not authorized to change status of requested job.",
+				ToRespondWith: true,
+			}	
+		}
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: fmt.Sprintf("Failed to delete job for job ID : %d : %v", jobID, err.Error()),
+		}
+	}
 
 	return nil
 }
 
-func (c *CompanyService) ShortList(ctx *gin.Context, applicationid string, userID int64) (error){
+func (c *CompanyService) ShortList(ctx *gin.Context, applicationid string, userID int64) (*errs.Error){
 
-	// parse applicationid from string to int64
 	applicationId, err := strconv.ParseInt(applicationid, 10, 64)
 	if err != nil {
-		return fmt.Errorf("failed to parse appication id : %s", err)
+		return &errs.Error{
+			Type: errs.InvalidFormat,
+			Message: "Invalid applications ID, failed to parse to int : " + err.Error(),
+		}
 	}
 
-	// get the userID of the owner of the job
 	jobOwnerID, err := c.queries.GetUserIDCompanyIDJobIDApplicationID(ctx, applicationId)
 	if err != nil {
-		return fmt.Errorf("failed to get user ID : %s", err)
-	}
-	// check if ID is same as the jobOwnerID to mitigate unauthorized reqs
-	// so that only the actual owner of the job listing can shortlist the application
-	if userID != jobOwnerID {
-		return fmt.Errorf("unauthorized access with user ID %d", userID)
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: "Failed to get job owner user ID : " + err.Error(),
+		}
 	}
 
-	// change status to shortlisted
-	err = c.queries.ApplicationStatusToAnd(ctx, sqlc.ApplicationStatusToAndParams{
+	if userID != jobOwnerID {
+		return &errs.Error{
+			Type: errs.Unauthorized,
+			Message: "The given user ID is not authorized to access requested application.",
+			ToRespondWith: true,
+		}
+	}
+
+	studentUserID, err := c.queries.ApplicationStatusToAnd(ctx, sqlc.ApplicationStatusToAndParams{
 		Status: "ShortListed",
 		ApplicationID: applicationId,	
 		Status_2: "UnderReview",
 	})
 	if err != nil {
-		return err
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: "Failed to change application status : " + err.Error(),
+		}
+	}
+
+	errf := c.Notify.NewNotification(ctx, studentUserID, &dto.NotificationData{
+		Title: "Application Shortlisted",
+		Description: fmt.Sprintf("Your application (ID: %s) has been shortlisted.", applicationid),
+	})
+	if errf != nil {
+		return errf
 	}
 
 	return nil
 }
 
-func (c *CompanyService) Reject(ctx *gin.Context, applicationid string, userID int64) (error){
-	// parse applicationid from string to int64
+func (c *CompanyService) Reject(ctx *gin.Context, applicationid string, userID int64) (*errs.Error){
+
 	applicationId, err := strconv.ParseInt(applicationid, 10, 64)
 	if err != nil {
-		return err
+		return &errs.Error{
+			Type: errs.InvalidFormat,
+			Message: "Invalid applications ID, failed to parse to int : " + err.Error(),
+		}
 	}
 
-	// get the userID of the owner of the job
 	jobOwnerID, err := c.queries.GetUserIDCompanyIDJobIDApplicationID(ctx, applicationId)
 	if err != nil {
-		return fmt.Errorf("failed to get user ID : %s", err)
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: "Failed to get job owner user ID : " + err.Error(),
+		}
 	}
-	// check if ID is same as the jobOwnerID to mitigate unauthorized reqs
-	// so that only the actual owner of the job listing can shortlist the application
+
 	if userID != jobOwnerID {
-		return fmt.Errorf("unauthorized access with user ID %d", userID)
+		return &errs.Error{
+			Type: errs.Unauthorized,
+			Message: "The given user ID is not authorized to access requested application.",
+			ToRespondWith: true,
+		} 
 	}
 
-
-	err = c.queries.ApplicationStatusTo(ctx, sqlc.ApplicationStatusToParams{
+	studentUserID, err := c.queries.ApplicationStatusTo(ctx, sqlc.ApplicationStatusToParams{
 		Status: "Rejected",
 		ApplicationID: applicationId,
 	})
 	if err != nil {
-		return err
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: "Failed to change application status : " + err.Error(),
+		}
 	}
 
 	err = c.queries.InterviewStatusTo(ctx, sqlc.InterviewStatusToParams{
@@ -301,7 +424,18 @@ func (c *CompanyService) Reject(ctx *gin.Context, applicationid string, userID i
 		ApplicationID: applicationId,
 	})
 	if err != nil {
-		return err
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: "Failed to change interview status : " + err.Error(),
+		}
+	}
+
+	errf := c.Notify.NewNotification(ctx, studentUserID, &dto.NotificationData{
+		Title: "Application Rejected",
+		Description: fmt.Sprintf("Your application (ID: %s) has been Rejected.", applicationid),
+	})
+	if errf != nil {
+		return errf
 	}
 	
 	return nil
@@ -313,10 +447,10 @@ func (c *CompanyService) ScheduleInterview(ctx *gin.Context, data *dto.NewInterv
 		return &errs.Error{
 			Type: errs.PreconditionFailed,
 			Message: "Interview Date-Time cannot be in the past.",
+			ToRespondWith: true,
 		}
 	}
 
-	// new insert into interviews table
 	dt, err := c.queries.ScheduleInterview(ctx, sqlc.ScheduleInterviewParams{
 		ApplicationID: data.ApplicationId,
 		UserID: data.UserId,
@@ -328,7 +462,7 @@ func (c *CompanyService) ScheduleInterview(ctx *gin.Context, data *dto.NewInterv
 	if err != nil {
 		return &errs.Error{
 			Type: errs.Internal,
-			Message: err.Error(),
+			Message: "Failed to insert new interview in db : " + err.Error(),
 		}
 	}
 
@@ -337,7 +471,7 @@ func (c *CompanyService) ScheduleInterview(ctx *gin.Context, data *dto.NewInterv
 	if err != nil {
 		return &errs.Error{
 			Type: errs.Internal,
-			Message: err.Error(),
+			Message: "Failed to get student data for email : " + err.Error(),
 		}
 	}
 
@@ -351,27 +485,48 @@ func (c *CompanyService) ScheduleInterview(ctx *gin.Context, data *dto.NewInterv
 	if err != nil {
 		return &errs.Error{
 			Type: errs.Internal,
-			Message: err.Error(),
+			Message: "Failed to get dynamic template for new interview email : " + err.Error(),
 		}
 	}
 	// send new interview email to student
 	go utils.SendEmailHTML(template, []string{studentData.StudentEmail})
 
+	errf := c.Notify.NewNotification(ctx, studentData.UserID, &dto.NotificationData{
+		Title: "Interview Scheduled",
+		Description: fmt.Sprintf("New Interview scheduled for application (ID: %d).", data.ApplicationId),
+	})
+	if errf != nil {
+		return errf
+	}
+
 	// no error
 	return nil
 }
 
-func (c *CompanyService) Offer(ctx *gin.Context, userID int64, applicationid string, offerLetter *multipart.FileHeader) (error) {
-	// parse appliocation id from string to int64
+func (c *CompanyService) Offer(ctx *gin.Context, userID int64, applicationid string, offerLetter *multipart.FileHeader) (*errs.Error) {
+
 	applicationId, err := strconv.ParseInt(applicationid, 10, 64)
 	if err != nil {
-		return err
+		return &errs.Error{
+			Type: errs.InvalidFormat,
+			Message: "Failed to parse application ID : " + err.Error(),
+		}
 	}
 
-	// get userID for the applicationId and check unauthorized req
 	jobOwnerID, err := c.queries.GetUserIDCompanyIDJobIDApplicationID(ctx, applicationId)
-	if err != nil  || jobOwnerID != userID {
-		return fmt.Errorf("you must be the job owner to offer applicant : %s", err)
+	if err != nil {
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: "Failed to get job owner user ID : " + err.Error(),
+		}
+	}
+
+	if userID != jobOwnerID {
+		return &errs.Error{
+			Type: errs.Unauthorized,
+			Message: "The given user ID is not authorized to access requested application.",
+			ToRespondWith: true,
+		} 
 	}
 
 	// TODO: atomicity problem 
@@ -381,50 +536,82 @@ func (c *CompanyService) Offer(ctx *gin.Context, userID int64, applicationid str
 		Status: "Completed",
 	})
 	if err != nil {
-		return fmt.Errorf("error updating interview status : %s", err)
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: "Failed to change interview status : " + err.Error(),
+		}
 	}
-	// update application status to 'Offered'
-	err = c.queries.ApplicationStatusTo(ctx, sqlc.ApplicationStatusToParams{
+
+	studentUserID, err := c.queries.ApplicationStatusTo(ctx, sqlc.ApplicationStatusToParams{
 		ApplicationID: applicationId,
 		Status: "Offered",
 	})
 	if err != nil {
-		return fmt.Errorf("error updating application status : %s", err)
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: "Failed to update application status : " + err.Error(),
+		}
 	}
 
-	// get company name, rep-name, etc
 	offerData, err := c.queries.GetOfferLetterData(ctx, applicationId)
 	if err != nil {
-		return fmt.Errorf("error fetching data : %s", err)
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: "Failed to fetch offer letter data for email : " + err.Error(),
+		}
 	}
-	// send offer email with offer letter attached
+
 	template, err := utils.DynamicHTML("./template/emails/offerEmail.html", offerData)
 	if err != nil {
-		return fmt.Errorf("not able to execute email template : %s", err)
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: "Failed to get dynamic template for offer email : " + err.Error(),
+		}
 	}
 	go utils.SendEmailHTMLWithAttachmentFileHeader(template, []string{offerData.StudentEmail}, offerLetter)
+
+	errf := c.Notify.NewNotification(ctx, studentUserID, &dto.NotificationData{
+		Title: "Offered !!",
+		Description: fmt.Sprintf("Congratulations! New job offer received. (ID: %s)", applicationid),
+	})
+	if errf != nil {
+		return errf
+	}
 
 	// no error
 	return nil
 }
 
-func (c *CompanyService) CancelInterview(ctx *gin.Context, userID int64, applicationid string) (error) {
-	// parse application id from string to int64
+func (c *CompanyService) CancelInterview(ctx *gin.Context, userID int64, applicationid string) (*errs.Error) {
+
 	applicationId, err := strconv.ParseInt(applicationid, 10, 64)
 	if err != nil {
-		return fmt.Errorf("error parsing application ID : %s", err)
+		return &errs.Error{
+			Type: errs.InvalidFormat,
+			Message: "Failed to parse application ID : " + err.Error(),
+		}	}
+
+	jobOwnerID, err := c.queries.GetUserIDCompanyIDJobIDApplicationID(ctx, applicationId)
+	if err != nil {	
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: "Failed to get job owner user ID : " + err.Error(),
+		}	
+	}
+	if userID != jobOwnerID {
+		return &errs.Error{
+			Type: errs.Unauthorized,
+			Message: "The given user ID is not authorized to access requested application.",
+			ToRespondWith: true,
+		} 
 	}
 
-	// check if user is owner
-	jobOwnerId, err := c.queries.GetUserIDCompanyIDJobIDApplicationID(ctx, applicationId)
-	if err != nil || jobOwnerId != userID {	
-		return fmt.Errorf("you are not the owner of	this job: %s", err)
-	}
-
-	// get interview details for sending email
 	data, err := c.queries.CancelInterviewEmailData(ctx, applicationId)
 	if err != nil {
-		return fmt.Errorf("unable to get interview data: %s", err)
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: "Failed to get data for email : " + err.Error(),
+		}	
 	}
 
 	newData := dto.CancelInterview{
@@ -436,21 +623,22 @@ func (c *CompanyService) CancelInterview(ctx *gin.Context, userID int64, applica
 		RepresentativeEmail: data.RepresentativeEmail,
 		RepresentativeName: data.RepresentativeName,
 	}
-
-	// execute email template and send email
 	template, err := utils.DynamicHTML("./template/emails/interviewCancelled.html", newData)
 	if err != nil {
-		fmt.Println(err)
-		return err
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: "Failed to get dynamic template for offer email : " + err.Error(),
+		}
 	}
 	go utils.SendEmailHTML(template, []string{data.StudentEmail})
 
-
 	// TODO: dont delete interview, make it cancelled
-	// delete interview
 	err = c.queries.DeleteInterview(ctx, applicationId)
 	if err != nil {
-		return fmt.Errorf("error updating interview status : %s", err)
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: "Failed to delete interview : " + err.Error(),
+		}	
 	}
 
 	return nil
@@ -462,33 +650,32 @@ const (
 	Manual = "Manual"
 )
 
-func (c *CompanyService) NewTestPost(ctx *gin.Context, newtestData dto.NewTestPost) (errs.Error) {
+func (c *CompanyService) NewTestPost(ctx *gin.Context, userID int64, newtestData *dto.NewTestPost) (*errs.Error) {
 
 	var formID string
-	var errf errs.Error
-	// switch between upload method and call appropriate method
+	var errf *errs.Error
+
 	switch newtestData.UploadMethod {
 	case GForm :
-		var gformData dto.NewTestGForms
-		err := ctx.Bind(&gformData)
+		gformData := new(dto.NewTestGForms)
+		err := ctx.Bind(gformData)
 		if err != nil {
-			return errs.Error{
-				Type: errs.MissingRequiredField,
-				Message: fmt.Sprintf("failed to bind the gform data: %s", err),
+			return &errs.Error{
+				Type: errs.IncompleteForm,
+				Message: "Failed to bind GForm : " + err.Error(),
 			}
 		}
 		formID, errf = c.NewTestPostGForm(ctx, gformData)
-		if errf.Message != "" {
+		if errf != nil {
 			return errf
 		}
 	case CSVJSON:
+		// TODO: 
 	case Manual:
+		// TODO:
 	default:
 	}	
 
-	// get userID from context for companyID.
-	userID := ctx.GetInt64("ID")
-	// insert new test into db
 	err := c.queries.NewTest(ctx, sqlc.NewTestParams{
 		TestName: newtestData.Name,
 		Description: pgtype.Text{String: newtestData.Description, Valid: true},
@@ -502,35 +689,40 @@ func (c *CompanyService) NewTestPost(ctx *gin.Context, newtestData dto.NewTestPo
 		FileID: formID,
 		Threshold: int32(newtestData.Threshold),
 	})
-	// switch between errors as needed
 	if err != nil {
 		var pgerr *pgconn.PgError
+		// TODO: this can also fail, have a fallback (else statement)
 		if errors.As(err, &pgerr) {
-			switch pgerr.Code {
-				case errs.UniqueViolation:
-					return errs.Error{
-						Type: errs.UniqueViolation,
-						Message: "The test already exists !",
-					}
-				default:
-					return errs.Error{
-						Type: errs.Internal,
-						Message: fmt.Sprintf("error creating new test in db: %v", err),
-					}
+			if pgerr.Code == errs.UniqueViolation {
+				return &errs.Error{
+					Type: errs.UniqueViolation,
+					Message: "The test already exists ! You cannot create multiple tests with the same test file.",
+					ToRespondWith: true,
+				}
+			} 
+			return &errs.Error{
+				Type: errs.Internal,
+				Message: "Failed to insert new test in db : " + err.Error(),
 			}
 		}
 	}
-	// get emails of all applicants to the job id that the test has been binded to 
+
 	allEmails, err := c.queries.GetAllApplicantsEmailsForJob(ctx, newtestData.BindedJobId)
 	if err != nil {
-		ctx.Set("error", fmt.Sprintf("error fetching all applicants emails binded to the job id from db: %s", err.Error()))
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: "Failed to get all emails of applicants for job to send new test email to : " + err.Error(),
+		}
 	} else {
-		// get job details for dynamic email
+
 		jobDetails, err := c.queries.GetJobDetails(ctx, newtestData.BindedJobId)
 		if err != nil {
-			ctx.Set("error", fmt.Sprintf("error fetching job details from db: %s", err.Error()))
+			return &errs.Error{
+				Type: errs.Internal,
+				Message: "Failed to get job details : " + err.Error(),
+			}
 		} else {
-			// generate template and send email to all applicants 
+
 			newtestData.JobTitle = jobDetails.Title
 			newtestData.CompanyName = jobDetails.CompanyName
 			newtestData.FormattedEndDate = newtestData.EndDateTime.Format("2006-01-02")
@@ -538,18 +730,20 @@ func (c *CompanyService) NewTestPost(ctx *gin.Context, newtestData dto.NewTestPo
 
 			template, err := utils.DynamicHTML("./template/emails/newTestEmail.html", newtestData)
 			if err != nil {
-				ctx.Set("error", err.Error())
+				return &errs.Error{
+					Type: errs.Internal,
+					Message: "Failed to generate template for new test email : " + err.Error(),
+				}
 			} else {
 				go utils.SendEmailHTML(template, allEmails)
 			}
 		}
 	}
 
-	// done
 	return errf
 }
 
-func (c *CompanyService) NewTestPostGForm(ctx *gin.Context, gformData dto.NewTestGForms) (string, errs.Error) {
+func (c *CompanyService) NewTestPostGForm(ctx *gin.Context, gformData *dto.NewTestGForms) (string, *errs.Error) {
 
 	// get the raw responders link from the link provided by the user 
 	paramIndex := strings.Index(gformData.ResponderLink, "?")
@@ -563,9 +757,9 @@ func (c *CompanyService) NewTestPostGForm(ctx *gin.Context, gformData dto.NewTes
 		// call drive change api to get file changes from the last start token
 		newList, err := c.GAPIService.DriveChanges()
 		if err != nil {
-			return "", errs.Error{
+			return "", &errs.Error{
 				Type: errs.Internal,
-				Message: err.Error(),
+				Message: "Failed to get GDrive changes : " + err.Error(),
 			}
 		}
 		changes := newList.Changes
@@ -577,17 +771,17 @@ func (c *CompanyService) NewTestPostGForm(ctx *gin.Context, gformData dto.NewTes
 				// get the metadata from the forms api
 				formData, err := c.GAPIService.GetFormMetadata(change.FileId)
 				if err != nil {
-					return "", errs.Error{
+					return "", &errs.Error{
 						Type: errs.Internal,
-						Message: err.Error(),
+						Message: "Failed to get GForm metadata : " + err.Error(),
 					}
 				}
 				// Set the key:value in the Redis Cache {responderUri : formId}
 				err = c.RedisClient.Set(ctx, formData.ResponderUri, formData.FormId, 0).Err()
 				if err != nil {
-					return "", errs.Error{
+					return "", &errs.Error{
 						Type: errs.Internal,
-						Message: fmt.Sprintf("error while inserting into redis: %v", err),
+						Message: "Failed to insert into redis : " + err.Error(),
 					}
 				}
 
@@ -599,9 +793,9 @@ func (c *CompanyService) NewTestPostGForm(ctx *gin.Context, gformData dto.NewTes
 			}
 		}
 	} else if err != nil {
-		return "", errs.Error{
+		return "", &errs.Error{
 			Type: errs.Internal,
-			Message: fmt.Sprintf("error getting results from Redis : %v", err),
+			Message: "Failed to get from redis : " + err.Error(),
 		}
 	}
 
@@ -609,18 +803,19 @@ func (c *CompanyService) NewTestPostGForm(ctx *gin.Context, gformData dto.NewTes
 	if err == redis.Nil {
 		// the result still does not exist
 		// the user has not provided you with the access
-		return "", errs.Error{
+		return "", &errs.Error{
 			Type: errs.IncompleteAction,
-			Message: "Form not shared with email address.",
+			Message: "The 'Editor Access' has not been shared with the given collaborator email.",
+			ToRespondWith: true,
 		}
 	} else if err != nil {
-		return "", errs.Error{
+		return "", &errs.Error{
 			Type: errs.Internal,
-			Message: fmt.Sprintf("error getting results from Redis : %v", err),
+			Message: "Failed to get from redis : " + err.Error(),
 		}	
 	}
 	
-	return formID, errs.Error{}
+	return formID, nil
 }
 
 func (c *CompanyService) ScheduledData(ctx *gin.Context, userID int64, eventtype string) (*dto.Upcoming, *errs.Error) {
@@ -691,7 +886,7 @@ func (c *CompanyService) CompletedData(ctx *gin.Context, userID int64, eventtype
 }
 
 
-func (c *CompanyService) UpdateInterview(ctx *gin.Context, userID int64, data *dto.UpdateInterview) (error) {
+func (c *CompanyService) UpdateInterview(ctx *gin.Context, userID int64, data *dto.UpdateInterview) (*errs.Error) {
 
 	newData, err := c.queries.UpdateInterview(ctx, sqlc.UpdateInterviewParams{
 		UserID: userID,
@@ -702,12 +897,25 @@ func (c *CompanyService) UpdateInterview(ctx *gin.Context, userID int64, data *d
 		Location: data.Location,
 	})
 	if err != nil {
-		return err
+		if err.Error() == errs.NoRowsMatch {
+			return &errs.Error{
+				Type: errs.Unauthorized,
+				Message: "An interview for the given interview_ID and user ID was not found.",
+				ToRespondWith: true,
+			}
+		}
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: "Failed to update interview details : " + err.Error(),
+		}
 	}
 
 	stdData, err := c.queries.GetScheduleInterviewData(ctx, newData.ApplicationID)
 	if err != nil {
-		return err
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: "Failed to get student data for interview-updated email : " + err.Error(),
+		}
 	}
 	data.StudentName = stdData.StudentName
 	data.CompanyName = stdData.CompanyName
@@ -717,7 +925,10 @@ func (c *CompanyService) UpdateInterview(ctx *gin.Context, userID int64, data *d
 	// execute email template
 	template, err := utils.DynamicHTML("./template/emails/interviewRescheduled.html", data)
 	if err != nil {
-		return err
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: "Failed to generate template for interview-updated email : " + err.Error(),
+		}
 	}
 	// send new interview email to student
 	go utils.SendEmailHTML(template, []string{stdData.StudentEmail})
@@ -839,6 +1050,176 @@ func (c *CompanyService) PublishTestResults(ctx *gin.Context, userID int64, test
 }
 
 
+func (s *CompanyService) ProfileData(ctx *gin.Context, userID int64) (*dto.CompanyProfileData, *errs.Error) {
+	
+
+	// alljobIds, err := s.queries.GetAllJobsID(ctx, userID)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+
+	overData, err := s.queries.ApplicantsCount(ctx, userID)
+	if err != nil {
+		return nil, &errs.Error{
+			Type: errs.Internal,
+			Message: err.Error(),
+		}
+	}
+	var sankeyCharts []*charts.Sankey
+	for _, o := range overData {
+		sankeyChrt := gocharts.SankeyApplicants(&o)
+		sankeyCharts = append(sankeyCharts, sankeyChrt)
+	}
+
+
+	// total jobs posted >  offered
+	
+	userData, err := s.queries.UsersTableData(ctx, userID)
+	if err != nil {
+		return nil, &errs.Error{
+			Type: errs.Internal,
+			Message: err.Error(),
+		}	}
+
+	data, err := s.queries.CompanyProfileData(ctx, userID)
+	if err != nil {
+		return nil, &errs.Error{
+			Type: errs.Internal,
+			Message: err.Error(),
+		}	}
+
+	// appsHistory, err := s.queries.ApplicationHistory(ctx, userID)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// intsHistory, err := s.queries.InterviewHistory(ctx, userID)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// testHistory, err := s.queries.TestHistory(ctx, userID)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// let us try to send a 'Sankey' type graph
+	// sankeyChrt := gocharts.SankeyApplicants(&overData)
+	
+	return &dto.CompanyProfileData{
+		UsersData: &userData,
+		ProData: &data,
+		SankeyChrt: sankeyCharts,
+	}, nil
+}
+
+func (s *CompanyService) GetCompanyFile(ctx *gin.Context, userID int64, fileType string) (string, *errs.Error) {
+	// get paths to all available files
+	filePaths, err := s.queries.GetAllFilePathsCompany(ctx, userID)
+	if err != nil {
+		return "", &errs.Error{
+			Type: errs.Internal,
+			Message: "failed to fetch file paths for user ID",
+		}
+	}
+
+	// check what type is requested
+	filepath := filePaths.PictureUrl.String
+	// TODO: returns profile file even if requested file type is invalid
+	// add switches if other files types are requested
+
+    // Check if the file exists
+    if _, err := os.Stat(filepath); err != nil {
+        return "", &errs.Error{
+			Type: errs.NotFound,
+			Message: "could not find any file for given path",
+		}
+    }
+	// return the requested file's path
+	return filepath, nil
+}
+func (s *CompanyService) UpdateProfileDetails(ctx *gin.Context, userID int64, details *dto.UpdateCompanyDetails) (*errs.Error) {
+	// TODO: verify incoming data
+	err := s.queries.UpdateCompanyDetails(ctx, sqlc.UpdateCompanyDetailsParams{
+		CompanyName: details.CompanyName,
+		RepresentativeEmail: details.RepresentativeEmail,
+		RepresentativeContact: details.RepresentativeContact,
+		RepresentativeName: details.RepresentativeName,
+		Address: details.CompanyAddress,
+		Website: pgtype.Text{String: details.CompanyWebsite, Valid: true},
+		Description: pgtype.Text{String: details.CompanyDescription, Valid: true},
+		Industry: details.IndustryType,
+		UserID: userID,
+	})
+	if err != nil {
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: err.Error(),
+		}
+	}
+
+	return nil
+}
+
+func (s *CompanyService) UpdateFile(ctx *gin.Context, userID int64, file *multipart.FileHeader, fileType string) (*errs.Error) {
+	var err error
+	// get the file size and content-type
+	size := file.Size
+	ext := file.Header.Get("Content-Type")
+	// get the expected size for the content type 
+	expected := config.FileSizeForContentType[ext] 
+	if (expected == 0) {
+		// invalid file content type
+		return &errs.Error{
+			Type: errs.PreconditionFailed,
+			Message: "Invalid file type.",
+		}
+	}
+	if (expected < size) {
+		// file size more than expected
+		return &errs.Error{
+			Type: errs.PreconditionFailed,
+			Message: "The file size exceeds the limit.",
+		}
+	}
+
+	userUUID, err := s.queries.GetUserUUIDFromUserID(ctx, userID)
+	if err != nil {
+		return nil
+	}
+	strUUID := hex.EncodeToString(userUUID.Bytes[:])
+
+	nameType := strings.ToLower(fileType)
+	storageDir := fmt.Sprintf("%sStorageDir", fileType)
+
+	fileStoragePath := fmt.Sprintf("%s%s&%d&%s%s", os.Getenv(storageDir), strUUID, time.Now().Unix(), nameType, filepath.Ext(file.Filename))
+	fileSavePath, err := utils.SaveFile(ctx, fileStoragePath, file)
+	if err != nil {
+		return nil
+	}
+
+	switch fileType {
+	case "ProfilePic":
+		err = s.queries.UpdateCompanyProfilePic(ctx, sqlc.UpdateCompanyProfilePicParams{
+			PictureUrl: pgtype.Text{String: fileSavePath, Valid: true},
+			UserID: userID,
+		})
+	default:
+		return &errs.Error{
+			Type: errs.NotFound,
+			Message: "No such file type found. Use valid file type in url.",
+		}
+	}
+	if err != nil {
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: err.Error(),
+		}
+	}
+
+	return nil
+}
 
 
 
@@ -859,13 +1240,14 @@ func (c *CompanyService) PublishTestResults(ctx *gin.Context, userID int64, test
 
 
 
-
-
-func (c *CompanyService) StudentProfileData(ctx *gin.Context, userID int64, studentid string) (*sqlc.StudentProfileForCompanyRow, error) {
+func (c *CompanyService) StudentProfileData(ctx *gin.Context, userID int64, studentid string) (*sqlc.StudentProfileForCompanyRow, *errs.Error) {
 
 	studentID, err := strconv.ParseInt(studentid, 10, 64)
 	if err != nil {
-		return nil, err
+		return nil, &errs.Error{
+			Type: errs.Internal,
+			Message: err.Error(),
+		}
 	}
 
 	data, err := c.queries.StudentProfileForCompany(ctx, sqlc.StudentProfileForCompanyParams{
@@ -873,7 +1255,10 @@ func (c *CompanyService) StudentProfileData(ctx *gin.Context, userID int64, stud
 		StudentID: studentID,
 	})
 	if err != nil {
-		return nil, err
+		return nil, &errs.Error{
+			Type: errs.Internal,
+			Message: err.Error(),
+		}
 	}
 
 	return &data, nil

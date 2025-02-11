@@ -1,52 +1,156 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Company Dashboard - PMS</title>
     <link rel="stylesheet" href="/static/styles/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 <body>
     <div class="sidebar">
         <h4>PMS Dashboard</h4>
         <a href="/laa/company/dashboard" class="nav-item active">Dashboard</a>
+        <a href="/laa/company/profile" class="nav-item">My Profile</a>
         <a href="/laa/company/newjob" class="nav-item">New Job</a>
         <a href="/laa/company/newtest" class="nav-item">New Test</a>
         <a href="/laa/company/joblistings" class="nav-item">Job Listings</a>
         <a href="/laa/company/applicants" class="nav-item">Applicants</a>
         <a href="/laa/company/scheduled" class="nav-item">Scheduled</a>
         <a href="/laa/company/completed" class="nav-item">Completed</a>
+        <a href="javascript:void(0);" onclick="getNewNotifications()" class="nav-item">Notifications</a>
+
         <a href="#" class="nav-item">Reports</a>
         <a href="#" class="nav-item">Settings</a>
+        <a href="/public/logout" class="nav-item">Logout</a>
+
     </div>
 
     <div class="main-content">
         <header class="dashboard-header">
-            <h2>Welcome back, Company Name</h2>
-            <p>Here's an overview of your placement activities</p>
+            <div class="header-left">
+                <h2 id="welcomeTitle">-nil-</h2>
+            </div>
+            
+            <div class="header-right">
+                <i id="theme-toggler" class="notification-icon fas fa-moon"></i>
+                <i class="notification-icon fas fa-bell" onclick="getNewNotifications()"></i>
+                <a href="/laa/company/profile">
+                    <img width="20" height="20" src="https://img.freepik.com/premium-vector/man-avatar-profile-picture-vector-illustration_268834-538.jpg?semt=ais_hybrid" alt="Profile">
+                </a>
+            </div>
         </header>
+
+        <div class="notification-panel" id="notificationPanel">
+            <div class="notification-header">
+              <h3>Notifications</h3>
+              <button class="close-btn" onclick="toggleNotification()">X</button>
+            </div>
+            <div id="notifs-body" class="notification-body">
+                <div class="notification-item">
+                    <div class="notif">
+                        <span class="notif-title">Empty !</span>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <div class="dashboard-stats">
             <div class="stat-card">
                 <h3>Active Jobs</h3>
-                <p>15</p>
+                <p id="activeJobsCount">-nil-</p>
             </div>
             <div class="stat-card">
-                <h3>Total Applicants</h3>
-                <p>234</p>
+                <h3>Total Applications</h3>
+                <p id="totalApplicantsCount">-nil-</p>
             </div>
             <div class="stat-card">
                 <h3>Interviews Scheduled</h3>
-                <p>42</p>
+                <p id="interviewsCount">-nil-</p>
             </div>
             <div class="stat-card">
                 <h3>Placements Made</h3>
-                <p>28</p>
+                <p>-nil</p>
             </div>
         </div>
     </div>
+    
+    <script src="/static/scripts/dashboard.js"></script>
 
     <script>
+
+        const notifPanel = document.getElementById('notificationPanel'); 
+        const notifsBody = document.getElementById('notifs-body');
+        let notifs = [];
+        
+        function timeAgo(timestamp) {
+            let a = new Date(timestamp * 1000);
+            let timeString = a.toLocaleString('en-US', { 
+                year: 'numeric', month: 'short', day: '2-digit', 
+                hour: 'numeric', minute: '2-digit', hour12: true 
+            });
+
+            return timeString;
+        }
+
+        let notifsStart = 0;
+        let notifsEnd = 0;
+        function getNewNotifications() {
+            toggleNotification();
+
+            const url = `/laa/company/notifications?start=${notifsStart}&end=${notifsEnd}`;
+
+            fetch(url)
+            .then(response => {
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    console.log("something went wrong")
+                    return;
+                }
+            })
+            .then(data => {
+                setNotifs(data);
+            })
+            .catch(error => {
+                console.log(error);
+            });
+        }
+
+        function setNotifs(data) {
+            if (data == null) {
+                return;
+            }
+            notifs.push(...data);
+            notifsBody.innerHTML = ``;
+            notifs.forEach(notif => {
+                notifsBody.innerHTML += `
+                    <div class="notification-item">
+                        <div class="notif">
+                            <span class="notif-title">${notif.ReadStatus ? '' : '<span class="unread-dot"></span>'}${notif.Title}</span>
+                            <span class="notif-time">${timeAgo(notif.Timestamp)}</span>
+                        </div>
+                        <p class="notif-description">${notif.Description}</p>
+                    </div>
+                `;
+                notifsStart += 1;
+            });
+        }
+
+        function toggleNotification() {
+            notifPanel.classList.toggle('active');
+        }
+
+    </script>
+
+    <script>
+
+        const welTitle = document.getElementById('welcomeTitle');
+        // const comTitle = document.getElementById('companyTitle');
+
+        const ajCount = document.getElementById('activeJobsCount');
+        const taCount = document.getElementById('totalApplicantsCount');
+        const intCount = document.getElementById('interviewsCount');
 
         function data() {
             const url = `/laa/company/dashboarddata`;
@@ -62,6 +166,10 @@
             })
             .then(data => {
                 console.log(data);
+                welTitle.innerHTML = `${data.RepresentativeName} | ${data.CompanyName}`;
+                ajCount.innerHTML = `${data.JobsCount}`;
+                taCount.innerHTML = `${data.ApplicationsCount}`;
+                intCount.innerHTML = `${data.InterviewsCount}`;
             })
             .catch((error) => {
                 console.log(error);

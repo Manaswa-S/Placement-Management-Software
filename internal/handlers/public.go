@@ -23,6 +23,9 @@ func NewPublicHandler(publicService *services.PublicService) *PublicHandler {
 func (h *PublicHandler) RegisterRoute(publicRoute *gin.RouterGroup) {
 	// get the login static page, direct
 	publicRoute.GET("/login", h.LoginStatic) //
+
+	publicRoute.GET("/logout", h.LogOut) 
+
 	// get the login static page, direct
 	publicRoute.GET("/signup", h.SignupStatic) //
 
@@ -45,6 +48,7 @@ func (h *PublicHandler) RegisterRoute(publicRoute *gin.RouterGroup) {
 	publicRoute.GET("/confirmsignup", h.ConfirmSignup) //
 	// post the data from extra info page, indirect
 	publicRoute.POST("/extrainfopost", h.ExtraInfoPost) //
+
 }
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -315,4 +319,16 @@ func (h *PublicHandler) LoginPost(ctx *gin.Context){
 		default :
 			ctx.Redirect(http.StatusSeeOther, "/public/signup")
 	}
+}
+
+func (h *PublicHandler) LogOut(ctx *gin.Context) {
+
+
+	ctx.SetSameSite(http.SameSiteStrictMode)
+	ctx.SetCookie("access_token", "", -1, "", "", true, true)
+	ctx.SetSameSite(http.SameSiteStrictMode)
+	ctx.SetCookie("refresh_token", "", -1, "", "", true, true)
+
+	ctx.Status(200)
+
 }

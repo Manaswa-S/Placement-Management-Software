@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
+	errs "go.mod/internal/const"
 	"go.mod/internal/services"
 )
 
@@ -22,7 +23,9 @@ func NewAdminHandler(adminService *services.AdminService) *AdminHandler {
 func (h *AdminHandler) RegisterRoute(adminRoute *gin.RouterGroup) {
 	// get the static dashboard template
 	adminRoute.GET("/dashboard", h.AdminDashboard)
-	
+	// get the notifications data
+	adminRoute.GET("/notifications", h.GetNotifications)
+
 	// get all students info
 	adminRoute.GET("/studentinfo", h.StudentInfo)
 
@@ -42,6 +45,41 @@ func (h *AdminHandler) RegisterRoute(adminRoute *gin.RouterGroup) {
 
 func (h *AdminHandler) AdminDashboard(ctx *gin.Context) {
 	ctx.File("./template/dashboard/admindashboard.html")
+}
+
+func (h *AdminHandler) GetNotifications(ctx *gin.Context) {
+
+	userid, exists := ctx.Get("ID")
+	if !exists {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error": "missing user ID",
+		})
+		return
+	}
+
+	start := ctx.Query("start")
+	end := ctx.Query("end")
+	if start == "" || end == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error": "missing query params start and end",
+		})
+		return
+	}
+
+	notifs, errf := h.AdminService.Notify.GetNotifications(ctx, userid.(int64), start, end)
+	if errf != nil {
+		if errf.Type != errs.Internal {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"Type": errf.Type,
+				"Message": errf.Message,
+			})
+			return
+		}
+		// TODO: add the internal errors logic 
+		return
+	}
+
+	ctx.JSON(http.StatusOK, notifs)
 }
 
 func (h *AdminHandler) StudentInfo(ctx *gin.Context) {

@@ -33,7 +33,11 @@ WHERE users.user_id = $1;
 
 -- name: CompanyDashboardData :one
 WITH company AS (
-    SELECT company_id FROM companies WHERE user_id = $1
+    SELECT 
+        company_id, 
+        company_name,
+        representative_name 
+    FROM companies WHERE user_id = $1
 ),
 jc AS (
     SELECT COUNT(jobs.job_id) AS jobs_count
@@ -45,12 +49,52 @@ ac AS (
     FROM applications
     JOIN jobs ON applications.job_id = jobs.job_id
     WHERE jobs.company_id = (SELECT company_id FROM company)
+),
+ic AS (
+    SELECT COUNT(interviews.interview_id) AS interviews_count
+    FROM interviews
+    WHERE interviews.company_id = (SELECT company_id FROM company)
+    AND interviews.status = 'Scheduled'
 )
 SELECT * 
-FROM jc
+FROM company
+CROSS JOIN jc
+CROSS JOIN ac
+CROSS JOIN ic;
+
+
+-- name: StudentDashboardData :one
+WITH st AS (
+    SELECT 
+        students.student_id,
+        students.student_name
+    FROM students
+    WHERE students.user_id = $1
+),
+ac AS (
+    SELECT
+        COUNT(applications.application_id) AS applications_count
+        FROM applications
+        WHERE applications.student_id = (SELECT student_id FROM st)
+)
+SELECT * 
+FROM st
 CROSS JOIN ac;
 
 
+-- name: InsertNotifications :exec
+INSERT INTO notifications (user_id, title, description, timestamp)
+VALUES($1, $2, $3, $4);
+
+
+-- name: GetNotifications :many
+SELECT
+    *
+FROM notifications
+WHERE user_id = $1
+ORDER BY timestamp DESC
+LIMIT $2
+OFFSET $3;
 
 
 
@@ -82,8 +126,8 @@ AND company_id = (SELECT company_id FROM companies WHERE companies.user_id = $10
 
 
 -- name: ExtraInfoCompany :one
-INSERT INTO companies (company_name, representative_email, representative_contact, representative_name, data_url, user_id)
-VALUES ($1, $2, $3, $4, $5, (SELECT user_id FROM users WHERE email = $6))
+INSERT INTO companies (company_name, representative_email, representative_contact, representative_name, data_url, user_id, address, picture_url, website, description, industry)
+VALUES ($1, $2, $3, $4, $5, (SELECT user_id FROM users WHERE email = $6), $7, $8, $9, $10, $11)
 RETURNING *;
 
 
@@ -259,16 +303,30 @@ JOIN jobs ON jobs.company_id = companies.company_id
 JOIN applications ON applications.job_id = jobs.job_id
 WHERE applications.application_id = $1;
 
--- name: ApplicationStatusToAnd :exec
-UPDATE applications
-SET status = $1
-WHERE application_id = $2 AND status = $3;
+-- name: ApplicationStatusToAnd :one
+WITH upd AS (
+    UPDATE applications
+    SET status = $1
+    WHERE application_id = $2 AND status = $3
+    RETURNING student_id
+)
+SELECT
+    students.user_id
+FROM students 
+JOIN upd ON students.student_id = upd.student_id;
 
+-- name: ApplicationStatusTo :one
+WITH upd AS (
+    UPDATE applications
+    SET status = $1
+    WHERE application_id = $2
+    RETURNING student_id
+)
+SELECT
+    students.user_id
+FROM students 
+JOIN upd ON students.student_id = upd.student_id;
 
--- name: ApplicationStatusTo :exec
-UPDATE applications
-SET status = $1
-WHERE application_id = $2;
 
 -- name: InterviewStatusTo :exec
 UPDATE interviews
@@ -286,6 +344,7 @@ RETURNING TO_CHAR(date_time, 'HH12:MI AM DD-MM-YYYY') AS date_time;
 SELECT 
     students.student_name, 
     students.student_email,
+    students.user_id,
     j.title,
     c.company_name
 FROM students
@@ -546,7 +605,7 @@ AND test_id = $3
 RETURNING result_id;
 
 
--- name: ProfileData :one
+-- name: StudentProfileData :one
 SELECT 
     students.student_name,
     students.roll_number,
@@ -563,6 +622,20 @@ SELECT
     students.extras
 FROM students
 WHERE students.user_id = $1;
+
+
+-- name: CompanyProfileData :one
+SELECT 
+    companies.company_name,
+    companies.representative_email,
+    companies.representative_contact,
+    companies.representative_name,
+    companies.address,
+    companies.website,
+    companies.description,
+    companies.industry
+FROM companies
+WHERE companies.user_id = $1;
 
 -- name: TestHistory :many
 SELECT 
@@ -608,6 +681,32 @@ SELECT
 FROM applications
 WHERE applications.student_id = (SELECT students.student_id FROM students WHERE students.user_id = $1);
 
+-- name: GetAllJobsID :many
+SELECT
+    jobs.job_id
+FROM jobs
+WHERE jobs.company_id = (SELECT companies.company_id FROM companies WHERE companies.user_id = $1);
+
+-- name: ApplicantsCount :many
+WITH ji AS (
+    SELECT
+        jobs.job_id
+    FROM jobs
+    WHERE jobs.company_id = (SELECT companies.company_id FROM companies WHERE companies.user_id = $1)
+)
+
+SELECT
+    applications.job_id,
+    CAST(COALESCE(COUNT(applications.status), 0) AS BIGINT) AS total_apps,
+    CAST(COALESCE(SUM(CASE WHEN applications.status = 'UnderReview' THEN 1 END), 0) AS BIGINT) AS reviewed_count,
+    CAST(COALESCE(SUM(CASE WHEN applications.status = 'ShortListed' THEN 1 END), 0) AS BIGINT) AS shortlisted_count,
+    CAST(COALESCE(SUM(CASE WHEN applications.status = 'Rejected' THEN 1 END), 0) AS BIGINT) AS rejected_count,
+    CAST(COALESCE(SUM(CASE WHEN applications.status = 'Offered' THEN 1 END), 0) AS BIGINT) AS offered_count,
+    CAST(COALESCE(SUM(CASE WHEN applications.status = 'Hired' THEN 1 END), 0) AS BIGINT) AS hired_count
+FROM applications
+JOIN ji ON ji.job_id = applications.job_id
+GROUP BY applications.job_id;
+
 -- name: UsersTableData :one
 SELECT 
     TO_CHAR(users.created_at, 'HH12:MI AM DD-MM-YYYY') AS created_at,
@@ -617,13 +716,22 @@ FROM users
 WHERE users.user_id = $1;
 
 
--- name: GetAllFilePaths :one
+-- name: GetAllFilePathsStudent :one
 SELECT 
     students.resume_url,
     students.result_url,
     students.picture_url
 FROM students
 WHERE user_id = $1;
+
+-- name: GetAllFilePathsCompany :one
+SELECT 
+    companies.picture_url,
+    companies.picture_url
+FROM companies
+WHERE user_id = $1;
+
+
 
 -- name: UpdateStudentDetails :exec
 UPDATE students
@@ -635,6 +743,18 @@ SET course = $1,
     address = $6,
     skills = $7
 WHERE user_id = $8;
+
+-- name: UpdateCompanyDetails :exec
+UPDATE companies
+SET company_name = $1,
+    representative_email = $2,
+    representative_contact = $3,
+    representative_name = $4,
+    address = $5,
+    website = $6,
+    description = $7,
+    industry = $8
+WHERE user_id = $9;
 
 
 -- name: UpdateStudentResume :exec
@@ -655,6 +775,11 @@ SET
     picture_url = $1
 WHERE user_id = $2;
 
+-- name: UpdateCompanyProfilePic :exec
+UPDATE companies
+SET
+    picture_url = $1
+WHERE user_id = $2;
 
 -- name: IsTestPublished :one
 SELECT 
@@ -863,8 +988,23 @@ JOIN companies ON jobs.company_id = companies.company_id
 JOIN students ON applications.student_id = students.student_id
 WHERE applications.student_id = $1 AND companies.user_id = $2;
 
-
-
+-- -- name: GetStudentProfile :one
+-- SELECT
+--     students.student_name,
+--     students.roll_number,
+--     students.student_dob,
+--     students.gender,
+--     students.course,
+--     students.department,
+--     students.year_of_study,
+--     students.cgpa,
+--     students.contact_no,
+--     students.student_email,
+--     students.address,
+--     students.skills,
+--     students.extras
+-- FROM students
+-- WHERE students.student_id = $1;
 
 -- >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 -- Admin Functions --------------------------------

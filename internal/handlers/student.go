@@ -22,6 +22,12 @@ func NewStudentHandler(studentService *services.StudentService) *StudentHandler 
 func (h *StudentHandler) RegisterRoute(studentRoute *gin.RouterGroup) {
 	// get the dashboard
 	studentRoute.GET("/dashboard", h.StudentDashboard)
+	studentRoute.GET("/dashboarddata", h.DashboardData)
+
+	// get the notifications data
+	studentRoute.GET("/notifications", h.GetNotifications)
+
+
 	// get the template for jobs list
 	studentRoute.GET("/jobslist", h.JobsList)
 	// get list of applicable jobs as JSON
@@ -72,6 +78,67 @@ func (h *StudentHandler) RegisterRoute(studentRoute *gin.RouterGroup) {
 func (h *StudentHandler) StudentDashboard(ctx *gin.Context) {
 	ctx.File("./template/dashboard/studentdashboard.html")
 }
+
+func (h *StudentHandler) DashboardData(ctx *gin.Context) {
+
+	userid, exists := ctx.Get("ID")
+	if !exists {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, &errs.Error{
+			Type: errs.MissingRequiredField,
+			Message: "Missing user ID in request.",
+		})
+		return
+	}
+
+	data, err := h.StudentService.DashboardData(ctx, userid.(int64))
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, &errs.Error{
+			Type: errs.MissingRequiredField,
+			Message: err.Error(),
+		})
+		fmt.Println(err)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, data)
+}
+
+func (h *StudentHandler) GetNotifications(ctx *gin.Context) {
+
+	userid, exists := ctx.Get("ID")
+	if !exists {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error": "missing user ID",
+		})
+		return
+	}
+
+	start := ctx.Query("start")
+	end := ctx.Query("end")
+	if start == "" || end == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error": "missing query params start and end",
+		})
+		return
+	}
+
+	notifs, errf := h.StudentService.Notify.GetNotifications(ctx, userid.(int64), start, end)
+	if errf != nil {
+		if errf.Type != errs.Internal {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"Type": errf.Type,
+				"Message": errf.Message,
+			})
+			return
+		}
+		// TODO: add the internal errors logic 
+		return
+	}
+
+	ctx.JSON(http.StatusOK, notifs)
+
+}
+
 func (h *StudentHandler) JobsList(ctx *gin.Context) {
 	ctx.File("./template/student/alljobslist.html")
 }
@@ -346,6 +413,7 @@ func (h *StudentHandler) ProfileData(ctx *gin.Context) {
 		fmt.Println(err)
 		return
 	}
+	
 
 	ctx.JSON(http.StatusOK, data)
 }

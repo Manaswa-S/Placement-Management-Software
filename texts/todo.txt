@@ -12,7 +12,29 @@ handler functions are structed wrong, need to use gin.HandlerFunc
 
 in myapplicants or similar pages, you might want to reduce the info directly in cards and instead direct to profile pages for info
 
+the errors logic after errf.Type != errs.Internal is not set anywhere, like if the error is internal you need to do something
+
+disable submit and other buttons after first click to avoid multiple submissions
+
+when loggin, also log something to recognize the users based on our database, like the user name
+
+if a page was not found, and the screen is not 500 internal error, if i refresh, it redirects me to the login page even though i am still logged in
+
+sometimes, if the form was shared back in time, and accessed way later, it errors saying access not given
+
+replace os.Getenv witht Lookupenv where ever neccessary to reduce empty variables
+
+alot of db queries are unprotected ex. 'ApplicationStatusToAnd'
+
+change the student profile setup to the company setup, which is better
+
+make sure you can have only one interview per application at any given time
+
 we havent accounted for sections in test forms
+
+if i request a new email confirmation link, i can still access the old one
+
+need to replace those queries for email data or something similar with one single global query
 
 for everything there is not a check if the time for that event has gone by, i can still give tests that were meant to be over by yesterday
 
@@ -27,6 +49,8 @@ we'll need to consider using better email delivery options with better security 
 email sending services have rigourous rate limits, so we cannot send out alot of emails at once, maybe switch to the send-on-demand logic
 
 there is very less type safety in the whole codebase, client can send anything and it will accept anything
+
+using something like telegram for critical messages to the admins on their mobiles, for web based, our service is enough
 
 custom 'alert' ui
 

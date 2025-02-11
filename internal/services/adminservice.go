@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.mod/internal/apicalls"
+	"go.mod/internal/notify"
 	sqlc "go.mod/internal/sqlc/generate"
 	"go.mod/internal/utils"
 )
@@ -15,11 +16,13 @@ import (
 type AdminService struct {
 	queries *sqlc.Queries
 	GAPIService *apicalls.Caller
+	Notify *notify.Notify
 }
-func NewAdminService(queriespool *sqlc.Queries, gapiService *apicalls.Caller) *AdminService {
+func NewAdminService(queriespool *sqlc.Queries, gapiService *apicalls.Caller, notifyService *notify.Notify) *AdminService {
 	return &AdminService{
 		queries: queriespool,
 		GAPIService: gapiService,
+		Notify: notifyService,
 	}
 }
 

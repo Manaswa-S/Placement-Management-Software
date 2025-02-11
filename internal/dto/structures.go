@@ -36,9 +36,16 @@ type AllJobs struct {
 type ExtraInfoCompany struct {
 	Token string
 	CompanyName string
+	CompanyEmail string
+	CompanyDescription string
+	CompanyAddress string
+	CompanyWebsite string
+	IndustryType string
+
 	RepresentativeName string
 	RepresentativeContact string
 	RepresentativeEmail string
+
 	Extras map[string]interface{}
 }
 
@@ -160,6 +167,8 @@ type Token struct {
 	Role int64
 	ID int64
 	Email string	
+
+	Version string
 }
 
 type JWTTokens struct {
@@ -167,14 +176,24 @@ type JWTTokens struct {
 	JWTRefresh string
 }
 
-type ProfileData struct {
+type StudentProfileData struct {
 	OverData *sqlc.ApplicationsStatusCountsRow
 	UsersData *sqlc.UsersTableDataRow
-	ProData *sqlc.ProfileDataRow
+	ProData *sqlc.StudentProfileDataRow
 	AppsHistory *[]sqlc.ApplicationHistoryRow
 	IntsHistory *[]sqlc.InterviewHistoryRow
 	TestsHistory *[]sqlc.TestHistoryRow
 	SankeyChrt *charts.Sankey
+}
+
+type CompanyProfileData struct {
+	OverData *sqlc.ApplicantsCountRow
+	UsersData *sqlc.UsersTableDataRow
+	ProData *sqlc.CompanyProfileDataRow
+	// AppsHistory *[]sqlc.ApplicationHistoryRow
+	// IntsHistory *[]sqlc.InterviewHistoryRow
+	// TestsHistory *[]sqlc.TestHistoryRow
+	SankeyChrt []*charts.Sankey
 }
 
 type UpdateStudentDetails struct {
@@ -185,6 +204,17 @@ type UpdateStudentDetails struct {
 	ContactNumber string
 	Address string
 	Skills string
+}
+
+type UpdateCompanyDetails struct {
+	CompanyName string
+	CompanyDescription string
+	CompanyAddress string
+	IndustryType string
+	CompanyWebsite string
+	RepresentativeName string
+	RepresentativeEmail string
+	RepresentativeContact string
 }
 
 type Report struct {
@@ -211,10 +241,38 @@ type IndividualChartsData struct {
 }
 
 
+type NotificationData struct {
+	Title string
+	Description string
+	TimeStamp int64
+}
+
+
 
 
 
 
 type PerformanceData struct {
 	Latency float64
+}
+
+type LoggerData struct {
+	StartTime time.Time
+	ClientIP string
+	Method string
+	Path string
+	StatusCode int
+	InternalError string
+	Latency time.Duration
+}
+
+type ErrorData struct {
+	Debug string // found in ctx.Get("debug")
+	Info string // found in ctx.Get("info")
+	Warn string // found in ctx.Get("warn")
+	Error string // found in ctx.Get("error")
+	Critical string // found in ctx.Get("critical")
+	Fatal string // found in ctx.Get("fatal")
+
+	LogData *LoggerData
 }

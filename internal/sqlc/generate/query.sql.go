@@ -11,6 +11,65 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const applicantsCount = `-- name: ApplicantsCount :many
+WITH ji AS (
+    SELECT
+        jobs.job_id
+    FROM jobs
+    WHERE jobs.company_id = (SELECT companies.company_id FROM companies WHERE companies.user_id = $1)
+)
+
+SELECT
+    applications.job_id,
+    CAST(COALESCE(COUNT(applications.status), 0) AS BIGINT) AS total_apps,
+    CAST(COALESCE(SUM(CASE WHEN applications.status = 'UnderReview' THEN 1 END), 0) AS BIGINT) AS reviewed_count,
+    CAST(COALESCE(SUM(CASE WHEN applications.status = 'ShortListed' THEN 1 END), 0) AS BIGINT) AS shortlisted_count,
+    CAST(COALESCE(SUM(CASE WHEN applications.status = 'Rejected' THEN 1 END), 0) AS BIGINT) AS rejected_count,
+    CAST(COALESCE(SUM(CASE WHEN applications.status = 'Offered' THEN 1 END), 0) AS BIGINT) AS offered_count,
+    CAST(COALESCE(SUM(CASE WHEN applications.status = 'Hired' THEN 1 END), 0) AS BIGINT) AS hired_count
+FROM applications
+JOIN ji ON ji.job_id = applications.job_id
+GROUP BY applications.job_id
+`
+
+type ApplicantsCountRow struct {
+	JobID            int64
+	TotalApps        int64
+	ReviewedCount    int64
+	ShortlistedCount int64
+	RejectedCount    int64
+	OfferedCount     int64
+	HiredCount       int64
+}
+
+func (q *Queries) ApplicantsCount(ctx context.Context, userID int64) ([]ApplicantsCountRow, error) {
+	rows, err := q.db.Query(ctx, applicantsCount, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ApplicantsCountRow
+	for rows.Next() {
+		var i ApplicantsCountRow
+		if err := rows.Scan(
+			&i.JobID,
+			&i.TotalApps,
+			&i.ReviewedCount,
+			&i.ShortlistedCount,
+			&i.RejectedCount,
+			&i.OfferedCount,
+			&i.HiredCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const applicationHistory = `-- name: ApplicationHistory :many
 SELECT 
     applications.application_id,
@@ -56,10 +115,17 @@ func (q *Queries) ApplicationHistory(ctx context.Context, userID int64) ([]Appli
 	return items, nil
 }
 
-const applicationStatusTo = `-- name: ApplicationStatusTo :exec
-UPDATE applications
-SET status = $1
-WHERE application_id = $2
+const applicationStatusTo = `-- name: ApplicationStatusTo :one
+WITH upd AS (
+    UPDATE applications
+    SET status = $1
+    WHERE application_id = $2
+    RETURNING student_id
+)
+SELECT
+    students.user_id
+FROM students 
+JOIN upd ON students.student_id = upd.student_id
 `
 
 type ApplicationStatusToParams struct {
@@ -67,15 +133,24 @@ type ApplicationStatusToParams struct {
 	ApplicationID int64
 }
 
-func (q *Queries) ApplicationStatusTo(ctx context.Context, arg ApplicationStatusToParams) error {
-	_, err := q.db.Exec(ctx, applicationStatusTo, arg.Status, arg.ApplicationID)
-	return err
+func (q *Queries) ApplicationStatusTo(ctx context.Context, arg ApplicationStatusToParams) (int64, error) {
+	row := q.db.QueryRow(ctx, applicationStatusTo, arg.Status, arg.ApplicationID)
+	var user_id int64
+	err := row.Scan(&user_id)
+	return user_id, err
 }
 
-const applicationStatusToAnd = `-- name: ApplicationStatusToAnd :exec
-UPDATE applications
-SET status = $1
-WHERE application_id = $2 AND status = $3
+const applicationStatusToAnd = `-- name: ApplicationStatusToAnd :one
+WITH upd AS (
+    UPDATE applications
+    SET status = $1
+    WHERE application_id = $2 AND status = $3
+    RETURNING student_id
+)
+SELECT
+    students.user_id
+FROM students 
+JOIN upd ON students.student_id = upd.student_id
 `
 
 type ApplicationStatusToAndParams struct {
@@ -84,9 +159,11 @@ type ApplicationStatusToAndParams struct {
 	Status_2      interface{}
 }
 
-func (q *Queries) ApplicationStatusToAnd(ctx context.Context, arg ApplicationStatusToAndParams) error {
-	_, err := q.db.Exec(ctx, applicationStatusToAnd, arg.Status, arg.ApplicationID, arg.Status_2)
-	return err
+func (q *Queries) ApplicationStatusToAnd(ctx context.Context, arg ApplicationStatusToAndParams) (int64, error) {
+	row := q.db.QueryRow(ctx, applicationStatusToAnd, arg.Status, arg.ApplicationID, arg.Status_2)
+	var user_id int64
+	err := row.Scan(&user_id)
+	return user_id, err
 }
 
 const applicationsStatusCounts = `-- name: ApplicationsStatusCounts :one
@@ -216,7 +293,11 @@ func (q *Queries) CloseJob(ctx context.Context, arg CloseJobParams) error {
 
 const companyDashboardData = `-- name: CompanyDashboardData :one
 WITH company AS (
-    SELECT company_id FROM companies WHERE user_id = $1
+    SELECT 
+        company_id, 
+        company_name,
+        representative_name 
+    FROM companies WHERE user_id = $1
 ),
 jc AS (
     SELECT COUNT(jobs.job_id) AS jobs_count
@@ -228,21 +309,81 @@ ac AS (
     FROM applications
     JOIN jobs ON applications.job_id = jobs.job_id
     WHERE jobs.company_id = (SELECT company_id FROM company)
+),
+ic AS (
+    SELECT COUNT(interviews.interview_id) AS interviews_count
+    FROM interviews
+    WHERE interviews.company_id = (SELECT company_id FROM company)
+    AND interviews.status = 'Scheduled'
 )
-SELECT jobs_count, applications_count 
-FROM jc
+SELECT company_id, company_name, representative_name, jobs_count, applications_count, interviews_count 
+FROM company
+CROSS JOIN jc
 CROSS JOIN ac
+CROSS JOIN ic
 `
 
 type CompanyDashboardDataRow struct {
-	JobsCount         int64
-	ApplicationsCount int64
+	CompanyID          int64
+	CompanyName        string
+	RepresentativeName string
+	JobsCount          int64
+	ApplicationsCount  int64
+	InterviewsCount    int64
 }
 
 func (q *Queries) CompanyDashboardData(ctx context.Context, userID int64) (CompanyDashboardDataRow, error) {
 	row := q.db.QueryRow(ctx, companyDashboardData, userID)
 	var i CompanyDashboardDataRow
-	err := row.Scan(&i.JobsCount, &i.ApplicationsCount)
+	err := row.Scan(
+		&i.CompanyID,
+		&i.CompanyName,
+		&i.RepresentativeName,
+		&i.JobsCount,
+		&i.ApplicationsCount,
+		&i.InterviewsCount,
+	)
+	return i, err
+}
+
+const companyProfileData = `-- name: CompanyProfileData :one
+SELECT 
+    companies.company_name,
+    companies.representative_email,
+    companies.representative_contact,
+    companies.representative_name,
+    companies.address,
+    companies.website,
+    companies.description,
+    companies.industry
+FROM companies
+WHERE companies.user_id = $1
+`
+
+type CompanyProfileDataRow struct {
+	CompanyName           string
+	RepresentativeEmail   string
+	RepresentativeContact string
+	RepresentativeName    string
+	Address               string
+	Website               pgtype.Text
+	Description           pgtype.Text
+	Industry              string
+}
+
+func (q *Queries) CompanyProfileData(ctx context.Context, userID int64) (CompanyProfileDataRow, error) {
+	row := q.db.QueryRow(ctx, companyProfileData, userID)
+	var i CompanyProfileDataRow
+	err := row.Scan(
+		&i.CompanyName,
+		&i.RepresentativeEmail,
+		&i.RepresentativeContact,
+		&i.RepresentativeName,
+		&i.Address,
+		&i.Website,
+		&i.Description,
+		&i.Industry,
+	)
 	return i, err
 }
 
@@ -584,9 +725,9 @@ func (q *Queries) EvaluateTestResult(ctx context.Context) (int64, error) {
 }
 
 const extraInfoCompany = `-- name: ExtraInfoCompany :one
-INSERT INTO companies (company_name, representative_email, representative_contact, representative_name, data_url, user_id)
-VALUES ($1, $2, $3, $4, $5, (SELECT user_id FROM users WHERE email = $6))
-RETURNING company_id, company_name, representative_email, representative_contact, representative_name, data_url, user_id
+INSERT INTO companies (company_name, representative_email, representative_contact, representative_name, data_url, user_id, address, picture_url, website, description, industry)
+VALUES ($1, $2, $3, $4, $5, (SELECT user_id FROM users WHERE email = $6), $7, $8, $9, $10, $11)
+RETURNING company_id, company_name, representative_email, representative_contact, representative_name, data_url, user_id, address, picture_url, website, description, industry
 `
 
 type ExtraInfoCompanyParams struct {
@@ -596,6 +737,11 @@ type ExtraInfoCompanyParams struct {
 	RepresentativeName    string
 	DataUrl               pgtype.Text
 	Email                 string
+	Address               string
+	PictureUrl            pgtype.Text
+	Website               pgtype.Text
+	Description           pgtype.Text
+	Industry              string
 }
 
 func (q *Queries) ExtraInfoCompany(ctx context.Context, arg ExtraInfoCompanyParams) (Company, error) {
@@ -606,6 +752,11 @@ func (q *Queries) ExtraInfoCompany(ctx context.Context, arg ExtraInfoCompanyPara
 		arg.RepresentativeName,
 		arg.DataUrl,
 		arg.Email,
+		arg.Address,
+		arg.PictureUrl,
+		arg.Website,
+		arg.Description,
+		arg.Industry,
 	)
 	var i Company
 	err := row.Scan(
@@ -616,6 +767,11 @@ func (q *Queries) ExtraInfoCompany(ctx context.Context, arg ExtraInfoCompanyPara
 		&i.RepresentativeName,
 		&i.DataUrl,
 		&i.UserID,
+		&i.Address,
+		&i.PictureUrl,
+		&i.Website,
+		&i.Description,
+		&i.Industry,
 	)
 	return i, err
 }
@@ -751,7 +907,27 @@ func (q *Queries) GetAllApplicantsEmailsForJob(ctx context.Context, jobID int64)
 	return items, nil
 }
 
-const getAllFilePaths = `-- name: GetAllFilePaths :one
+const getAllFilePathsCompany = `-- name: GetAllFilePathsCompany :one
+SELECT 
+    companies.picture_url,
+    companies.picture_url
+FROM companies
+WHERE user_id = $1
+`
+
+type GetAllFilePathsCompanyRow struct {
+	PictureUrl   pgtype.Text
+	PictureUrl_2 pgtype.Text
+}
+
+func (q *Queries) GetAllFilePathsCompany(ctx context.Context, userID int64) (GetAllFilePathsCompanyRow, error) {
+	row := q.db.QueryRow(ctx, getAllFilePathsCompany, userID)
+	var i GetAllFilePathsCompanyRow
+	err := row.Scan(&i.PictureUrl, &i.PictureUrl_2)
+	return i, err
+}
+
+const getAllFilePathsStudent = `-- name: GetAllFilePathsStudent :one
 SELECT 
     students.resume_url,
     students.result_url,
@@ -760,17 +936,44 @@ FROM students
 WHERE user_id = $1
 `
 
-type GetAllFilePathsRow struct {
+type GetAllFilePathsStudentRow struct {
 	ResumeUrl  pgtype.Text
 	ResultUrl  string
 	PictureUrl pgtype.Text
 }
 
-func (q *Queries) GetAllFilePaths(ctx context.Context, userID int64) (GetAllFilePathsRow, error) {
-	row := q.db.QueryRow(ctx, getAllFilePaths, userID)
-	var i GetAllFilePathsRow
+func (q *Queries) GetAllFilePathsStudent(ctx context.Context, userID int64) (GetAllFilePathsStudentRow, error) {
+	row := q.db.QueryRow(ctx, getAllFilePathsStudent, userID)
+	var i GetAllFilePathsStudentRow
 	err := row.Scan(&i.ResumeUrl, &i.ResultUrl, &i.PictureUrl)
 	return i, err
+}
+
+const getAllJobsID = `-- name: GetAllJobsID :many
+SELECT
+    jobs.job_id
+FROM jobs
+WHERE jobs.company_id = (SELECT companies.company_id FROM companies WHERE companies.user_id = $1)
+`
+
+func (q *Queries) GetAllJobsID(ctx context.Context, userID int64) ([]int64, error) {
+	rows, err := q.db.Query(ctx, getAllJobsID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int64
+	for rows.Next() {
+		var job_id int64
+		if err := rows.Scan(&job_id); err != nil {
+			return nil, err
+		}
+		items = append(items, job_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getApplicableJobsTypeFilter = `-- name: GetApplicableJobsTypeFilter :many
@@ -1103,6 +1306,49 @@ func (q *Queries) GetMyApplicationsStatusFilter(ctx context.Context, arg GetMyAp
 	return items, nil
 }
 
+const getNotifications = `-- name: GetNotifications :many
+SELECT
+    notif_id, user_id, title, description, read_status, timestamp
+FROM notifications
+WHERE user_id = $1
+ORDER BY timestamp DESC
+LIMIT $2
+OFFSET $3
+`
+
+type GetNotificationsParams struct {
+	UserID int64
+	Limit  int32
+	Offset int32
+}
+
+func (q *Queries) GetNotifications(ctx context.Context, arg GetNotificationsParams) ([]Notification, error) {
+	rows, err := q.db.Query(ctx, getNotifications, arg.UserID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Notification
+	for rows.Next() {
+		var i Notification
+		if err := rows.Scan(
+			&i.NotifID,
+			&i.UserID,
+			&i.Title,
+			&i.Description,
+			&i.ReadStatus,
+			&i.Timestamp,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getOfferLetterData = `-- name: GetOfferLetterData :one
 SELECT 
     students.student_name, 
@@ -1174,6 +1420,7 @@ const getScheduleInterviewData = `-- name: GetScheduleInterviewData :one
 SELECT 
     students.student_name, 
     students.student_email,
+    students.user_id,
     j.title,
     c.company_name
 FROM students
@@ -1185,6 +1432,7 @@ JOIN (SELECT company_id, company_name FROM companies) AS c ON j.company_id = c.c
 type GetScheduleInterviewDataRow struct {
 	StudentName  string
 	StudentEmail string
+	UserID       int64
 	Title        string
 	CompanyName  string
 }
@@ -1195,6 +1443,7 @@ func (q *Queries) GetScheduleInterviewData(ctx context.Context, applicationID in
 	err := row.Scan(
 		&i.StudentName,
 		&i.StudentEmail,
+		&i.UserID,
 		&i.Title,
 		&i.CompanyName,
 	)
@@ -1330,6 +1579,28 @@ func (q *Queries) InsertNewJob(ctx context.Context, arg InsertNewJobParams) erro
 		arg.Position,
 		arg.Extras,
 		arg.Description,
+	)
+	return err
+}
+
+const insertNotifications = `-- name: InsertNotifications :exec
+INSERT INTO notifications (user_id, title, description, timestamp)
+VALUES($1, $2, $3, $4)
+`
+
+type InsertNotificationsParams struct {
+	UserID      int64
+	Title       pgtype.Text
+	Description pgtype.Text
+	Timestamp   int64
+}
+
+func (q *Queries) InsertNotifications(ctx context.Context, arg InsertNotificationsParams) error {
+	_, err := q.db.Exec(ctx, insertNotifications,
+		arg.UserID,
+		arg.Title,
+		arg.Description,
+		arg.Timestamp,
 	)
 	return err
 }
@@ -1538,62 +1809,6 @@ func (q *Queries) NewTestResult(ctx context.Context, arg NewTestResultParams) er
 	return err
 }
 
-const profileData = `-- name: ProfileData :one
-SELECT 
-    students.student_name,
-    students.roll_number,
-    students.student_dob,
-    students.gender,
-    students.course,
-    students.department,
-    students.year_of_study,
-    students.cgpa,
-    students.contact_no,
-    students.student_email,
-    students.address,
-    students.skills,
-    students.extras
-FROM students
-WHERE students.user_id = $1
-`
-
-type ProfileDataRow struct {
-	StudentName  string
-	RollNumber   string
-	StudentDob   pgtype.Date
-	Gender       string
-	Course       string
-	Department   string
-	YearOfStudy  string
-	Cgpa         pgtype.Float8
-	ContactNo    string
-	StudentEmail string
-	Address      pgtype.Text
-	Skills       pgtype.Text
-	Extras       []byte
-}
-
-func (q *Queries) ProfileData(ctx context.Context, userID int64) (ProfileDataRow, error) {
-	row := q.db.QueryRow(ctx, profileData, userID)
-	var i ProfileDataRow
-	err := row.Scan(
-		&i.StudentName,
-		&i.RollNumber,
-		&i.StudentDob,
-		&i.Gender,
-		&i.Course,
-		&i.Department,
-		&i.YearOfStudy,
-		&i.Cgpa,
-		&i.ContactNo,
-		&i.StudentEmail,
-		&i.Address,
-		&i.Skills,
-		&i.Extras,
-	)
-	return i, err
-}
-
 const scheduleInterview = `-- name: ScheduleInterview :one
 INSERT INTO interviews (application_id, company_id, date_time, type, notes, location)
 VALUES ($1, (SELECT company_id FROM companies WHERE user_id = $2), $3, $4, $5, $6)
@@ -1783,6 +1998,38 @@ func (q *Queries) SignupUser(ctx context.Context, arg SignupUserParams) (User, e
 	return i, err
 }
 
+const studentDashboardData = `-- name: StudentDashboardData :one
+WITH st AS (
+    SELECT 
+        students.student_id,
+        students.student_name
+    FROM students
+    WHERE students.user_id = $1
+),
+ac AS (
+    SELECT
+        COUNT(applications.application_id) AS applications_count
+        FROM applications
+        WHERE applications.student_id = (SELECT student_id FROM st)
+)
+SELECT student_id, student_name, applications_count 
+FROM st
+CROSS JOIN ac
+`
+
+type StudentDashboardDataRow struct {
+	StudentID         int64
+	StudentName       string
+	ApplicationsCount int64
+}
+
+func (q *Queries) StudentDashboardData(ctx context.Context, userID int64) (StudentDashboardDataRow, error) {
+	row := q.db.QueryRow(ctx, studentDashboardData, userID)
+	var i StudentDashboardDataRow
+	err := row.Scan(&i.StudentID, &i.StudentName, &i.ApplicationsCount)
+	return i, err
+}
+
 const studentInfo = `-- name: StudentInfo :one
 SELECT
     students.student_id,
@@ -1837,6 +2084,62 @@ func (q *Queries) StudentInfo(ctx context.Context, userID int64) (StudentInfoRow
 		&i.Address,
 		&i.Skills,
 		&i.Profilepic,
+		&i.Extras,
+	)
+	return i, err
+}
+
+const studentProfileData = `-- name: StudentProfileData :one
+SELECT 
+    students.student_name,
+    students.roll_number,
+    students.student_dob,
+    students.gender,
+    students.course,
+    students.department,
+    students.year_of_study,
+    students.cgpa,
+    students.contact_no,
+    students.student_email,
+    students.address,
+    students.skills,
+    students.extras
+FROM students
+WHERE students.user_id = $1
+`
+
+type StudentProfileDataRow struct {
+	StudentName  string
+	RollNumber   string
+	StudentDob   pgtype.Date
+	Gender       string
+	Course       string
+	Department   string
+	YearOfStudy  string
+	Cgpa         pgtype.Float8
+	ContactNo    string
+	StudentEmail string
+	Address      pgtype.Text
+	Skills       pgtype.Text
+	Extras       []byte
+}
+
+func (q *Queries) StudentProfileData(ctx context.Context, userID int64) (StudentProfileDataRow, error) {
+	row := q.db.QueryRow(ctx, studentProfileData, userID)
+	var i StudentProfileDataRow
+	err := row.Scan(
+		&i.StudentName,
+		&i.RollNumber,
+		&i.StudentDob,
+		&i.Gender,
+		&i.Course,
+		&i.Department,
+		&i.YearOfStudy,
+		&i.Cgpa,
+		&i.ContactNo,
+		&i.StudentEmail,
+		&i.Address,
+		&i.Skills,
 		&i.Extras,
 	)
 	return i, err
@@ -2419,6 +2722,63 @@ func (q *Queries) UpcomingTestsStudent(ctx context.Context, userID int64) ([]Upc
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateCompanyDetails = `-- name: UpdateCompanyDetails :exec
+UPDATE companies
+SET company_name = $1,
+    representative_email = $2,
+    representative_contact = $3,
+    representative_name = $4,
+    address = $5,
+    website = $6,
+    description = $7,
+    industry = $8
+WHERE user_id = $9
+`
+
+type UpdateCompanyDetailsParams struct {
+	CompanyName           string
+	RepresentativeEmail   string
+	RepresentativeContact string
+	RepresentativeName    string
+	Address               string
+	Website               pgtype.Text
+	Description           pgtype.Text
+	Industry              string
+	UserID                int64
+}
+
+func (q *Queries) UpdateCompanyDetails(ctx context.Context, arg UpdateCompanyDetailsParams) error {
+	_, err := q.db.Exec(ctx, updateCompanyDetails,
+		arg.CompanyName,
+		arg.RepresentativeEmail,
+		arg.RepresentativeContact,
+		arg.RepresentativeName,
+		arg.Address,
+		arg.Website,
+		arg.Description,
+		arg.Industry,
+		arg.UserID,
+	)
+	return err
+}
+
+const updateCompanyProfilePic = `-- name: UpdateCompanyProfilePic :exec
+UPDATE companies
+SET
+    picture_url = $1
+WHERE user_id = $2
+`
+
+type UpdateCompanyProfilePicParams struct {
+	PictureUrl pgtype.Text
+	UserID     int64
+}
+
+func (q *Queries) UpdateCompanyProfilePic(ctx context.Context, arg UpdateCompanyProfilePicParams) error {
+	_, err := q.db.Exec(ctx, updateCompanyProfilePic, arg.PictureUrl, arg.UserID)
+	return err
 }
 
 const updateEmailConfirmation = `-- name: UpdateEmailConfirmation :exec

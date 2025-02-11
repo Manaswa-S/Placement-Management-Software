@@ -25,6 +25,11 @@ type Company struct {
 	RepresentativeName    string
 	DataUrl               pgtype.Text
 	UserID                int64
+	Address               string
+	PictureUrl            pgtype.Text
+	Website               pgtype.Text
+	Description           pgtype.Text
+	Industry              string
 }
 
 type Interview struct {
@@ -54,6 +59,15 @@ type Job struct {
 	Extras       []byte
 	ActiveStatus bool
 	Description  pgtype.Text
+}
+
+type Notification struct {
+	NotifID     int64
+	UserID      int64
+	Title       pgtype.Text
+	Description pgtype.Text
+	ReadStatus  bool
+	Timestamp   int64
 }
 
 type Student struct {

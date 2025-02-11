@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - PMS</title>
     <link rel="stylesheet" href="/static/styles/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
 </head>
 <body>
 
@@ -18,50 +20,103 @@
         <a href="#settings" class="nav-item">Settings</a>
         <a href="/laa/admin/testresult" class="nav-item">Test Results #temp</a>
 
+        <a href="javascript:void(0);" onclick="getNewNotifications()" class="nav-item">Notifications</a>
+
     </div>
 
     <div class="main-content">
         <header class="dashboard-header">
-            <h2>Welcome back, Admin Name</h2>
-            <p>Here's an overview of your placement activities</p>
+            <div class="header-left">
+                <h2 id="welcomeTitle">-nil-</h2>
+            </div>
+            
+            <div class="header-right">
+                <i class="notification-icon fas fa-bell" onclick="getNewNotifications()"></i>
+                <a href="/laa/company/profile">
+                    <img width="20" height="20" src="https://img.freepik.com/premium-vector/man-avatar-profile-picture-vector-illustration_268834-538.jpg?semt=ais_hybrid" alt="Profile">
+                </a>
+            </div>
         </header>
-        <div class="dashboard-stats">
-            <div class="stat-card">
-                <h3>Overview</h3>
-                <p>Track and manage the overall placement status across students and companies.</p>
-                <a href="#" class="action-btn">View Insights</a>
-            </div>
 
-            <div class="stat-card">
-                <h3>Manage Students</h3>
-                <p>Review student profiles, resumes, and placement statuses.</p>
-                <a href="#" class="action-btn">View Students</a>
+        <div class="notification-panel" id="notificationPanel">
+            <div class="notification-header">
+              <h3>Notifications</h3>
+              <button class="close-btn" onclick="toggleNotification()">X</button>
             </div>
-
-            <div class="stat-card">
-                <h3>Manage Companies</h3>
-                <p>Collaborate with companies and approve job postings.</p>
-                <a href="#" class="action-btn">View Companies</a>
-            </div>
-
-            <div class="stat-card">
-                <h3>Job Postings</h3>
-                <p>Review and manage job postings submitted by companies.</p>
-                <a href="#" class="action-btn">Manage Jobs</a>
-            </div>
-
-            <div class="stat-card">
-                <h3>Reports</h3>
-                <p>Generate detailed reports on placement statistics and outcomes.</p>
-                <a href="#" class="action-btn">Generate Reports</a>
-            </div>
-
-            <div class="stat-card">
-                <h3>Settings</h3>
-                <p>Update administrative preferences and system settings.</p>
-                <a href="#" class="action-btn">Update Settings</a>
+            <div id="notifs-body" class="notification-body">
+                <div class="notification-item">
+                    <div class="notif">
+                        <span class="notif-title">Empty !</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
+
+    <script>
+
+        const notifPanel = document.getElementById('notificationPanel'); 
+        const notifsBody = document.getElementById('notifs-body');
+        let notifs = [];
+        
+        function timeAgo(timestamp) {
+            let a = new Date(timestamp * 1000);
+            let timeString = a.toLocaleString('en-US', { 
+                year: 'numeric', month: 'short', day: '2-digit', 
+                hour: 'numeric', minute: '2-digit', hour12: true 
+            });
+
+            return timeString;
+        }
+
+        let notifsStart = 0;
+        let notifsEnd = 0;
+        function getNewNotifications() {
+            toggleNotification();
+
+            const url = `/laa/admin/notifications?start=${notifsStart}&end=${notifsEnd}`;
+
+            fetch(url)
+            .then(response => {
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    return;
+                }
+            })
+            .then(data => {
+                setNotifs(data);
+            })
+            .catch(error => {
+                console.log(error);
+            });
+        }
+
+        function setNotifs(data) {
+            if (data == null) {
+                return;
+            }
+            notifs.push(...data);
+            notifsBody.innerHTML = ``;
+            notifs.forEach(notif => {
+                notifsBody.innerHTML += `
+                    <div class="notification-item">
+                        <div class="notif">
+                            <span class="notif-title">${notif.ReadStatus ? '' : '<span class="unread-dot"></span>'}${notif.Title}</span>
+                            <span class="notif-time">${timeAgo(notif.Timestamp)}</span>
+                        </div>
+                        <p class="notif-description">${notif.Description}</p>
+                    </div>
+                `;
+                notifsStart += 1;
+            });
+        }
+
+        function toggleNotification() {
+            notifPanel.classList.toggle('active');
+        }
+
+    </script>
+
 </body>
 </html>
