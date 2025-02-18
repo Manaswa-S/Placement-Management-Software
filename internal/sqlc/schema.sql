@@ -159,8 +159,7 @@ CREATE TABLE IF NOT EXISTS temp_correct_answers (
     points INT
 );
 
-CREATE TABLE notifications
-(
+CREATE TABLE notifications (
     notif_id BIGINT NOT NULL DEFAULT nextval('notifications_notif_id_seq'::regclass),
     user_id BIGINT NOT NULL,
     title CHARACTER VARYING(255) COLLATE pg_catalog."default",
@@ -172,4 +171,45 @@ CREATE TABLE notifications
         REFERENCES public.users (user_id) MATCH SIMPLE
         ON UPDATE CASCADE
         ON DELETE CASCADE
-)
+);
+
+CREATE TABLE feedbacks
+(
+    feedback_id BIGINT NOT NULL DEFAULT nextval('feedbacks_feedback_id_seq'::regclass),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    application_id BIGINT,
+    interview_id BIGINT,
+    user_id BIGINT NOT NULL,
+    message TEXT,
+    CONSTRAINT feedbacks_pkey PRIMARY KEY (feedback_id),
+    CONSTRAINT applications_fkey FOREIGN KEY (application_id)
+        REFERENCES public.applications (application_id) MATCH SIMPLE
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+        NOT VALID,
+    CONSTRAINT interviews_fkey FOREIGN KEY (interview_id)
+        REFERENCES public.interviews (interview_id) MATCH SIMPLE
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+        NOT VALID,
+    CONSTRAINT users_fkey FOREIGN KEY (user_id)
+        REFERENCES public.users (user_id) MATCH SIMPLE
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+        NOT VALID,
+    CONSTRAINT entity_limit CHECK (((application_id IS NOT NULL)::integer + (interview_id IS NOT NULL)::integer) = 1) NOT VALID
+);
+
+CREATE TABLE discussions (
+    post_id BIGINT NOT NULL DEFAULT nextval('discussions_post_id_seq'::regclass),
+    user_id BIGINT NOT NULL,
+    role BIGINT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    content TEXT NOT NULL,
+    CONSTRAINT discussions_pkey PRIMARY KEY (post_id),
+    CONSTRAINT users_fkey FOREIGN KEY (user_id)
+        REFERENCES public.users (user_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+        NOT VALID
+);

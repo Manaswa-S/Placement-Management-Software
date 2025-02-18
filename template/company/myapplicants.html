@@ -1,278 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Applicants</title>
-    <style>
-        body {
-            font-family: 'Arial', sans-serif;
-            margin: 0;
-            padding: 0;
-            background: linear-gradient(135deg, #ece9e6, #ffffff);
-            color: #333;
-        }
 
-        .container {
-            width: 90%;
-            margin: 20px auto;
-            max-width: 1200px;
-        }
-
-        h1 {
-            text-align: center;
-            color: #6C63FF;
-            margin-bottom: 20px;
-        }
-
-        .job-card {
-            background: #fff;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            padding: 10px 15px;
-            margin-bottom: 10px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            transition: box-shadow 0.3s;
-        }
-
-        .job-card:hover {
-            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
-        }
-
-        .job-title {
-            display: inline-block;
-            font-size: 1.2em;
-            color: #6C63FF;
-            margin-bottom: 4px;
-            cursor: pointer;
-        }
-
-        .job-details {
-            display:grid; 
-            grid-template-columns: repeat(2, 1fr); 
-            font-size: 0.8em;
-            color: #555;
-        }
-
-        .job-details p {
-            margin: 3px 0; 
-            line-height: 1.2;
-        }
-
-        .btn {
-            margin-top: 10px;
-            margin-bottom: 10px;
-
-            background: #6C63FF;
-            color: #fff;
-            font-size: 12px;
-            font-weight: bold;
-            border: none;
-            border-radius: 5px;
-            padding: 8px 8px;
-            cursor: pointer;
-            text-decoration: none;
-            transition: background-color 0.3s;
-        }
-        .btn:hover {
-            background: #8E94F2;
-        }
-
-        .no-jobs {
-            display:block;
-            top:50%; 
-            text-align: center;
-            font-size: 0.8em;
-            color: #555;
-        }
-
-        .spinner {
-            display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            border: 6px solid #f3f3f3;  
-            border-top: 6px solid #6C63FF;  
-            border-radius: 50%;        
-            width: 60px;                
-            height: 60px;               
-            animation: spin 2s linear infinite; 
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .paging {
-            position:static;
-            bottom: 2%;
-            width: 100%;
-        }
-        .nav-btn {
-            visibility:hidden;
-            position:relative;
-            background: #6C63FF;
-            color: #fff;
-            font-size: 14px;
-            padding: 10px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-            border: none;
-        }
-        .prev-btn {
-            left: 50%;
-            transform: translateX(-100%); 
-        }
-        .next-btn {
-            left: 50%;
-            transform: translateX(-100%); 
-        }
-
-        .top-nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-            margin-bottom: 15px;
-        }
-        .filterbar {
-            padding: 10px;
-            font-size: 14px;
-            border-radius: 5px;
-            border: 1px solid #ddd;
-            background-color: #fff;
-            margin-right: 5px;
-        }
-        .searchbar input {
-            padding: 10px;
-            font-size: 14px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            margin-left: 5px;
-        }
-
-
-
-        .overlay {
-            display: none; /* Hidden by default */
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 999;
-        }
-
-        
-        .semi-modal {
-            display: none; /* Hidden by default */
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 80%;
-            max-width: 600px;
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-            z-index: 1000;
-            box-sizing: border-box;
-        }
-
-        .semi-modal-header {
-            font-size: 1.2em;
-            font-weight: bold;
-            margin-bottom: 20px;
-        }
-
-        .semi-modal input,
-        .semi-modal select,
-        .semi-modal button {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 15px;
-            border-radius: 5px;
-            border: 1px solid #ddd;
-            box-sizing: border-box;
-        }
-
-        .semi-modal button {
-            background-color: #6C63FF;
-            color: white;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-
-        .semi-modal button:hover {
-            background-color: #8e94f2;
-        }
-
-        .close-btn {
-            position:static;
-            top: 10px;
-            right: 10px;
-            background-color: transparent;
-            border: none;
-            font-size: 20px;
-            cursor: pointer;
-        }
-
-
-        @media (max-width: 768px) {
-            .filters {
-                flex-direction: column;
-                gap: 10px;
-            }
-
-            .filters select {
-                width: 100%;
-            }
-        }
-
-        .toast {
-            visibility: hidden;
-            color: #fff;
-            text-align: center;
-            border-radius: 5px;
-            padding: 10px;
-            position:fixed;
-            z-index: 1;
-            right: 5%;
-            bottom: 5%;
-            font-size:smaller;
-        }
-        .toast.show {
-            visibility: visible;
-            animation: fadein 0.5s, fadeout 0.5s 2.5s;
-        }
-        .toast.green {
-            background-color: #4CAF50; /* Green for success */
-        }
-        .toast.red {
-            background-color: #f44336; /* Red for error */
-        }
-        @keyframes fadein {
-            from {bottom: 0; opacity: 0;}
-            to {bottom: 5%; opacity: 1;}
-        }
-        @keyframes fadeout {
-            from {bottom: 5%; opacity: 1;}
-            to {bottom: 0; opacity: 0;}
-        }
-
-        .no-jobs {
-            display:block;
-            top:50%; 
-            text-align: center;
-            font-size: 0.8em;
-            color: #555;
-        }
-
-    </style>
+    <link rel="stylesheet" href="/static/styles/company.css">
 </head>
 
 <body>
@@ -297,34 +31,37 @@
         <div class="overlay" id="scheduleOverlay" style="display: none;"></div>
 
         <div class="semi-modal" id="scheduleModal" style="display: none;">
-            <button class="close-btn" onclick="closeScheduleModal()">x</button>
-            <div class="semi-modal-header">
-                Schedule Interview
+            
+            <div class="form-section">
+                <div class="form-header">
+                    <h1 class="title">Schedule Interview</h1>
+                </div>
+                <form id="interviewForm" action="/laa/company/scheduleinterview" method="POST" enctype="multipart/form-data" onsubmit="submitForm(event)">
+                    <input type="hidden" id="ApplicationId" name="ApplicationId" />
+
+                    <label for="DateTime">Date:</label>
+                    <input type="datetime-local" id="DateTime" name="DateTime" required />
+
+                    <label for="Type">Type:</label>
+                    <select id="Type" name="Type" required>
+                        <option value="">Type of Interview</option>
+                        <option value="InPerson">In-Person</option>
+                        <option value="Virtual">Virtual</option>
+                        <option value="Hybrid">Hybrid</option>
+                    </select>
+
+                    <label for="Location">Location/Link:</label>
+                    <input type="text" id="Location" name="Location" placeholder="Interview Location or Virtual Meeting Link" required />
+
+                    <label for="Notes">Notes:</label>
+                    <input type="text" id="Notes" name="Notes" placeholder="Add any relevant notes" />
+
+                    <div class="semi-button">
+                        <button class="btn" onclick="closeScheduleModal()">Cancel</button>
+                        <button class="btn" type="submit">Schedule Interview</button>
+                    </div>
+                </form>
             </div>
-
-            <form id="interviewForm" action="/laa/company/scheduleinterview" method="POST" enctype="multipart/form-data" onsubmit="submitForm(event)">
-                <input type="hidden" id="ApplicationId" name="ApplicationId" />
-
-                <!-- // TODO: change to datetime-local -->
-                <label for="DateTime">Date:</label>
-                <input type="datetime-local" id="DateTime" name="DateTime" required />
-
-                <label for="Type">Type:</label>
-                <select id="Type" name="Type" required>
-                    <option value="">Type of Interview</option>
-                    <option value="InPerson">In-Person</option>
-                    <option value="Virtual">Virtual</option>
-                    <option value="Hybrid">Hybrid</option>
-                </select>
-
-                <label for="Location">Location/Link:</label>
-                <input type="text" id="Location" name="Location" placeholder="Interview Location or Virtual Meeting Link" required />
-
-                <label for="Notes">Notes:</label>
-                <input type="text" id="Notes" name="Notes" placeholder="Add any relevant notes" />
-
-                <button type="submit">Schedule Interview</button>
-            </form>
         </div>
 
         <div class="semi-modal" id="offerModal" style="display: none;">
@@ -355,6 +92,10 @@
 
         <div id="toast"></div>
     </div>
+
+
+    <script src="/static/scripts/company.js"></script>
+
 
     <script>
         let alldata = [];
@@ -397,7 +138,7 @@
                     hideSpinner();
                     if (alldata == null) {
                         dataList.innerHTML = `
-                            <div class="no-jobs">
+                            <div class="no-data">
                                 No applications at the moment. Please check back later.
                             </div>
                         `;
@@ -421,9 +162,9 @@
 
                     let job = searched[i]; 
                     const card = `
-                        <div class="job-card">
-                            <div class="job-title" onclick="window.location.href = '/laa/company/studentinfo?appid=${job.ApplicationID}'">${job.StudentID} : ${job.StudentName} : ${job.RollNumber}</div>
-                            <div class="job-details">
+                        <div class="card">
+                            <div class="title" onclick="window.location.href = '/laa/company/studentinfo?appid=${job.ApplicationID}'">${job.StudentID} : ${job.StudentName} : ${job.RollNumber}</div>
+                            <div class="details">
                                 <p><strong>To: ${job.JobID}:</strong> ${job.Title}</p>
                                 <p><strong>Gender:</strong> ${job.Gender}</p>
                                 <p><strong>Department:</strong> ${job.Department}</p>
@@ -490,7 +231,7 @@
             if (pageSize > 0) {
                 nextbtn.style.visibility = 'hidden';
                 dataList.innerHTML += `
-                    <div class="no-jobs">
+                    <div class="no-data">
                         Thats all for now !
                     </div>
                 `;
@@ -572,7 +313,7 @@
                         <button class="btn" onclick="rejectApplicant(${ApplicationId}, this)">Reject</button>
                         <button class="btn" onclick="offerModal(${ApplicationId}, this)">Offer</button>`;
                 } else {
-                    return `<p class="job-details"><strong>Interview: ${intStatus}</strong></p>
+                    return `<p class="details"><strong>Interview: ${intStatus}</strong></p>
                         <button class="btn" onclick="cancelInterview(${ApplicationId}, this)">Cancel Interview</button>
                         <button class="btn" onclick="rejectApplicant(${ApplicationId}, this)">Reject</button>
                         <button class="btn" onclick="offerModal(${ApplicationId}, this)">Offer</button>`;
@@ -742,6 +483,8 @@
                     console.error('Error fetching the file:', error);
                 });
         }
+
+        
 
         // Initial load
         fetchJobs();

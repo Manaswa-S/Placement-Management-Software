@@ -676,3 +676,20 @@ func (s *StudentService) UpdateFile(ctx *gin.Context, userID int64, file *multip
 
 	return nil
 }
+
+
+
+
+func (s *StudentService) FeedbacksData(ctx *gin.Context, userID int64) (*[]sqlc.FeedbacksDataForStudentRow, *errs.Error) {
+
+	data, err := s.queries.FeedbacksDataForStudent(ctx, userID)
+	if err != nil {
+		return nil, &errs.Error{
+			Type: errs.Internal,
+			Message: err.Error(),
+		}
+	}
+
+	return &data, nil
+}
+

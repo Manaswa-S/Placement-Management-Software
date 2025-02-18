@@ -32,6 +32,23 @@ type Company struct {
 	Industry              string
 }
 
+type Discussion struct {
+	PostID    int64
+	UserID    int64
+	Role      int64
+	CreatedAt pgtype.Timestamptz
+	Content   string
+}
+
+type Feedback struct {
+	FeedbackID    int64
+	CreatedAt     pgtype.Timestamptz
+	ApplicationID pgtype.Int8
+	InterviewID   pgtype.Int8
+	UserID        int64
+	Message       pgtype.Text
+}
+
 type Interview struct {
 	InterviewID   int64
 	ApplicationID int64

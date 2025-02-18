@@ -10,6 +10,8 @@ import (
 // not much as of now
 // can be updated later on
 
+
+
 // can be used to get files from offshore storage and return it as []byte
 func GetFileFromPath(url string, pathToSave string) ([]byte, error) {
 	// Send GET request to fetch the file

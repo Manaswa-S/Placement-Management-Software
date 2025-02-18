@@ -71,7 +71,13 @@ func (h *StudentHandler) RegisterRoute(studentRoute *gin.RouterGroup) {
 	studentRoute.POST("/updatedetails", h.UpdateDetails)
 	// update student's documents/files 
 	studentRoute.POST("/updatefile", h.UpdateFile)
-	
+
+
+
+
+	studentRoute.GET("/feedbacks", h.Feedbacks)
+	studentRoute.GET("/feedbacksdata", h.FeedbacksData)
+
 }
 
 
@@ -495,3 +501,86 @@ func (h *StudentHandler) UpdateFile(ctx *gin.Context) {
 
 
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+func (h *StudentHandler) Feedbacks(ctx *gin.Context) {
+	ctx.File("./template/student/feedbacks.html")
+}
+
+
+func (h *StudentHandler) FeedbacksData(ctx *gin.Context) {
+	
+	tab := ctx.Query("tab")
+	if tab == "" {
+		return
+	}
+
+	userid, exists := ctx.Get("ID")
+	if !exists {
+		return
+	}
+
+
+	data, errf := h.StudentService.FeedbacksData(ctx, userid.(int64))
+	if errf != nil {
+		fmt.Println(errf.Message)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, data)
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

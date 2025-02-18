@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -33,6 +33,10 @@
 
         <div id="toast"></div>
     </div>
+
+    <script src="/static/scripts/company.js"></script>
+
+
 <script>
 
     let alldata = [];
@@ -88,13 +92,15 @@
         return `
             <div class="card">
                 <div class="title">Interview ID : ${job.InterviewID}</div>
-                <div class="details"><strong>Application ID : </strong>${job.ApplicationID}</div>
                 <div class="details">
+                    <p><strong>Application ID : </strong>${job.ApplicationID}</p>
                     <p><strong>Student ID:</strong> ${job.StudentID}</p>
                     <p><strong>Student Name:</strong> ${job.StudentName}</p>
                     <p><strong>Time:</strong> ${job.DateTime}</p>
-                    <p><strong>Extras(Feedback):</strong> ${job.Extras}</p>
+                    ${job.Feedback == null ? '' : `<p><strong>Feedback:</strong> ${job.Feedback}</p>`}
                 </div>
+                ${job.Feedback == null ? `<button class="btn" onclick="giveFeedback(${job.InterviewID}, '${job.StudentName}')">Feedback</button>`
+                : ''}
             </div>
         `;
     }
@@ -231,7 +237,7 @@
 
     function editCutoff(testID) {
         mdiv.innerHTML = `
-            <label class="job-title">${testID}</label>
+            <label class="title">${testID}</label>
             <div class="form-section">
                 <form id="newCutoffForm">
                     <input type="hidden" id="TestID" name="TestID" value="${testID}" required>
@@ -301,6 +307,62 @@
         });
     }
 
+
+    function giveFeedback(intID, stdName) {
+        mdiv.innerHTML = `
+            <label class="title">${intID}</label>
+            <label class="title">${stdName}</label>
+
+            <div class="form-section">
+
+                <form id="newFeedbackForm" >
+                    <input type="hidden" id="FeedbackType" name="FeedbackType" value="Interview" required>
+                    <input type="hidden" id="InterviewID" name="InterviewID" value="${intID}" />
+
+                    <label for="Message"><strong> Message </strong></label>
+                    <textarea id="Message" name="Message" placeholder="Feedback" required></textarea>                
+                    <div class="semi-button">
+                        <button class="btn" onclick="closeModal()">Close</button>
+                        <button class="btn" onclick="submitFeedback(event)">Submit</button>
+                    </div>
+                </form>
+
+            </div>
+        `;
+        showModal();
+    }
+
+    function submitFeedback(event) {
+        event.preventDefault();
+
+        const formData = document.getElementById('newFeedbackForm');
+        const form = new FormData(formData);
+
+        console.log(form.get('InterviewID'));
+
+        const url = `/laa/company/feedback`;
+
+        let ok = false;
+        fetch(url, {
+            method: 'POST',
+            body: form,
+        })
+        .then(response => {
+            ok = response.ok;
+            return response.json();
+        })
+        .then(data => {
+            if (ok) {
+                closeModal();
+                showToast(data.Status, 'green');
+                intTb.click();
+            } else {
+                showToast(data.Message, 'red');
+            }
+        })
+        .catch(error => {console.error(error);});
+
+    }
 
 
 

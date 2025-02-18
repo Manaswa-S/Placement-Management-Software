@@ -8,9 +8,11 @@ introduce concurrency
 
 refresh token is useless as of now
 
-handler functions are structed wrong, need to use gin.HandlerFunc
+handler functions are structured wrong, need to use gin.HandlerFunc
 
 in myapplicants or similar pages, you might want to reduce the info directly in cards and instead direct to profile pages for info
+
+the job update and new job into a single method is risky, also the way to judge between updation/insertion is stupid and dumb
 
 the errors logic after errf.Type != errs.Internal is not set anywhere, like if the error is internal you need to do something
 
@@ -39,6 +41,8 @@ need to replace those queries for email data or something similar with one singl
 for everything there is not a check if the time for that event has gone by, i can still give tests that were meant to be over by yesterday
 
 in the public.ConfirmSignup , we send a valid JWT token directly, which is ... stupid!
+
+we can cancel interview even after it is completed
 
 there are alot of endpoints like /company/editcutoff that need to be rate limited heavily
 

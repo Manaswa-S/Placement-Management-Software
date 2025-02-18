@@ -334,6 +334,8 @@ SET status = $1
 WHERE application_id = $2;
 
 
+
+
 -- name: ScheduleInterview :one
 INSERT INTO interviews (application_id, company_id, date_time, type, notes, location)
 VALUES ($1, (SELECT company_id FROM companies WHERE user_id = $2), $3, $4, $5, $6)
@@ -496,11 +498,11 @@ ORDER BY testresults.result_id;
 
 -- name: CompletedInterviewsStudent :many
 SELECT 
-    jobs.title,
+    jobs.title AS job_title,
     companies.company_name,
     interviews.interview_id,
     interviews.application_id,
-    TO_CHAR(interviews.date_time, 'HH12:MI AM DD-MM-YYYY') AS date_time,
+    TO_CHAR(interviews.date_time, 'HH12:MI AM DD-MM-YYYY') AS interview_date_time,
     interviews.extras
 FROM interviews
 JOIN applications ON interviews.application_id = applications.application_id
@@ -949,6 +951,136 @@ WHERE testresults.test_id = $1;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-- name: InsertFeedbackByCompany :exec
+INSERT INTO feedbacks (application_id, interview_id, user_id, message)
+VALUES ($1, $2, $3, $4); 
+
+-- name: InsertFeedbackByStudent :exec
+INSERT INTO feedbacks (application_id, interview_id, user_id, message)
+VALUES ($1, $2, $3, $4); 
+
+
+
+
+
+-- name: FeedbacksDataForAndByCompany :many
+SELECT 
+    feedbacks.feedback_id,
+    TO_CHAR(feedbacks.created_at, 'HH12:MI:SS AM DD-MM-YYYY') AS feedback_time,
+    feedbacks.message,
+
+    applications.application_id,
+    applications.status::TEXT AS application_status,
+
+    interviews.interview_id,
+    TO_CHAR(interviews.date_time, 'HH12:MI:SS AM DD-MM-YYYY') AS interview_date_time,
+    
+    students.student_id,
+    students.student_name
+
+FROM feedbacks
+LEFT JOIN interviews ON interviews.interview_id = feedbacks.interview_id
+LEFT JOIN applications ON (applications.application_id = feedbacks.application_id OR 
+                            applications.application_id = interviews.application_id)
+JOIN students ON students.student_id = applications.student_id
+WHERE feedbacks.user_id = $1;
+
+  
+-- name: FeedbacksDataForAndToCompany :many
+WITH notuser AS (
+    SELECT 
+        interviews.interview_id 
+    FROM interviews 
+    WHERE interviews.company_id = 
+        (SELECT companies.company_id FROM companies WHERE companies.user_id = $1)
+)
+SELECT 
+    feedbacks.feedback_id,
+    TO_CHAR(feedbacks.created_at, 'HH12:MI:SS AM DD-MM-YYYY') AS feedback_time,
+    feedbacks.message
+FROM feedbacks
+LEFT JOIN notuser ON notuser.interview_id = feedbacks.interview_id
+WHERE feedbacks.user_id != $1 AND notuser.interview_id IS NOT NULL;
+  
+
+
+
+
+  
+
+-- name: FeedbacksDataForStudent :many
+SELECT 
+    feedbacks.feedback_id,
+    TO_CHAR(feedbacks.created_at, 'HH12:MI:SS AM DD-MM-YYYY') AS feedback_time,
+    feedbacks.message,
+
+    applications.application_id,
+
+    interviews.interview_id
+
+FROM feedbacks
+LEFT JOIN applications ON applications.application_id = feedbacks.application_id
+LEFT JOIN interviews ON interviews.interview_id = feedbacks.interview_id
+WHERE feedbacks.user_id = $1; 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-- name: DiscussionsData :many
+SELECT 
+    discussions.content,
+    TO_CHAR(discussions.created_at, 'HH12:MI:SS AM DD-MM-YYYY') AS created_at,
+
+    companies.company_name,
+    students.student_name
+
+FROM discussions 
+LEFT JOIN students ON discussions.user_id = students.user_id
+LEFT JOIN companies ON discussions.user_id = companies.user_id
+ORDER BY discussions.created_at DESC
+OFFSET $1 LIMIT $2;
+
+-- name: InsertDiscussion :exec
+INSERT INTO discussions (user_id, role, content)
+VALUES ($1, (SELECT role FROM users WHERE users.user_id = $1), $2);
+
+-- name: UpdateDiscussion :exec
+UPDATE discussions
+SET
+    content = $3
+WHERE post_id = $2
+AND user_id = $1;
 
 
 

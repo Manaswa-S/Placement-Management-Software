@@ -1,179 +1,13 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Create New Test</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Arial', sans-serif;
-        }
-
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            background: linear-gradient(135deg, #5951f5, #abafea);
-            color: #333;
-            padding: 0;
-        }
-
-        .form-container {
-            background: #fff;
-            border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-            width: 100%;
-            max-width: min(800px, 90%);
-            padding: 30px;
-            display: none;
-            margin-top: 30px;
-            margin-bottom: 30px;
-        }
-
-        .form-header {
-            text-align: center;
-            margin-bottom: 30px;
-            color: #532ff3;
-            font-weight:normal;
-        }
-
-        .form-header h1 {
-            color: #532ff3;
-            font-weight: bold;
-        }
-
-        .form-section {
-            margin-bottom: 20px;
-        }
-
-        .form-section label {
-            display: block;
-            font-size: 16px;
-            margin-top: 5px;
-            margin-bottom: 5px;
-            padding: 2px;
-            color: #6C63FF;
-        }
-        .form-section li {
-            font-size: 16px;
-            margin-bottom: 10px;
-            color: #ff0000;
-            list-style:disc;
-        }
-        .form-instructions label {
-            font-size: 16px;
-            margin-bottom: 10px;
-            color: #ff0000;
-            list-style:disc;
-        }
-
-        .form-section input,
-        .form-section textarea,
-        .form-section select {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 16px;
-            margin-top: 8px;
-            background-color: #f7f7f7;
-        }
-
-        .form-section textarea {
-            height: 150px;
-        }
-
-        .form-section select {
-            height: 40px;
-        }
-
-        .form-btn {
-            margin-top: 8px;
-            margin-bottom: 8px;
-            background: #6C63FF;
-            color: #fff;
-            font-size: 14px;
-            font-weight:500;
-            border: none;
-            border-radius: 5px;
-            padding: 12px 15px;
-            cursor: pointer;
-            text-decoration: none;
-            transition: background-color 0.3s;
-            position: relative; 
-            justify-content: center;
-            align-items: center;
-        }
-        
-        .form-btn:hover {
-            background: #8E94F2;
-        }
-
-        .nav {
-            position:static;
-            bottom: 2%;
-            width: 100%;
-        }   
-
-        .next-btn {
-            right: 1;
-        }
-
-        .cancel-btn {
-            right: 0;
-        }
-
-        .toast {
-            visibility: hidden;
-            color: #fff;
-            text-align: center;
-            border-radius: 5px;
-            padding: 10px;
-            position:fixed;
-            z-index: 1;
-            right: 2%;
-            bottom: 5%;
-            font-size:smaller;
-        }
-        .toast.show {
-            visibility: visible;
-            animation: fadein 0.5s, fadeout 0.5s 2.5s;
-        }
-        .toast.green {
-            background-color: #4CAF50; /* Green for success */
-        }
-        .toast.red {
-            background-color: #f44336; /* Red for error */
-        }
-        .toast.loading {
-            background-color: #ffffff; /* White for loading */
-            color: black;
-            animation: load 1s infinite alternate;
-        }
-        @keyframes fadein {
-            from {bottom: 0; opacity: 0;}
-            to {bottom: 5%; opacity: 1;}
-        }
-        @keyframes fadeout {
-            from {bottom: 5%; opacity: 1;}
-            to {bottom: 0; opacity: 0;}
-        }
-        @keyframes load {
-        0% {
-            background-color: #ffffff; /* Blue */
-        }
-        100% {
-            background-color: #a883ff; /* Orange */
-        }
-        }
-
-    </style>
+    <link rel="stylesheet" href="/static/styles/company.css">
+    
 </head>
-<body>
+<body class="form-body">
 
     <div id="metadata" class="form-container">
         <div class="form-header">
@@ -184,22 +18,34 @@
             <div class="form-section">
                 <label for="Name">Test Name</label>
                 <input type="text" id="Name" name="Name" placeholder="Enter test name" required>
+            </div>
 
+            <div class="form-section">
                 <label for="Description">Description</label>
                 <textarea id="Description" name="Description" placeholder="Brief description of the test" rows="4" required></textarea>
+            </div>
 
+            <div class="form-section">
                 <label for="Duration">Test Duration (in minutes)</label>
                 <input type="number" id="Duration" name="Duration" placeholder="Enter duration" required>
+            </div>
 
+            <div class="form-section">
                 <label for="QuestionCount">Number of Questions</label>
                 <input type="number" id="QuestionCount" name="QuestionCount" placeholder="Enter total questions" required>
+            </div>
 
+            <div class="form-section">
                 <label for="Threshold">Cutoff Percentage (as percentage of total marks, this can be changed later)</label>
                 <input type="number" id="Threshold" name="Threshold" placeholder="Enter minimum percentage of total marks to pass." required>                
+            </div>
 
+            <div class="form-section">
                 <label for="EndDateTime">End Date Time</label>
                 <input type="datetime-local" id="EndDateTime" name="EndDateTime" placeholder="Enter the date and time to end the test" required>
+            </div>
 
+            <div class="form-section">
                 <label for="BindedJobId">Bind to Job</label>
                 <select id="BindedJobId" name="BindedJobId" required>
                     <option value="" disabled selected >Select the Job to bind Test to</option>
@@ -207,7 +53,9 @@
                         <option value="{{.JobID}}">{{.JobID}} : {{.Title}} : {{.Position}}</option>
                     {{end}}
                 </select>
+            </div>
 
+            <div class="form-section">
                 <label for="Type">Test Type</label>
                 <select id="Type" name="Type" required>
                     <option value="Aptitude">Aptitude</option>
@@ -215,7 +63,9 @@
                     <option value="Coding">Coding</option>
                     <option value="Other">Others</option>
                 </select>
+            </div>
 
+            <div class="form-section">
                 <label for="UploadMethod">Choose Upload Method</label>
                 <select id="UploadMethod" name="UploadMethod" required>
                     <option value="GForms">Google Forms (Recommended for now !)</option>
@@ -224,14 +74,14 @@
                 </select>
             </div>
 
-            <div class="nav">
-                <button class="form-btn next-btn" type="submit">Create Test</button>
+            <div class="form-btn-container">
+                <button class="form-btn" type="submit">Create Test</button>
             </div>
         </form>
     </div>
 
 
-    <div id="googleforms" class="form-container" >
+    <div id="googleforms" class="form-container" style="display: none;" >
         <div class="form-section">
             <div class="form-header">
                 <h1>Google Form Integration</h1>
@@ -270,9 +120,9 @@
                     <label for="Notes">Additional Notes or Instructions</label>
                     <input type="text" id="Notes" name="Notes" placeholder="Any specific details about the test (optional)"></input>
                 </div>
-                <div class="nav">
-                    <button class="form-btn cancel-btn" type="button" onclick="back()"> < Back</button>
-                    <button class="form-btn next-btn" type="submit" >Create Test</button>
+                <div class="form-btn-container">
+                    <button class="form-btn" type="button" onclick="back()"> < Back</button>
+                    <button class="form-btn" type="submit" >Create Test</button>
                 </div>
             </form>
         </div>
@@ -282,7 +132,7 @@
 
 
 
-    <div id="csvjsonupload" class="form-container" >
+    <div id="csvjsonupload" class="form-container" style="display: none;">
         <div class="form-section">
             <div class="form-header">
                 <h1>Upload CSV/JSON</h1>
@@ -300,14 +150,14 @@
             </form>
         </div>
 
-        <div class="button-grid">
+        <div class="form-btn-container">
             <button class="form-btn"  onclick="back()"> < Back</button>
             <button class="form-btn" type="submit" onclick="uploadQuestions(uploadMethod.value)">Create Test</button>
         </div>
     </div>
 
 
-    <div id="manualques" class="form-container" >
+    <div id="manualques" class="form-container" style="display: none;">
         <div class="form-section">
             <div class="form-header">
                 <h1>Manually Add Questions</h1>
@@ -326,7 +176,7 @@
             </form>
         </div>
             
-        <div class="button-grid">
+        <div class="form-btn-container">
             <button class="form-btn"  onclick="back()"> < Back</button>
             <button class="form-btn" type="submit" onclick="uploadQuestions(uploadMethod.value)">Create Test</button>
         </div>
@@ -334,6 +184,7 @@
 
     <div id="toast"></div>
 
+    <script src="/static/scripts/company.js"></script>
 
     <script>
 

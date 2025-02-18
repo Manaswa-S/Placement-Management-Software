@@ -75,20 +75,24 @@
     }
 
     function intTemp(job) {
+        console.log(job);
         return `
             <div class="card">
                 <div class="title">Interview ID : ${job.InterviewID}</div>
-                <div class="details"><strong>${job.Title} @ ${job.CompanyName}</strong></div>
                 <div class="details">
+                    <p><strong>${job.JobTitle} @ ${job.CompanyName}</strong></p>
                     <p><strong>Application ID:</strong> ${job.ApplicationID}</p>
-                    <p><strong>Time:</strong> ${job.DateTime}</p>
-                    <p><strong>Extras(Feedback):</strong> ${job.Extras}</p>
+                    <p><strong>Time:</strong> ${job.InterviewDateTime}</p>
+                    ${job.Feedback == null ? '' : `<p><strong>Feedback from Company:</strong> ${job.Feedback}</p>`}
+                    ${job.FeedbackByStudent == false ? '' : `<p><strong>Feedback from Student:</strong> ${job.Feedback}</p>`}
+
                 </div>
+                    ${job.FeedbackByStudent == false ? `<button class="btn"> Share Feedback on Company</button>` : '' }
+
             </div>
         `;
     }
     function testTemp(job) {
-        console.log(job);
         return `
             <div class="card">
                 <div class="title"><strong>${job.TestID} @ ${job.TestName}</strong></div>

@@ -5,28 +5,29 @@
     font-family: 'Arial', sans-serif;
 }
 
-/* main color of our theme for light mode is : #532ff3 */
-/* main color of our theme for dark mode is : #101110 */
-
+/* 6200ff */
+/* 6711f2 */
+/* 7a11f2 */
+/* 8014e5b9 */
 :root {
-    --body-bg-color: linear-gradient(135deg, #5951f5, #abafea);
+    --body-bg-color: linear-gradient(135deg, #6711f2, #6711f2);
     --sidebar-bg-color: #fff;
 
     --normal-text-color: #333;
 
-    --sidebar-h4-color: #532ff3;
+    --sidebar-h4-color: #7a11f2;
     --sidebar-nav-text-color: #000000;
     --sidebar-focus-nav-text-color: #ffffff;
-    --sidebar-focus-nav-color: #532ff3;
+    --sidebar-focus-nav-color: #7a11f2;
 
     --main-content-header-bg-color: #fff;
-    --main-content-header-text-color: #532ff3;
-    --main-content-h2-text-color: #532ff3;
-    --main-content-h3-text-color: #532ff3;
+    --main-content-header-text-color: #7a11f2;
+    --main-content-h2-text-color: #7a11f2;
+    --main-content-h3-text-color: #7a11f2;
 
-    --notification-icon-bg-color: #532ff3;
+    --notification-icon-bg-color: #7a11f2;
     --notification-panel-bg-color: #ffffff;
-    --notification-header-bg-color: #532ff3;
+    --notification-header-bg-color: #7a11f2;
 
 
 

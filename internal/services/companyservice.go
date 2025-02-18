@@ -239,9 +239,11 @@ func (c *CompanyService) GetResumeOrResultFilePath(ctx *gin.Context, userID int6
 		Status_2: "Applied",
 	})
 	if err != nil {
-		return "", &errs.Error{
-			Type: errs.Internal,
-			Message: "Failed to update application status : " + err.Error(),
+		if err.Error() != errs.NoRowsMatch {
+			return "", &errs.Error{
+				Type: errs.Internal,
+				Message: "Failed to update application status : " + err.Error(),
+			}
 		}
 	}
 
@@ -451,6 +453,10 @@ func (c *CompanyService) ScheduleInterview(ctx *gin.Context, data *dto.NewInterv
 		}
 	}
 
+	
+
+
+
 	dt, err := c.queries.ScheduleInterview(ctx, sqlc.ScheduleInterviewParams{
 		ApplicationID: data.ApplicationId,
 		UserID: data.UserId,
@@ -460,11 +466,22 @@ func (c *CompanyService) ScheduleInterview(ctx *gin.Context, data *dto.NewInterv
 		Location: data.Location,
 	})
 	if err != nil {
+		var pgerr *pgconn.PgError
+		if errors.As(err, &pgerr) {
+			if pgerr.Code == errs.UniqueViolation {
+				return &errs.Error{
+					Type: errs.ObjectExists,
+					Message: "Cannot schedule multiple interviews for the same application.",
+					ToRespondWith: true,
+				}
+			}
+		}		
 		return &errs.Error{
 			Type: errs.Internal,
 			Message: "Failed to insert new interview in db : " + err.Error(),
 		}
 	}
+
 
 	// student name and email and job title and company name for email template
 	studentData, err := c.queries.GetScheduleInterviewData(ctx, data.ApplicationId)
@@ -1220,6 +1237,68 @@ func (s *CompanyService) UpdateFile(ctx *gin.Context, userID int64, file *multip
 
 	return nil
 }
+
+
+
+
+
+
+
+func (s *CompanyService) FeedbacksData(ctx *gin.Context, userID int64, tab string) (any, *errs.Error) {
+
+	switch tab {
+	case "tostudents":
+		data, err := s.queries.FeedbacksDataForAndByCompany(ctx, userID)
+		if err != nil {
+			return nil, &errs.Error{
+				Type: errs.Internal,
+				Message: err.Error(),
+			}
+		}
+		return &data, nil
+	case "bystudents":
+		data, err := s.queries.FeedbacksDataForAndToCompany(ctx, userID)
+		if err != nil {
+			return nil, &errs.Error{
+				Type: errs.Internal,
+				Message: err.Error(),
+			}
+		}
+		return &data, nil
+	default:
+		return nil, &errs.Error{
+			Type: errs.MissingRequiredField,
+			Message: "No such field as given in url parameter.",
+			ToRespondWith: true,
+		}
+	}
+}
+
+
+
+
+func (s *CompanyService) Feedback(ctx *gin.Context, userID int64, data *dto.Feedback) *errs.Error {
+
+	err := s.queries.InsertFeedbackByCompany(ctx, sqlc.InsertFeedbackByCompanyParams{
+		ApplicationID: pgtype.Int8{Int64: data.ApplicationID, Valid: data.ApplicationID != 0},
+		InterviewID: pgtype.Int8{Int64: data.InterviewID, Valid: data.InterviewID != 0},
+		UserID: userID,
+		Message: pgtype.Text{String: data.Message, Valid: true},
+
+	})
+	if err != nil {
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: "Failed to insert new feedback : " + err.Error(),
+		}
+	}
+
+	return nil
+}
+
+
+
+
 
 
 

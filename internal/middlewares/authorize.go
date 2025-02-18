@@ -40,12 +40,26 @@ func Authorizer() gin.HandlerFunc {
 			4: "superuser",
 			5: "public",
 		}
+
+		openPathMapping := map[int64]string{
+			1: "open",
+			2: "open",
+			3: "open",
+			4: "open",
+		}
+
 		// check if role and requested path match authority
+		// TODO: fix this, too chaotic, simplify yet secure
+		requestedPath := splitPath[2]
 		if expectedPath, ok := rolePathMapping[role.(int64)]; ok {
-			if splitPath[2] != expectedPath {
-				ctx.Redirect(http.StatusSeeOther, "/public/login")
-				ctx.Abort()
-				return
+			if requestedPath != expectedPath {
+				if openPath, ok := openPathMapping[role.(int64)]; ok {
+					if requestedPath != openPath {
+						ctx.Redirect(http.StatusSeeOther, "/public/login")
+						ctx.Abort()
+						return
+					}
+				}
 			}
 		} else {
 			ctx.Redirect(http.StatusSeeOther, "/public/login")

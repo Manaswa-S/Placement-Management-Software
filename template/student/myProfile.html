@@ -291,7 +291,7 @@
             dataList.innerHTML = ``;
             dataList.innerHTML = `
                 <div id="details" class="card">
-                    <div class="details">
+                    <div class="details profile">
                         <label><strong>Name:</strong> ${details.StudentName}</label>
                         <label><strong>Roll Number:</strong> ${details.RollNumber}</label>
                         <label><strong>Date of Birth:</strong> ${details.StudentDob}</label>
@@ -302,7 +302,7 @@
                 </div>
                     
                 <div id="editables" class="card">
-                    <div class="details">
+                    <div class="details profile">
                         <label><strong>Course:</strong> ${details.Course}</label>
                         <label><strong>Department:</strong> ${details.Department}</label>
                         <label><strong>Year Of Study:</strong> ${details.YearOfStudy}</label>
@@ -327,7 +327,7 @@
             const editables = document.getElementById("editables");
             editables.innerHTML = `
                 <form id="newDetailsForm">
-                    <div class="details">
+                    <div class="details profile">
                         <label for="Course"><strong>Course</strong></label>
                         <select id="Course" name="Course" required>
                             <option value="B.Tech">B.Tech.</option>

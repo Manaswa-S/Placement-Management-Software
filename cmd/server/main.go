@@ -164,9 +164,13 @@ func internetCheck() (error) {
 }
 
 func routes(router *gin.Engine) {
+		
+	queries := config.QueriesPool
+	redis := config.RedisClient
+
 
 	wmid := router.Group("/laa")
-	wmid.Use(middlewares.Authenticator(), middlewares.Authorizer())
+	wmid.Use(middlewares.Authenticator(), middlewares.Authorizer(), middlewares.RateLimiter(redis))
 	womid := router.Group("")
 	womid.Use()
 
@@ -178,15 +182,13 @@ func routes(router *gin.Engine) {
 	wmid.POST("/report", func(ctx *gin.Context) {
 		utils.RecordReport(ctx)
 	})
-	
-	queries := config.QueriesPool
-	redis := config.RedisClient
+
 
 	notifyService := notify.NewNotifyService(redis, queries)
 
 	openService := services.NewOpenService(queries)
 	openHandler := handlers.NewOpenHandler(openService)
-	openRoute := womid.Group("/open")
+	openRoute := wmid.Group("/open")
 	openHandler.RegisterRoute(openRoute)
 
 	publicService := services.NewPublicService(queries, redis)

@@ -440,11 +440,11 @@ func (q *Queries) CompletedInterviewsCompany(ctx context.Context, userID int64) 
 
 const completedInterviewsStudent = `-- name: CompletedInterviewsStudent :many
 SELECT 
-    jobs.title,
+    jobs.title AS job_title,
     companies.company_name,
     interviews.interview_id,
     interviews.application_id,
-    TO_CHAR(interviews.date_time, 'HH12:MI AM DD-MM-YYYY') AS date_time,
+    TO_CHAR(interviews.date_time, 'HH12:MI AM DD-MM-YYYY') AS interview_date_time,
     interviews.extras
 FROM interviews
 JOIN applications ON interviews.application_id = applications.application_id
@@ -455,12 +455,12 @@ AND interviews.status = 'Completed'
 `
 
 type CompletedInterviewsStudentRow struct {
-	Title         string
-	CompanyName   string
-	InterviewID   int64
-	ApplicationID int64
-	DateTime      string
-	Extras        []byte
+	JobTitle          string
+	CompanyName       string
+	InterviewID       int64
+	ApplicationID     int64
+	InterviewDateTime string
+	Extras            []byte
 }
 
 func (q *Queries) CompletedInterviewsStudent(ctx context.Context, userID int64) ([]CompletedInterviewsStudentRow, error) {
@@ -473,11 +473,11 @@ func (q *Queries) CompletedInterviewsStudent(ctx context.Context, userID int64) 
 	for rows.Next() {
 		var i CompletedInterviewsStudentRow
 		if err := rows.Scan(
-			&i.Title,
+			&i.JobTitle,
 			&i.CompanyName,
 			&i.InterviewID,
 			&i.ApplicationID,
-			&i.DateTime,
+			&i.InterviewDateTime,
 			&i.Extras,
 		); err != nil {
 			return nil, err
@@ -690,6 +690,58 @@ func (q *Queries) DeleteJob(ctx context.Context, arg DeleteJobParams) error {
 	return err
 }
 
+const discussionsData = `-- name: DiscussionsData :many
+SELECT 
+    discussions.content,
+    TO_CHAR(discussions.created_at, 'HH12:MI:SS AM DD-MM-YYYY') AS created_at,
+
+    companies.company_name,
+    students.student_name
+
+FROM discussions 
+LEFT JOIN students ON discussions.user_id = students.user_id
+LEFT JOIN companies ON discussions.user_id = companies.user_id
+ORDER BY discussions.created_at DESC
+OFFSET $1 LIMIT $2
+`
+
+type DiscussionsDataParams struct {
+	Offset int32
+	Limit  int32
+}
+
+type DiscussionsDataRow struct {
+	Content     string
+	CreatedAt   string
+	CompanyName pgtype.Text
+	StudentName pgtype.Text
+}
+
+func (q *Queries) DiscussionsData(ctx context.Context, arg DiscussionsDataParams) ([]DiscussionsDataRow, error) {
+	rows, err := q.db.Query(ctx, discussionsData, arg.Offset, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DiscussionsDataRow
+	for rows.Next() {
+		var i DiscussionsDataRow
+		if err := rows.Scan(
+			&i.Content,
+			&i.CreatedAt,
+			&i.CompanyName,
+			&i.StudentName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const evaluateTestResult = `-- name: EvaluateTestResult :one
 WITH tr AS (
     UPDATE testresponses
@@ -844,6 +896,164 @@ func (q *Queries) ExtraInfoStudent(ctx context.Context, arg ExtraInfoStudentPara
 		&i.PictureUrl,
 	)
 	return i, err
+}
+
+const feedbacksDataForAndByCompany = `-- name: FeedbacksDataForAndByCompany :many
+SELECT 
+    feedbacks.feedback_id,
+    TO_CHAR(feedbacks.created_at, 'HH12:MI:SS AM DD-MM-YYYY') AS feedback_time,
+    feedbacks.message,
+
+    applications.application_id,
+    applications.status::TEXT AS application_status,
+
+    interviews.interview_id,
+    TO_CHAR(interviews.date_time, 'HH12:MI:SS AM DD-MM-YYYY') AS interview_date_time,
+    
+    students.student_id,
+    students.student_name
+
+FROM feedbacks
+LEFT JOIN interviews ON interviews.interview_id = feedbacks.interview_id
+LEFT JOIN applications ON (applications.application_id = feedbacks.application_id OR 
+                            applications.application_id = interviews.application_id)
+JOIN students ON students.student_id = applications.student_id
+WHERE feedbacks.user_id = $1
+`
+
+type FeedbacksDataForAndByCompanyRow struct {
+	FeedbackID        int64
+	FeedbackTime      string
+	Message           pgtype.Text
+	ApplicationID     pgtype.Int8
+	ApplicationStatus string
+	InterviewID       pgtype.Int8
+	InterviewDateTime string
+	StudentID         int64
+	StudentName       string
+}
+
+func (q *Queries) FeedbacksDataForAndByCompany(ctx context.Context, userID int64) ([]FeedbacksDataForAndByCompanyRow, error) {
+	rows, err := q.db.Query(ctx, feedbacksDataForAndByCompany, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FeedbacksDataForAndByCompanyRow
+	for rows.Next() {
+		var i FeedbacksDataForAndByCompanyRow
+		if err := rows.Scan(
+			&i.FeedbackID,
+			&i.FeedbackTime,
+			&i.Message,
+			&i.ApplicationID,
+			&i.ApplicationStatus,
+			&i.InterviewID,
+			&i.InterviewDateTime,
+			&i.StudentID,
+			&i.StudentName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const feedbacksDataForAndToCompany = `-- name: FeedbacksDataForAndToCompany :many
+WITH notuser AS (
+    SELECT 
+        interviews.interview_id 
+    FROM interviews 
+    WHERE interviews.company_id = 
+        (SELECT companies.company_id FROM companies WHERE companies.user_id = $1)
+)
+SELECT 
+    feedbacks.feedback_id,
+    TO_CHAR(feedbacks.created_at, 'HH12:MI:SS AM DD-MM-YYYY') AS feedback_time,
+    feedbacks.message
+FROM feedbacks
+LEFT JOIN notuser ON notuser.interview_id = feedbacks.interview_id
+WHERE feedbacks.user_id != $1 AND notuser.interview_id IS NOT NULL
+`
+
+type FeedbacksDataForAndToCompanyRow struct {
+	FeedbackID   int64
+	FeedbackTime string
+	Message      pgtype.Text
+}
+
+func (q *Queries) FeedbacksDataForAndToCompany(ctx context.Context, userID int64) ([]FeedbacksDataForAndToCompanyRow, error) {
+	rows, err := q.db.Query(ctx, feedbacksDataForAndToCompany, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FeedbacksDataForAndToCompanyRow
+	for rows.Next() {
+		var i FeedbacksDataForAndToCompanyRow
+		if err := rows.Scan(&i.FeedbackID, &i.FeedbackTime, &i.Message); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const feedbacksDataForStudent = `-- name: FeedbacksDataForStudent :many
+SELECT 
+    feedbacks.feedback_id,
+    TO_CHAR(feedbacks.created_at, 'HH12:MI:SS AM DD-MM-YYYY') AS feedback_time,
+    feedbacks.message,
+
+    applications.application_id,
+
+    interviews.interview_id
+
+FROM feedbacks
+LEFT JOIN applications ON applications.application_id = feedbacks.application_id
+LEFT JOIN interviews ON interviews.interview_id = feedbacks.interview_id
+WHERE feedbacks.user_id = $1
+`
+
+type FeedbacksDataForStudentRow struct {
+	FeedbackID    int64
+	FeedbackTime  string
+	Message       pgtype.Text
+	ApplicationID pgtype.Int8
+	InterviewID   pgtype.Int8
+}
+
+func (q *Queries) FeedbacksDataForStudent(ctx context.Context, userID int64) ([]FeedbacksDataForStudentRow, error) {
+	rows, err := q.db.Query(ctx, feedbacksDataForStudent, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FeedbacksDataForStudentRow
+	for rows.Next() {
+		var i FeedbacksDataForStudentRow
+		if err := rows.Scan(
+			&i.FeedbackID,
+			&i.FeedbackTime,
+			&i.Message,
+			&i.ApplicationID,
+			&i.InterviewID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getAll = `-- name: GetAll :many
@@ -1530,6 +1740,65 @@ func (q *Queries) InsertAnswers(ctx context.Context, arg InsertAnswersParams) er
 	return err
 }
 
+const insertDiscussion = `-- name: InsertDiscussion :exec
+INSERT INTO discussions (user_id, role, content)
+VALUES ($1, (SELECT role FROM users WHERE users.user_id = $1), $2)
+`
+
+type InsertDiscussionParams struct {
+	UserID  int64
+	Content string
+}
+
+func (q *Queries) InsertDiscussion(ctx context.Context, arg InsertDiscussionParams) error {
+	_, err := q.db.Exec(ctx, insertDiscussion, arg.UserID, arg.Content)
+	return err
+}
+
+const insertFeedbackByCompany = `-- name: InsertFeedbackByCompany :exec
+INSERT INTO feedbacks (application_id, interview_id, user_id, message)
+VALUES ($1, $2, $3, $4)
+`
+
+type InsertFeedbackByCompanyParams struct {
+	ApplicationID pgtype.Int8
+	InterviewID   pgtype.Int8
+	UserID        int64
+	Message       pgtype.Text
+}
+
+func (q *Queries) InsertFeedbackByCompany(ctx context.Context, arg InsertFeedbackByCompanyParams) error {
+	_, err := q.db.Exec(ctx, insertFeedbackByCompany,
+		arg.ApplicationID,
+		arg.InterviewID,
+		arg.UserID,
+		arg.Message,
+	)
+	return err
+}
+
+const insertFeedbackByStudent = `-- name: InsertFeedbackByStudent :exec
+INSERT INTO feedbacks (application_id, interview_id, user_id, message)
+VALUES ($1, $2, $3, $4)
+`
+
+type InsertFeedbackByStudentParams struct {
+	ApplicationID pgtype.Int8
+	InterviewID   pgtype.Int8
+	UserID        int64
+	Message       pgtype.Text
+}
+
+func (q *Queries) InsertFeedbackByStudent(ctx context.Context, arg InsertFeedbackByStudentParams) error {
+	_, err := q.db.Exec(ctx, insertFeedbackByStudent,
+		arg.ApplicationID,
+		arg.InterviewID,
+		arg.UserID,
+		arg.Message,
+	)
+	return err
+}
+
 const insertNewApplication = `-- name: InsertNewApplication :exec
 INSERT INTO applications (job_id, student_id, data_url) 
 VALUES ($1, (SELECT student_id FROM students WHERE user_id = $2), $3)
@@ -1712,6 +1981,7 @@ const listToVerifyStudent = `-- name: ListToVerifyStudent :many
 
 
 
+
 SELECT 
     users.user_id,
     users.email,
@@ -1730,6 +2000,25 @@ type ListToVerifyStudentRow struct {
 	Confirmed bool
 }
 
+// -- name: GetStudentProfile :one
+// SELECT
+//
+//	students.student_name,
+//	students.roll_number,
+//	students.student_dob,
+//	students.gender,
+//	students.course,
+//	students.department,
+//	students.year_of_study,
+//	students.cgpa,
+//	students.contact_no,
+//	students.student_email,
+//	students.address,
+//	students.skills,
+//	students.extras
+//
+// FROM students
+// WHERE students.student_id = $1;
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 // Admin Functions --------------------------------
 func (q *Queries) ListToVerifyStudent(ctx context.Context) ([]ListToVerifyStudentRow, error) {
@@ -2778,6 +3067,25 @@ type UpdateCompanyProfilePicParams struct {
 
 func (q *Queries) UpdateCompanyProfilePic(ctx context.Context, arg UpdateCompanyProfilePicParams) error {
 	_, err := q.db.Exec(ctx, updateCompanyProfilePic, arg.PictureUrl, arg.UserID)
+	return err
+}
+
+const updateDiscussion = `-- name: UpdateDiscussion :exec
+UPDATE discussions
+SET
+    content = $3
+WHERE post_id = $2
+AND user_id = $1
+`
+
+type UpdateDiscussionParams struct {
+	UserID  int64
+	PostID  int64
+	Content string
+}
+
+func (q *Queries) UpdateDiscussion(ctx context.Context, arg UpdateDiscussionParams) error {
+	_, err := q.db.Exec(ctx, updateDiscussion, arg.UserID, arg.PostID, arg.Content)
 	return err
 }
 

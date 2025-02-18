@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 
@@ -101,7 +102,14 @@ func (h *CompanyHandler) RegisterRoute(companyRoute *gin.RouterGroup) {
 
 
 
-	
+
+	companyRoute.GET("/feedbacks", h.Feedbacks)
+	companyRoute.GET("/feedbacksdata", h.FeedbacksData)
+
+
+
+
+
 
 	// TODO:
 	companyRoute.GET("/studentprofiledata", h.StudentProfileData)
@@ -235,6 +243,16 @@ func (h *CompanyHandler) NewJob(ctx *gin.Context) {
 func (h *CompanyHandler) NewJobPost(ctx *gin.Context) {
 	
 	jobdata := new(dto.NewJobData)
+
+	err := ctx.Bind(jobdata)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, errs.Error{
+			Type: errs.IncompleteForm,
+			Message: "Invalid or incomplete form.",
+			ToRespondWith: true,
+		})
+		return
+	}
 
 	userID, errf := h.extractUserID(ctx)
 	if errf != nil {
@@ -1015,6 +1033,92 @@ func (h *CompanyHandler) UpdateFile(ctx *gin.Context) {
 
 
 // CLEANUP UNDERWAY >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+
+
+
+
+
+
+
+func (h *CompanyHandler) Feedbacks(ctx *gin.Context) {
+	filePath := config.CompPaths.CompanyFeedbacksTemplatePath
+
+	errf := h.checkFile(ctx, filePath)
+	if errf != nil {
+		ctx.JSON(http.StatusBadRequest, errf)
+		return
+	}
+
+	ctx.File(filePath)
+}
+
+func (h *CompanyHandler) FeedbacksData(ctx *gin.Context) {
+	
+	tab := ctx.Query("tab")
+	if tab == "" {
+		return
+	}
+
+	userID, errf := h.extractUserID(ctx)
+	if errf != nil {
+		ctx.JSON(http.StatusBadRequest, errf)
+		return
+	}
+
+	data, errf := h.CompanyService.FeedbacksData(ctx, userID, tab)
+	if errf != nil {
+		fmt.Println(errf.Message)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, data)
+}
+
+// func (h *CompanyHandler) Feedback(ctx *gin.Context) {
+
+// 	data := new(dto.Feedback)
+// 	err := ctx.Bind(data)
+// 	if err != nil {
+// 		ctx.JSON(http.StatusBadRequest, errs.Error{
+// 			Type: errs.IncompleteForm,
+// 			Message: "New Feedback form is incomplete or invalid.",
+// 			ToRespondWith: true,
+// 		})
+// 		return
+// 	}
+
+// 	userID, errf := h.extractUserID(ctx)
+// 	if errf != nil {
+// 		ctx.JSON(http.StatusBadRequest, errf)
+// 		return
+// 	}
+
+// 	errf = h.CompanyService.Feedback(ctx, userID, data)
+// 	if errf != nil {
+// 		if errf.ToRespondWith {
+// 			ctx.JSON(http.StatusBadRequest, errf)
+// 		} else {
+// 			ctx.Set("error", errf.Message)
+// 		}
+// 		return
+// 	}
+
+// 	ctx.JSON(http.StatusOK, gin.H{
+// 		"Status": "New feedback sent successfully.",
+// 	})
+// }
+
+
+
+
+
+
+
+
+
+
+
 
 
 

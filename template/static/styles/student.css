@@ -85,6 +85,25 @@ h1 {
     font-size: 0.9em;
     color: #555;
 }
+
+.profile {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 15px;
+}
+
+.details.profile label {
+    display: flex;
+    gap: 5%;
+    justify-content:space-between;
+    font-size: 16px;
+    padding: 6px 12px;
+    background-color: white;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+}
+
 .details label {
     margin: 3px 0; 
     line-height: 1.4;
@@ -142,15 +161,14 @@ h1 {
 .btn {
     margin-top: 4px;
     margin-bottom: 1px;
-
-
+    height: min-content;
     background: #6C63FF;
     color: #fff;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: bold;
     border: none;
     border-radius: 5px;
-    padding: 8px 8px;
+    padding: 8px 12px;
     cursor: pointer;
     text-decoration: none;
     transition: background-color 0.3s;

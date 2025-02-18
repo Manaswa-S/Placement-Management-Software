@@ -67,17 +67,22 @@
                 .then(response => response.json())
                 .then(data => {
                     hideSpinner();
-                    if (data == null) {
-                        dataList.innerHTML = `
-                            <div class="no-data">
-                                No upcoming events. Relax !
-                            </div>
-                        `;
+                    console.log(data);
+                    if (data != null) {
                         alldata = [];
-                    } else {
                         const {Data} = data;
                         alldata = Data;
                         searched = alldata;
+                        if (alldata == null) {
+                            dataList.innerHTML = `
+                                <div class="no-data">
+                                    No upcoming events. Relax !
+                                </div>
+                            `;
+                            alldata = [];
+                        } else {
+                            middle();
+                        }
                         middle();
                     }
                 })
@@ -197,10 +202,6 @@
             savedPages = {};
             nextbtn.click();
         }
-
-
-
-
 
         function showSpinner() {
             document.getElementById('spinner').style.display = 'block'; 

@@ -1,266 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Job Listings</title>
-    <style>
-        body {
-            font-family: 'Arial', sans-serif;
-            margin: 0;
-            padding: 0;
-            background: linear-gradient(135deg, #ece9e6, #ffffff);
-            color: #333;
-        }
+    <link rel="stylesheet" href="/static/styles/company.css">
 
-        .container {
-            width: 90%;
-            margin: 20px auto;
-            max-width: 1200px;
-        }
-
-        h1 {
-            text-align: center;
-            color: #6C63FF;
-            margin-bottom: 20px;
-        }
-
-        .job-card {
-            background: #fff;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            padding: 10px 15px;
-            margin-bottom: 10px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            transition: box-shadow 0.3s;
-        }
-
-        .job-card:hover {
-            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
-        }
-
-        .job-title {
-            font-size: 1.2em;
-            color: #6C63FF;
-            margin-bottom: 4px;
-        }
-
-        .job-details {
-            display:grid; 
-            grid-template-columns: repeat(2, 1fr); 
-            font-size: 0.8em;
-            color: #555;
-        }
-
-        .job-details p {
-            margin: 3px 0; 
-            line-height: 1.2;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .job-details p:hover {
-            white-space: normal;
-            overflow: visible;  
-            text-overflow: unset;
-        }
-        
-        .btn {
-            margin-top: 10px;
-            margin-bottom: 10px;
-
-            background: #6C63FF;
-            color: #fff;
-            font-size: 12px;
-            font-weight: bold;
-            border: none;
-            border-radius: 5px;
-            padding: 8px 8px;
-            cursor: pointer;
-            text-decoration: none;
-            transition: background-color 0.3s;
-        }
-        .btn:hover {
-            background: #8E94F2;
-        }
-
-        .no-jobs {
-            display:block;
-            top:50%; 
-            text-align: center;
-            font-size: 0.8em;
-            color: #555;
-        }
-
-        .spinner {
-            display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            border: 6px solid #f3f3f3;  
-            border-top: 6px solid #6C63FF;  
-            border-radius: 50%;        
-            width: 60px;                
-            height: 60px;               
-            animation: spin 2s linear infinite; 
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .paging {
-            position:static;
-            bottom: 2%;
-            width: 100%;
-        }
-        .nav-btn {
-            visibility:hidden;
-            position:relative;
-            background: #6C63FF;
-            color: #fff;
-            font-size: 14px;
-            padding: 10px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-            border: none;
-        }
-        .prev-btn {
-            left: 50%;
-            transform: translateX(-100%); 
-        }
-        .next-btn {
-            left: 50%;
-            transform: translateX(-100%); 
-        }
-
-        .top-nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-            margin-bottom: 20px;
-        }
-        .filterbar {
-            padding: 10px;
-            font-size: 14px;
-            border-radius: 5px;
-            border: 1px solid #ddd;
-            background-color: #fff;
-        }
-        .searchbar input {
-            padding: 10px;
-            font-size: 14px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-        }
-
-        .overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 999;
-        }
-
-        .semi-modal {
-            display: none; 
-            position:fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 80%;
-            max-width: 600px;
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-            z-index: 1000;
-            box-sizing: border-box;
-            margin-bottom: 30px;
-            margin-top: 30px;
-
-            max-height: 90%;
-            overflow-y: scroll;
-        }
-
-        .semi-button {
-            display: flex; 
-            justify-content: center;
-            align-items: center;
-            gap: 10px; 
-        }
-
-        .toast {
-            visibility: hidden;
-            color: #fff;
-            text-align: center;
-            border-radius: 5px;
-            padding: 10px;
-            position:fixed;
-            z-index: 1;
-            right: 5%;
-            bottom: 5%;
-            font-size:smaller;
-        }
-        .toast.show {
-            visibility: visible;
-            animation: fadein 0.5s, fadeout 0.5s 2.5s;
-        }
-        .toast.green {
-            background-color: #4CAF50; /* Green for success */
-        }
-        .toast.red {
-            background-color: #f44336; /* Red for error */
-        }
-        @keyframes fadein {
-            from {bottom: 0; opacity: 0;}
-            to {bottom: 5%; opacity: 1;}
-        }
-        @keyframes fadeout {
-            from {bottom: 5%; opacity: 1;}
-            to {bottom: 0; opacity: 0;}
-        }
-
-        .form-section {
-            margin-bottom: 20px;
-        }
-
-        .form-section label {
-            display: block;
-            font-size: 16px;
-            margin-bottom: 5px;
-            margin-top: 15px;
-
-            color: #6C63FF;
-        }
-
-        .form-section input,
-        .form-section textarea,
-        .form-section select {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 16px;
-            margin-top: 2px;
-            background-color: #f7f7f7;
-            box-sizing: border-box;
-        }
-
-        .form-section textarea {
-            height: 150px;
-            resize: vertical;
-        }
-
-        .form-section select {
-            height: 40px;
-        }
-    </style>
 </head>
 
 <body>
@@ -298,6 +44,8 @@
         <div id="toast"></div>
     </div>
 
+    <script src="/static/scripts/company.js"></script>
+
     <script>
         let alldata = [];
         let savedPages = {};
@@ -327,7 +75,7 @@
                     hideSpinner();
                     if (alldata == null) {
                         dataList.innerHTML = `
-                            <div class="no-jobs">
+                            <div class="no-data">
                                 No listings. Go to New Job to create one.
                             </div>
                         `;
@@ -351,9 +99,9 @@
 
                     let job = searched[i]; 
                     const card = `
-                        <div class="job-card">
-                            <div class="job-title">${job.JobID} : ${job.Title}</div>
-                            <div class="job-details">
+                        <div class="card">
+                            <div class="title">${job.JobID} : ${job.Title}</div>
+                            <div class="details">
                                 <p><strong>Created On:</strong> ${job.CreatedAt}</p>
                                 <p><strong>Location:</strong> ${job.Location}</p>
                                 <p><strong>Type:</strong> ${job.Type}</p>
@@ -365,16 +113,12 @@
                                 <p><strong>Description:</strong> ${job.Description == null ? 'none': job.Description}</p>
 
                             </div>
-                            <button class="btn" 
-                                onclick="closePosting(${job.JobID}, this)" 
-                                ${job.ActiveStatus ? '' : 'disabled'} 
-                                style="background-color: ${job.ActiveStatus ? '#6C63FF' : '#d3d3d3'}; color: ${job.ActiveStatus ? '#fff' : '#000'};">
+                            <button class="btn ${job.ActiveStatus ? '' : 'disabled'}" 
+                                onclick="closePosting(${job.JobID}, this)">
                                 ${job.ActiveStatus ? 'Close' : 'Closed'}
                             </button>
-                            <button class="btn" 
-                                onclick="editPosting(${job.JobID}, this)" 
-                                ${job.ActiveStatus ? '' : 'disabled'} 
-                                style="background-color: ${job.ActiveStatus ? '#6C63FF' : '#d3d3d3'}; color: ${job.ActiveStatus ? '#fff' : '#000'};">
+                            <button class="btn ${job.ActiveStatus ? '' : 'disabled'}" 
+                                onclick="editPosting(${job.JobID}, this)">
                                 ${job.ActiveStatus ? 'Edit' : 'Edit'}
                             </button>
                             <button class="btn" onclick="deletePosting(${job.JobID}, this)">Delete</button>
@@ -433,7 +177,7 @@
             if (pageSize > 0) {
                 nextbtn.style.visibility = 'hidden';
                 dataList.innerHTML += `
-                    <div class="no-jobs">
+                    <div class="no-data">
                         Thats all for now !
                     </div>
                 `;
@@ -536,7 +280,7 @@
             const job = result[0];
 
             mdiv.innerHTML = `
-                <label class="job-title">${job.JobID}</label>
+                <label class="title">${job.JobID}</label>
 
                 <div class="form-section">
 
@@ -563,10 +307,10 @@
                         <label for="JobSalary">Salary Range</label>
                         <input type="text" id="JobSalary" name="JobSalary" value="${job.Salary}">
 
-                        <label for="SkillsRequired">Skills Required</label>
+                        <label for="SkillsRequired">Job Position</label>
                         <input type="text" id="SkillsRequired" name="SkillsRequired" value="${job.Position}" >
 
-                        <label for="JobPosition">Job Position</label>
+                        <label for="JobPosition">Skills Required</label>
                         <input type="text" id="JobPosition" name="JobPosition" value="${job.Skills.join(', ')}" >
 
                         <label for="ExperienceLevel">Experience Level</label>
