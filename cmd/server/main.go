@@ -16,6 +16,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-ping/ping"
 	"github.com/joho/godotenv"
+	"go.mod/cmd/server/errHandler"
 	"go.mod/internal/apicalls"
 	"go.mod/internal/config"
 	"go.mod/internal/dto"
@@ -42,7 +43,7 @@ func main() {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 
-	errorsChan := make(chan *dto.ErrorData, 50)
+	errorsChan := errHandler.ErrorsChan
 
 
 	// load environment variables
@@ -284,6 +285,7 @@ func ErrorHandler(errorsChan chan *dto.ErrorData) error {
 		return errors.New("TelegramChatID not found or is empty string")
 	} 
 
+
 	go func() {
 		for report := range errorsChan {
 			// TODO: add the error handler logic where we send notifications to admin
@@ -323,21 +325,22 @@ func TelegramBot(report *dto.ErrorData, bot_token string, chat_id string) error 
 		textToSend += fmt.Sprintf("<b>☠️ Fatal:</b> %s\n", report.Fatal)
 	}
 
+	if report.LogData != nil {
+		textToSend += fmt.Sprintf(
+			"\n" +
+			"<b>Start Time:</b> %s\n" + 
+			"<b>Client IP:</b> %s\n" +
+			"<b>Method:</b> %s\n" + 
+			"<b>Path:</b> %s\n" + 
+			"<b>Status Code:</b> %d\n" +
+			"<b>Internal Error:</b> %s\n" + 
+			"<b>Latency:</b> %s\n", 
 
-	textToSend += fmt.Sprintf(
-		"\n" +
-		"<b>Start Time:</b> %s\n" + 
-		"<b>Client IP:</b> %s\n" +
-		"<b>Method:</b> %s\n" + 
-		"<b>Path:</b> %s\n" + 
-		"<b>Status Code:</b> %d\n" +
-		"<b>Internal Error:</b> %s\n" + 
-		"<b>Latency:</b> %s\n", 
-
-		report.LogData.StartTime.Format("2006-01-02 15:04:05"), report.LogData.ClientIP, report.LogData.Method, report.LogData.Path,
-		report.LogData.StatusCode, report.LogData.InternalError, report.LogData.Latency,
-	)
-
+			report.LogData.StartTime.Format("2006-01-02 15:04:05"), report.LogData.ClientIP, report.LogData.Method, report.LogData.Path,
+			report.LogData.StatusCode, report.LogData.InternalError, report.LogData.Latency,
+		)
+	}
+	
 	data := url.Values{}
 	data.Set("chat_id", chat_id)
 	data.Set("text", textToSend)

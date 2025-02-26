@@ -25,6 +25,7 @@ import (
 	"go.mod/internal/notify"
 	sqlc "go.mod/internal/sqlc/generate"
 	"go.mod/internal/utils"
+	"go.mod/internal/utils/testresgen"
 )
 
 
@@ -444,7 +445,7 @@ func (c *CompanyService) Reject(ctx *gin.Context, applicationid string, userID i
 }
 
 func (c *CompanyService) ScheduleInterview(ctx *gin.Context, data *dto.NewInterview) (*errs.Error) {
-
+	// interview has to be in the future
 	if (data.DateTime.Compare(time.Now()) != 1) {
 		return &errs.Error{
 			Type: errs.PreconditionFailed,
@@ -452,11 +453,7 @@ func (c *CompanyService) ScheduleInterview(ctx *gin.Context, data *dto.NewInterv
 			ToRespondWith: true,
 		}
 	}
-
-	
-
-
-
+	// insert new interview row
 	dt, err := c.queries.ScheduleInterview(ctx, sqlc.ScheduleInterviewParams{
 		ApplicationID: data.ApplicationId,
 		UserID: data.UserId,
@@ -468,6 +465,7 @@ func (c *CompanyService) ScheduleInterview(ctx *gin.Context, data *dto.NewInterv
 	if err != nil {
 		var pgerr *pgconn.PgError
 		if errors.As(err, &pgerr) {
+			// an interview for the application already exists
 			if pgerr.Code == errs.UniqueViolation {
 				return &errs.Error{
 					Type: errs.ObjectExists,
@@ -483,7 +481,7 @@ func (c *CompanyService) ScheduleInterview(ctx *gin.Context, data *dto.NewInterv
 	}
 
 
-	// student name and email and job title and company name for email template
+	// get additional data for email and notification
 	studentData, err := c.queries.GetScheduleInterviewData(ctx, data.ApplicationId)
 	if err != nil {
 		return &errs.Error{
@@ -497,6 +495,7 @@ func (c *CompanyService) ScheduleInterview(ctx *gin.Context, data *dto.NewInterv
 	data.JobTitle = studentData.Title
 	data.DT = dt
 	
+
 	// execute email template
 	template, err := utils.DynamicHTML("./template/emails/interviewScheduled.html", data)
 	if err != nil {
@@ -505,7 +504,7 @@ func (c *CompanyService) ScheduleInterview(ctx *gin.Context, data *dto.NewInterv
 			Message: "Failed to get dynamic template for new interview email : " + err.Error(),
 		}
 	}
-	// send new interview email to student
+	// send new interview email to student as a routine
 	go utils.SendEmailHTML(template, []string{studentData.StudentEmail})
 
 	errf := c.Notify.NewNotification(ctx, studentData.UserID, &dto.NotificationData{
@@ -994,14 +993,12 @@ func (c *CompanyService) EditCutOff(ctx *gin.Context, userID int64, newData *dto
 		}
 	}
 
-	// call utils to generate the cumulative result draft
-	_, err = utils.GenerateTestResultDraft(c.queries, c.GAPIService, newData.TestID)
-	if err != nil {
-		return &errs.Error{
-			Type: errs.Internal,
-			Message: err.Error(),
-		}
-	}
+	// lets try the new/refactored version
+	go func() {
+		testresgen.GenerateCumulativeTestResult(c.queries, c.GAPIService, newData.TestID)
+	} ()
+
+
 
 	// all ok
 	return nil
@@ -1046,7 +1043,7 @@ func (c *CompanyService) PublishTestResults(ctx *gin.Context, userID int64, test
 	}
 
 	go func() {
-		err = utils.PublishTestResults(c.queries, c.GAPIService, testID)
+		err = testresgen.PublishTestResults(c.queries, c.GAPIService, testID)
 		if err != nil {
 			fmt.Println(err)
 		} else {
@@ -1238,33 +1235,20 @@ func (s *CompanyService) UpdateFile(ctx *gin.Context, userID int64, file *multip
 	return nil
 }
 
-
-
-
-
-
-
+const (
+	toStudents = "tostudents"
+	byStudents = "bystudents"
+)
 func (s *CompanyService) FeedbacksData(ctx *gin.Context, userID int64, tab string) (any, *errs.Error) {
 
+	var data any
+	var err error
+
 	switch tab {
-	case "tostudents":
-		data, err := s.queries.FeedbacksDataForAndByCompany(ctx, userID)
-		if err != nil {
-			return nil, &errs.Error{
-				Type: errs.Internal,
-				Message: err.Error(),
-			}
-		}
-		return &data, nil
-	case "bystudents":
-		data, err := s.queries.FeedbacksDataForAndToCompany(ctx, userID)
-		if err != nil {
-			return nil, &errs.Error{
-				Type: errs.Internal,
-				Message: err.Error(),
-			}
-		}
-		return &data, nil
+	case toStudents:
+		data, err = s.queries.FeedbacksByCompanyUserToStudents(ctx, userID)
+	case byStudents:
+		data, err = s.queries.FeedbacksByStudentsToCompanyUser(ctx, userID)
 	default:
 		return nil, &errs.Error{
 			Type: errs.MissingRequiredField,
@@ -1272,14 +1256,32 @@ func (s *CompanyService) FeedbacksData(ctx *gin.Context, userID int64, tab strin
 			ToRespondWith: true,
 		}
 	}
+
+	if err != nil {
+		return nil, &errs.Error{
+			Type: errs.Internal,
+			Message: "Failed to get feedback data from db : " + err.Error(),
+		}
+	}
+
+	return &data, nil
 }
 
+func (s *CompanyService) NewFeedback(ctx *gin.Context, userID int64, data *dto.CompanyFeedback) *errs.Error {
 
+	msgLowerLim := config.FeedbacksConfig.NewMessageLowerLimit
+	msgUpperLim := config.FeedbacksConfig.NewMessageUpperLimit
 
+	msgLen := len(data.Message)
+	if msgLen < msgLowerLim || msgLen > msgUpperLim {
+		return &errs.Error{
+			Type: errs.PreconditionFailed,
+			Message: fmt.Sprintf("The feedback message must be more than %d and less than %d characters.", msgLowerLim, msgUpperLim),
+			ToRespondWith: true,
+		}
+	}
 
-func (s *CompanyService) Feedback(ctx *gin.Context, userID int64, data *dto.Feedback) *errs.Error {
-
-	err := s.queries.InsertFeedbackByCompany(ctx, sqlc.InsertFeedbackByCompanyParams{
+	err := s.queries.InsertFeedbackByCompanyToStudent(ctx, sqlc.InsertFeedbackByCompanyToStudentParams{
 		ApplicationID: pgtype.Int8{Int64: data.ApplicationID, Valid: data.ApplicationID != 0},
 		InterviewID: pgtype.Int8{Int64: data.InterviewID, Valid: data.InterviewID != 0},
 		UserID: userID,
@@ -1287,6 +1289,16 @@ func (s *CompanyService) Feedback(ctx *gin.Context, userID int64, data *dto.Feed
 
 	})
 	if err != nil {
+		var pgerr *pgconn.PgError
+		if errors.As(err, &pgerr) {
+			if pgerr.Code == errs.UniqueViolation {
+				return &errs.Error{
+					Type: errs.ObjectExists,
+					Message: fmt.Sprintf("A feedback for the requested %s already exists. Only one feedback is allowed per event.", data.FeedbackType),
+					ToRespondWith: true,
+				}
+			}
+		}
 		return &errs.Error{
 			Type: errs.Internal,
 			Message: "Failed to insert new feedback : " + err.Error(),

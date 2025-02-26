@@ -7,7 +7,7 @@ import (
 
 	"go.mod/internal/config"
 	errs "go.mod/internal/const"
-	"go.mod/internal/utils"
+	"go.mod/internal/utils/testresgen"
 )
 
 var errored = 0
@@ -39,7 +39,7 @@ func (a *AsyncService) TestResultsPoller(ctx context.Context) error {
 			}
 		} else {
 			// calls the generate test result draft util
-			_, err := utils.GenerateTestResultDraft(a.Queries, a.GAPIService, testID)
+			_, err := testresgen.GenerateCumulativeTestResult(a.Queries, a.GAPIService, testID)
 			if err != nil {
 				return err
 			}

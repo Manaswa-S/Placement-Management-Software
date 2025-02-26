@@ -10,7 +10,6 @@ import (
 	"go.mod/internal/apicalls"
 	"go.mod/internal/notify"
 	sqlc "go.mod/internal/sqlc/generate"
-	"go.mod/internal/utils"
 )
 
 type AdminService struct {
@@ -94,20 +93,4 @@ func (a *AdminService) VerifyStudent(ctx *gin.Context, userid string) (error) {
 	return nil
 }
 
-func (a *AdminService) GenerateTestResult(ctx *gin.Context, testid string) (error) {
-	// parse test id 
-	testID, err := strconv.ParseInt(testid, 10, 64)
-	if err != nil {
-		return err
-	}
 
-
-
-	resultPath, err := utils.GenerateTestResultDraft(a.queries, a.GAPIService, testID)
-	if err != nil {
-		return err
-	}
-	fmt.Println(resultPath)
-
-	return nil
-}

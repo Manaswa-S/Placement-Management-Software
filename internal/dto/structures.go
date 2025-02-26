@@ -253,15 +253,18 @@ type NotificationData struct {
 
 
 
-type Feedback struct {
+type StudentFeedback struct {
 	FeedbackType string
 
-	// These fields determine for what the feedback is for
-	// eg. CompanyID gave to StudentID for InterviewID/ApplicationID
-	// eg. StudentID gave to CompanyID for ApplicationID
-	// etc
-	StudentID int64
-	CompanyID int64
+	ApplicationID int64
+	InterviewID int64
+
+	Message string
+}
+
+type CompanyFeedback struct {
+	FeedbackType string
+
 	ApplicationID int64
 	InterviewID int64
 
@@ -290,6 +293,15 @@ type Feedbacks struct {
 type NewDiscussion struct {
 	Message string
 }
+
+type NewReply struct {
+	DiscussionID int64
+	Message string
+}
+
+
+
+
 
 type EditDiscussion struct {
 	PostID int64

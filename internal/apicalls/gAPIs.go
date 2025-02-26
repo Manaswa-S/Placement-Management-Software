@@ -70,8 +70,5 @@ func (p *Caller) GetCompleteForm(formID string) (*forms.Form, error) {
 func (p *Caller) SendFireNotification() error {
 
 	// TODO:
-
-
-
 	return nil
 }

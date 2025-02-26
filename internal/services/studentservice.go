@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/redis/go-redis/v9"
 	"go.mod/internal/apicalls"
@@ -42,14 +43,15 @@ func NewStudentService(queriespool *sqlc.Queries, redisclient *redis.Client, api
 	}
 }
 
-func (c *StudentService) DashboardData(ctx *gin.Context, userID int64) (*sqlc.StudentDashboardDataRow, error) {
+func (c *StudentService) DashboardData(ctx *gin.Context, userID int64) (*sqlc.StudentDashboardDataRow, *errs.Error) {
 
 	data, err := c.queries.StudentDashboardData(ctx, userID)
 	if err != nil {
-		return nil, err
+		return nil, &errs.Error{
+			Type: errs.Internal,
+			Message: "Unable to get student dashboard data : " + err.Error(),
+		}
 	}
-
-
 
 	return &data, nil
 }
@@ -168,7 +170,7 @@ func (s *StudentService) TestMetadata(ctx *gin.Context, userID int64, testid str
 }
 
 // TODO: This function seems too inefficient, too much in one func and too many redundant db calls.
-func (s *StudentService) TakeTest(ctx *gin.Context, userID int64, testid string, currentItemId string, response dto.TestResponse) (*dto.TestQuestion, *errs.Error) {
+func (s *StudentService) TakeTest(ctx *gin.Context, userID int64, testid string, currentItemId string, response *dto.TestResponse) (*dto.TestQuestion, *errs.Error) {
 
 	// parse the test ID
 	testID, err := strconv.ParseInt(testid, 10, 64)
@@ -677,19 +679,73 @@ func (s *StudentService) UpdateFile(ctx *gin.Context, userID int64, file *multip
 	return nil
 }
 
+const (
+	toCompany  = "toCompany"
+	byCompany = "byCompany"
+)
+func (s *StudentService) FeedbacksData(ctx *gin.Context, userID int64, tab string) (any, *errs.Error) {
+	var data any
+	var err error
 
-
-
-func (s *StudentService) FeedbacksData(ctx *gin.Context, userID int64) (*[]sqlc.FeedbacksDataForStudentRow, *errs.Error) {
-
-	data, err := s.queries.FeedbacksDataForStudent(ctx, userID)
-	if err != nil {
+	switch tab {
+	case byCompany:	
+		data, err = s.queries.FeedbacksByCompaniesToStudent(ctx, userID)
+	case toCompany:
+		data, err = s.queries.FeedbacksByStudentToCompanies(ctx, userID)
+	default:
 		return nil, &errs.Error{
-			Type: errs.Internal,
-			Message: err.Error(),
+			Type: errs.NotFound,
+			Message: "No such feedback type found. Use valid 'tab' type in request url.",
+			ToRespondWith: true,
 		}
 	}
 
-	return &data, nil
+	if err != nil {
+		return nil, &errs.Error{
+			Type: errs.Internal,
+			Message: "Failed to get feedback data from db : " + err.Error(),
+		}
+	}
+
+	return &data, nil	
 }
 
+func (s *StudentService) NewFeedback(ctx *gin.Context, userID int64, data *dto.StudentFeedback) *errs.Error {
+	
+	msgLowerLim := config.FeedbacksConfig.NewMessageLowerLimit
+	msgUpperLim := config.FeedbacksConfig.NewMessageUpperLimit
+
+	msgLen := len(data.Message)
+	if msgLen < msgLowerLim || msgLen > msgUpperLim {
+		return &errs.Error{
+			Type: errs.PreconditionFailed,
+			Message: fmt.Sprintf("The feedback message must be more than %d and less than %d characters.", msgLowerLim, msgUpperLim),
+			ToRespondWith: true,
+		}
+	}
+
+	err := s.queries.InsertFeedbackByStudentToCompany(ctx, sqlc.InsertFeedbackByStudentToCompanyParams{
+		ApplicationID: pgtype.Int8{Int64: data.ApplicationID, Valid: data.ApplicationID != 0},
+		InterviewID: pgtype.Int8{Int64: data.InterviewID, Valid: data.InterviewID != 0},
+		UserID: userID,
+		Message: pgtype.Text{String: data.Message, Valid: true},
+	})
+	if err != nil {
+		var pgerr *pgconn.PgError
+		if errors.As(err, &pgerr) {
+			if pgerr.Code == errs.UniqueViolation {
+				return &errs.Error{
+					Type: errs.ObjectExists,
+					Message: fmt.Sprintf("A feedback for the requested %s already exists. Only one feedback is allowed per event.", data.FeedbackType),
+					ToRespondWith: true,
+				}
+			}
+		}
+		return &errs.Error{
+			Type: errs.Internal,
+			Message: "Failed to insert new feedback : " + err.Error(),
+		}
+	}
+
+	return nil
+}

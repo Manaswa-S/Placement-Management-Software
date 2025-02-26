@@ -10,6 +10,7 @@ import (
 	errs "go.mod/internal/const"
 	"go.mod/internal/dto"
 	"go.mod/internal/services"
+	"go.mod/internal/utils/ctxutils"
 )
 
 type OpenHandler struct {
@@ -26,6 +27,8 @@ func (h *OpenHandler) RegisterRoute(openRoute *gin.RouterGroup) {
 	openRoute.GET("/discussions", h.Discussions)
 	openRoute.GET("/discussionsdata", h.DiscussionsData)
 	openRoute.POST("/newdiscussion", h.NewDiscussion)
+	openRoute.POST("/newreply", h.NewReply)
+	openRoute.GET("/replies", h.GetReplies)
 }
 
 
@@ -97,7 +100,13 @@ func (h *OpenHandler) DiscussionsData(ctx *gin.Context) {
 		return
 	}
 
-	data, limit, offset, err := h.OpenService.DiscussionsData(ctx, page)
+	userID, errf := ctxutils.ExtractUserID(ctx)
+	if errf != nil {
+		ctx.JSON(http.StatusBadRequest, errf)
+		return
+	}
+
+	data, limit, offset, err := h.OpenService.DiscussionsData(ctx, userID, page)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -140,6 +149,76 @@ func (h *OpenHandler) NewDiscussion(ctx *gin.Context) {
 		"Status": "Posted new discussion successfully.",
 	})
 }
+
+func (h *OpenHandler) NewReply(ctx *gin.Context) {
+
+	data := new(dto.NewReply)
+	err := ctx.Bind(data)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, errs.Error{
+			Type: errs.IncompleteForm,
+			Message: "New reply form is incomplete or invalid.",
+			ToRespondWith: true,
+		})
+		return
+	}
+
+	userID, errf := ctxutils.ExtractUserID(ctx)
+	if errf != nil {
+		ctx.JSON(http.StatusBadRequest, errf)
+		return
+	}
+
+	errf = h.OpenService.NewReply(ctx, userID, data)
+	if errf != nil {
+		if errf.ToRespondWith {
+			ctx.JSON(http.StatusBadRequest, errf)
+		} else {
+			ctx.Set("error", errf.Message)
+		}
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"Status": "Replied successfully.",
+	})
+}
+
+func (h *OpenHandler) GetReplies(ctx *gin.Context) {
+
+	postid := ctx.Query("postid")
+	if postid == "" {
+		return
+	}
+
+	replies, errf := h.OpenService.GetReplies(ctx, postid)
+	if errf != nil {
+		if errf.ToRespondWith {
+			ctx.JSON(http.StatusBadRequest, errf)
+		} else {
+			ctx.Set("error", errf.Message)
+		}
+		return
+	}
+
+	ctx.JSON(http.StatusOK, replies)
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 func (h *OpenHandler) EditPost(ctx *gin.Context) {
 	data := new(dto.EditDiscussion)

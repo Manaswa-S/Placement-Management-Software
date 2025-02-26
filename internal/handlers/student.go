@@ -5,9 +5,11 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"go.mod/internal/config"
 	errs "go.mod/internal/const"
 	"go.mod/internal/dto"
 	"go.mod/internal/services"
+	"go.mod/internal/utils/ctxutils"
 )
 
 type StudentHandler struct {
@@ -22,6 +24,7 @@ func NewStudentHandler(studentService *services.StudentService) *StudentHandler 
 func (h *StudentHandler) RegisterRoute(studentRoute *gin.RouterGroup) {
 	// get the dashboard
 	studentRoute.GET("/dashboard", h.StudentDashboard)
+	// get the dashboard data
 	studentRoute.GET("/dashboarddata", h.DashboardData)
 
 	// get the notifications data
@@ -77,80 +80,111 @@ func (h *StudentHandler) RegisterRoute(studentRoute *gin.RouterGroup) {
 
 	studentRoute.GET("/feedbacks", h.Feedbacks)
 	studentRoute.GET("/feedbacksdata", h.FeedbacksData)
+	studentRoute.POST("/newfeedback", h.NewFeedback)
 
 }
 
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
+
+
+
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+// StudentDashboard returns the dashboard template for the student role
 func (h *StudentHandler) StudentDashboard(ctx *gin.Context) {
-	ctx.File("./template/dashboard/studentdashboard.html")
-}
 
+	filePath := config.StuPaths.DashboardPath
+	errf := ctxutils.CheckFile(ctx, filePath)
+	if errf != nil {
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+	
+	ctx.File(filePath)
+}
+// DashboardData returns the dashboard data for the student role
 func (h *StudentHandler) DashboardData(ctx *gin.Context) {
 
-	userid, exists := ctx.Get("ID")
-	if !exists {
-		ctx.AbortWithStatusJSON(http.StatusBadRequest, &errs.Error{
-			Type: errs.MissingRequiredField,
-			Message: "Missing user ID in request.",
-		})
+	userID, errf := ctxutils.ExtractUserID(ctx)
+	if errf != nil {
+		ctx.JSON(http.StatusBadRequest, errf)
 		return
 	}
 
-	data, err := h.StudentService.DashboardData(ctx, userid.(int64))
-	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusBadRequest, &errs.Error{
-			Type: errs.MissingRequiredField,
-			Message: err.Error(),
-		})
-		fmt.Println(err)
+	data, errf := h.StudentService.DashboardData(ctx, userID)
+	if errf != nil {
+		if errf.ToRespondWith {
+			ctx.JSON(http.StatusBadRequest, errf)
+		} else {
+			ctx.Set("error", errf.Message)
+		}
 		return
 	}
 
 	ctx.JSON(http.StatusOK, data)
 }
-
+// GetNotifications returns the notifications for user ID, uses start as param for offset
 func (h *StudentHandler) GetNotifications(ctx *gin.Context) {
 
-	userid, exists := ctx.Get("ID")
-	if !exists {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": "missing user ID",
-		})
-		return
-	}
-
-	start := ctx.Query("start")
-	end := ctx.Query("end")
-	if start == "" || end == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": "missing query params start and end",
-		})
-		return
-	}
-
-	notifs, errf := h.StudentService.Notify.GetNotifications(ctx, userid.(int64), start, end)
+	userID, errf := ctxutils.ExtractUserID(ctx)
 	if errf != nil {
-		if errf.Type != errs.Internal {
-			ctx.JSON(http.StatusBadRequest, gin.H{
-				"Type": errf.Type,
-				"Message": errf.Message,
-			})
-			return
+		ctx.JSON(http.StatusBadRequest, errf)
+		return
+	}
+
+	page := ctx.Query("page")
+	if page == "" {
+		ctx.JSON(http.StatusBadRequest, errs.Error{
+			Type: errs.MissingRequiredField,
+			Message: "Missing page parameter in request url.",
+			ToRespondWith: true, 
+		})
+		return
+	}
+
+	notifs, errf := h.StudentService.Notify.GetNotifications(ctx, userID, page)
+	if errf != nil {
+		if errf.ToRespondWith {
+			ctx.JSON(http.StatusBadRequest, errf)
+		} else {
+			ctx.Set("error", errf.Message)
 		}
-		// TODO: add the internal errors logic 
 		return
 	}
 
 	ctx.JSON(http.StatusOK, notifs)
-
 }
+
+
+
 
 func (h *StudentHandler) JobsList(ctx *gin.Context) {
-	ctx.File("./template/student/alljobslist.html")
+
+	filePath := config.StuPaths.JobListingsTemplatePath
+	errf := ctxutils.CheckFile(ctx, filePath)
+	if errf != nil {
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.File(filePath)
 }
+
 func (h *StudentHandler) MyAppsStatic(ctx *gin.Context) {
-	ctx.File("./template/student/myapplications.html")
+
+	filePath := config.StuPaths.ApplicationsTemplatePath
+	errf := ctxutils.CheckFile(ctx, filePath)
+	if errf != nil {
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.File(filePath)
 }
+
+
+
 func (h *StudentHandler) ApplicableJobs(ctx *gin.Context) {
 	// TODO: get the filters of the request body  
 
@@ -324,8 +358,8 @@ func (h *StudentHandler) TakeTestStatic(ctx *gin.Context) {
 	})
 }
 func (h *StudentHandler) TakeTest(ctx *gin.Context) {
-	var data dto.TestResponse
-	err := ctx.Bind(&data)
+	data := new(dto.TestResponse)
+	err := ctx.Bind(data)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
 			"error": "response data not found",
@@ -502,85 +536,81 @@ func (h *StudentHandler) UpdateFile(ctx *gin.Context) {
 
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 func (h *StudentHandler) Feedbacks(ctx *gin.Context) {
-	ctx.File("./template/student/feedbacks.html")
-}
 
+	filePath := config.StuPaths.FeedbacksTemplatePath
+	errf := ctxutils.CheckFile(ctx, filePath)
+	if errf != nil {
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.File(filePath)
+}
 
 func (h *StudentHandler) FeedbacksData(ctx *gin.Context) {
 	
 	tab := ctx.Query("tab")
 	if tab == "" {
+		ctx.JSON(http.StatusBadRequest, errs.Error{
+			Type: errs.MissingRequiredField,
+			Message: "Missing tab parameter in request url.",
+			ToRespondWith: true, 
+		})
 		return
 	}
 
-	userid, exists := ctx.Get("ID")
-	if !exists {
-		return
-	}
-
-
-	data, errf := h.StudentService.FeedbacksData(ctx, userid.(int64))
+	userID, errf := ctxutils.ExtractUserID(ctx)
 	if errf != nil {
-		fmt.Println(errf.Message)
+		ctx.JSON(http.StatusUnprocessableEntity, errf)
+		return
+	}
+
+	data, errf := h.StudentService.FeedbacksData(ctx, userID, tab)
+	if errf != nil {
+		if errf.ToRespondWith {
+			ctx.JSON(http.StatusBadRequest, errf)
+		} else {
+			ctx.Set("error", errf.Message)
+			ctx.Status(http.StatusInternalServerError)
+		}
 		return
 	}
 
 	ctx.JSON(http.StatusOK, data)
 }
 
+func (h *StudentHandler) NewFeedback(ctx *gin.Context) {
 
+	data := new(dto.StudentFeedback)
+	err := ctx.Bind(data)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, errs.Error{
+			Type: errs.IncompleteForm,
+			Message: "New Feedback form is incomplete or invalid.",
+			ToRespondWith: true,
+		})
+		return
+	}
 
+	userID, errf := ctxutils.ExtractUserID(ctx)
+	if errf != nil {
+		ctx.JSON(http.StatusUnprocessableEntity, errf)
+		return
+	}
 
+	errf = h.StudentService.NewFeedback(ctx, userID, data)
+	if errf != nil {
+		if errf.ToRespondWith {
+			ctx.JSON(http.StatusBadRequest, errf)
+		} else {
+			ctx.Set("error", errf.Message)
+			ctx.Status(http.StatusInternalServerError)
+		}
+		return
+	}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+	ctx.JSON(http.StatusOK, gin.H{
+		"Status": "New feedback sent successfully.",
+	})
+}

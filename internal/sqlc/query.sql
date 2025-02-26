@@ -88,14 +88,22 @@ VALUES($1, $2, $3, $4);
 
 
 -- name: GetNotifications :many
-SELECT
-    *
-FROM notifications
-WHERE user_id = $1
-ORDER BY timestamp DESC
-LIMIT $2
-OFFSET $3;
-
+WITH tb AS (
+    SELECT
+        *
+    FROM notifications
+    WHERE notifications.user_id = $1
+    ORDER BY timestamp DESC
+    LIMIT $2
+    OFFSET $3
+),
+upd AS (
+    UPDATE notifications
+    SET read_status = true
+    WHERE notif_id IN (SELECT tb.notif_id FROM tb)
+)
+SELECT * 
+FROM tb;
 
 
 
@@ -503,11 +511,17 @@ SELECT
     interviews.interview_id,
     interviews.application_id,
     TO_CHAR(interviews.date_time, 'HH12:MI AM DD-MM-YYYY') AS interview_date_time,
-    interviews.extras
+    interviews.extras,
+
+
+    (CASE WHEN feedback_id IS NULL THEN false ELSE true END) AS feedback_given,
+    feedbacks.feedback_id,
+    feedbacks.message AS feedback_message
 FROM interviews
 JOIN applications ON interviews.application_id = applications.application_id
 JOIN jobs ON applications.job_id = jobs.job_id
 JOIN companies ON jobs.company_id = companies.company_id
+LEFT JOIN feedbacks ON (feedbacks.interview_id = interviews.interview_id AND feedbacks.user_id = $1) 
 WHERE applications.student_id = (SELECT student_id FROM students WHERE students.user_id = $1)
 AND interviews.status = 'Completed';
 
@@ -532,10 +546,15 @@ SELECT
     interviews.interview_id,
     interviews.application_id,
     TO_CHAR(interviews.date_time, 'HH12:MI AM DD-MM-YYYY') AS date_time,
-    interviews.extras
+    interviews.extras,
+
+    (CASE WHEN feedback_id IS NULL THEN false ELSE true END) AS feedback_given,
+    feedbacks.feedback_id,
+    feedbacks.message AS feedback_message
 FROM interviews
 JOIN applications ON interviews.application_id = applications.application_id
 JOIN students ON students.student_id = applications.student_id
+LEFT JOIN feedbacks ON (feedbacks.interview_id = interviews.interview_id AND feedbacks.user_id = $1)
 WHERE interviews.company_id = (SELECT company_id FROM companies WHERE companies.user_id = $1)
 AND interviews.status = 'Completed';
 
@@ -967,11 +986,11 @@ WHERE testresults.test_id = $1;
 
 
 
--- name: InsertFeedbackByCompany :exec
+-- name: InsertFeedbackByCompanyToStudent :exec
 INSERT INTO feedbacks (application_id, interview_id, user_id, message)
 VALUES ($1, $2, $3, $4); 
 
--- name: InsertFeedbackByStudent :exec
+-- name: InsertFeedbackByStudentToCompany :exec
 INSERT INTO feedbacks (application_id, interview_id, user_id, message)
 VALUES ($1, $2, $3, $4); 
 
@@ -979,30 +998,29 @@ VALUES ($1, $2, $3, $4);
 
 
 
--- name: FeedbacksDataForAndByCompany :many
+-- name: FeedbacksByCompanyUserToStudents :many
 SELECT 
     feedbacks.feedback_id,
     TO_CHAR(feedbacks.created_at, 'HH12:MI:SS AM DD-MM-YYYY') AS feedback_time,
     feedbacks.message,
+    feedbacks.application_id,
+    feedbacks.interview_id,
 
-    applications.application_id,
-    applications.status::TEXT AS application_status,
+    (CASE WHEN feedbacks.application_id IS NULL THEN false ELSE true END) AS application_feedback,
+    (CASE WHEN feedbacks.interview_id IS NULL THEN false ELSE true END) AS interview_feedback,
 
-    interviews.interview_id,
-    TO_CHAR(interviews.date_time, 'HH12:MI:SS AM DD-MM-YYYY') AS interview_date_time,
-    
     students.student_id,
     students.student_name
-
 FROM feedbacks
 LEFT JOIN interviews ON interviews.interview_id = feedbacks.interview_id
 LEFT JOIN applications ON (applications.application_id = feedbacks.application_id OR 
                             applications.application_id = interviews.application_id)
 JOIN students ON students.student_id = applications.student_id
-WHERE feedbacks.user_id = $1;
+WHERE feedbacks.user_id = $1
+ORDER BY feedbacks.created_at DESC;
 
   
--- name: FeedbacksDataForAndToCompany :many
+-- name: FeedbacksByStudentsToCompanyUser :many
 WITH notuser AS (
     SELECT 
         interviews.interview_id 
@@ -1016,28 +1034,70 @@ SELECT
     feedbacks.message
 FROM feedbacks
 LEFT JOIN notuser ON notuser.interview_id = feedbacks.interview_id
-WHERE feedbacks.user_id != $1 AND notuser.interview_id IS NOT NULL;
+WHERE feedbacks.user_id != $1 AND notuser.interview_id IS NOT NULL
+ORDER BY feedbacks.created_at DESC;
   
 
 
 
 
-  
 
--- name: FeedbacksDataForStudent :many
+
+
+
+
+
+
+
+
+-- name: FeedbacksByCompaniesToStudent :many
 SELECT 
     feedbacks.feedback_id,
     TO_CHAR(feedbacks.created_at, 'HH12:MI:SS AM DD-MM-YYYY') AS feedback_time,
+    feedbacks.application_id,
+    feedbacks.interview_id,
     feedbacks.message,
+    (CASE WHEN feedbacks.application_id IS NULL THEN false ELSE true END) AS application_feedback,
+    (CASE WHEN feedbacks.interview_id IS NULL THEN false ELSE true END) AS interview_feedback,
 
-    applications.application_id,
-
-    interviews.interview_id
-
+    jobs.title AS job_title,
+    companies.company_name
 FROM feedbacks
-LEFT JOIN applications ON applications.application_id = feedbacks.application_id
-LEFT JOIN interviews ON interviews.interview_id = feedbacks.interview_id
-WHERE feedbacks.user_id = $1; 
+LEFT JOIN interviews ON feedbacks.interview_id = interviews.interview_id
+LEFT JOIN applications ON (interviews.application_id = applications.application_id OR 
+                            feedbacks.application_id = applications.application_id)
+JOIN students ON applications.student_id = students.student_id
+JOIN jobs ON applications.job_id = jobs.job_id
+JOIN companies ON jobs.company_id = companies.company_id
+WHERE feedbacks.user_id != $1 AND students.user_id = $1
+ORDER BY feedbacks.created_at DESC;
+
+-- name: FeedbacksByStudentToCompanies :many
+SELECT 
+    feedbacks.feedback_id,
+    TO_CHAR(feedbacks.created_at, 'HH12:MI:SS AM DD-MM-YYYY') AS feedback_time,
+    feedbacks.application_id,
+    feedbacks.interview_id,
+    feedbacks.message,
+    (CASE WHEN feedbacks.application_id IS NULL THEN false ELSE true END) AS application_feedback,
+    (CASE WHEN feedbacks.interview_id IS NULL THEN false ELSE true END) AS interview_feedback,
+
+    jobs.title AS job_title,
+    companies.company_name
+FROM feedbacks
+LEFT JOIN interviews ON feedbacks.interview_id = interviews.interview_id
+LEFT JOIN applications ON (interviews.application_id = applications.application_id OR 
+                            feedbacks.application_id = applications.application_id)
+JOIN students ON applications.student_id = students.student_id
+JOIN jobs ON applications.job_id = jobs.job_id
+JOIN companies ON jobs.company_id = companies.company_id
+WHERE feedbacks.user_id = $1
+ORDER BY feedbacks.created_at DESC;
+
+
+
+
+
 
 
 
@@ -1059,15 +1119,20 @@ WHERE feedbacks.user_id = $1;
 
 -- name: DiscussionsData :many
 SELECT 
+    discussions.post_id,
+
     discussions.content,
     TO_CHAR(discussions.created_at, 'HH12:MI:SS AM DD-MM-YYYY') AS created_at,
 
     companies.company_name,
-    students.student_name
+    students.student_name,
+
+    (CASE WHEN discussions.user_id = $3 THEN true ELSE false END) AS owned
 
 FROM discussions 
 LEFT JOIN students ON discussions.user_id = students.user_id
 LEFT JOIN companies ON discussions.user_id = companies.user_id
+WHERE thread_id IS NULL
 ORDER BY discussions.created_at DESC
 OFFSET $1 LIMIT $2;
 
@@ -1082,7 +1147,18 @@ SET
 WHERE post_id = $2
 AND user_id = $1;
 
+-- name: GetReplies :many
+SELECT 
+    TO_CHAR(discussions.created_at, 'HH12:MI:SS AM DD-MM-YYYY') AS created_at,
+    discussions.content,
 
+    companies.company_name,
+    students.student_name
+
+FROM discussions 
+LEFT JOIN students ON discussions.user_id = students.user_id
+LEFT JOIN companies ON discussions.user_id = companies.user_id
+WHERE discussions.thread_id = $1;
 
 
 

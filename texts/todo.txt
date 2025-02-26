@@ -14,6 +14,18 @@ in myapplicants or similar pages, you might want to reduce the info directly in 
 
 the job update and new job into a single method is risky, also the way to judge between updation/insertion is stupid and dumb
 
+have a check for external storage on startup
+
+the ctx.Bind() internally sets a 400 error is not valid, that can be problematic or redundant
+
+you would want to prompt the company to give a feedback when rejecting/etc a candidate
+
+having separate representative email and user email is causing problems, change asap
+
+we need to have a separate logic for async errors (errors outside of the request cycles), separate logging file, etc
+
+the schedule interview modal is broken
+
 the errors logic after errf.Type != errs.Internal is not set anywhere, like if the error is internal you need to do something
 
 disable submit and other buttons after first click to avoid multiple submissions
@@ -43,6 +55,10 @@ for everything there is not a check if the time for that event has gone by, i ca
 in the public.ConfirmSignup , we send a valid JWT token directly, which is ... stupid!
 
 we can cancel interview even after it is completed
+
+the rejected email is not being sent
+
+the company is getting notifs like your application is rejected, its broken
 
 there are alot of endpoints like /company/editcutoff that need to be rate limited heavily
 

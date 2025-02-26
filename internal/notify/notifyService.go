@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/redis/go-redis/v9"
+	"go.mod/internal/config"
 	errs "go.mod/internal/const"
 	"go.mod/internal/dto"
 	sqlc "go.mod/internal/sqlc/generate"
@@ -24,12 +25,23 @@ func NewNotifyService(redisClient *redis.Client, queries *sqlc.Queries) *Notify 
 	}
 }
 
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+
+// NewNotification inserts a new notification in the db, uses dto.NotificationData
 func (n *Notify) NewNotification(ctx *gin.Context, userID int64, toSend *dto.NotificationData) (*errs.Error) {
 
 	if toSend == nil {
 		return &errs.Error{
-			Type: errs.Internal,
-			Message: "Message toSend cannot be empty.",
+			Type: errs.MissingRequiredField,
+			Message: "The message for notification cannot be empty or nil.",
+		}
+	}
+
+	if toSend.Title == "" || toSend.Description == "" {
+		return &errs.Error{
+			Type: errs.MissingRequiredField,
+			Message: "The title or description for notification cannot be empty or nil.",
 		}
 	}
 
@@ -48,28 +60,25 @@ func (n *Notify) NewNotification(ctx *gin.Context, userID int64, toSend *dto.Not
 
 	return nil
 }
+// GetNotifications gets the notifications for 'userID' with offset of 'start' and an internal limit
+func (n *Notify) GetNotifications(ctx *gin.Context, userID int64, page string) (*[]sqlc.GetNotificationsRow, *errs.Error) {
 
-func (n *Notify) GetNotifications(ctx *gin.Context, userID int64, start string, end string) (*[]sqlc.Notification, *errs.Error) {
-
-	pageStart, err := strconv.ParseInt(start, 10, 64)
+	pageNum, err := strconv.ParseInt(page, 10, 32)
 	if err != nil {
 		return nil , &errs.Error{
-			Type: errs.Internal,
-			Message: "Failed to parse page start : " + err.Error(),
+			Type: errs.MissingRequiredField,
+			Message: "Invalid url parameter 'page'. Should be an integer.",
+			ToRespondWith: true,
 		}
 	}
-	_, err = strconv.ParseInt(end, 10, 64)
-	if err != nil {
-		return nil , &errs.Error{
-			Type: errs.Internal,
-			Message: "Failed to parse page end : " + err.Error(),
-		}
-	}
+
+	limit := config.NotifsConfig.GetNotifsLimit
+	offset := int32(pageNum - 1) * limit
 
 	allNotifs, err := n.Queries.GetNotifications(ctx, sqlc.GetNotificationsParams{
 		UserID: userID,
-		Limit: 15,
-		Offset: int32(pageStart),
+		Limit: limit,
+		Offset: offset,
 	})
 	if err != nil {
 		return nil, &errs.Error{
@@ -78,6 +87,9 @@ func (n *Notify) GetNotifications(ctx *gin.Context, userID int64, start string, 
 		}
 	}
 
+	if len(allNotifs) == 0 {
+		return &[]sqlc.GetNotificationsRow{}, nil
+	}
 
 	return &allNotifs, nil
 }

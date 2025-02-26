@@ -1,6 +1,9 @@
 package config
 
-import "go.mod/internal/config/filepaths"
+import (
+	"go.mod/internal/config/filepaths"
+	"go.mod/internal/config/internalConfig"
+)
 
 // unit // conversion
 
@@ -55,10 +58,20 @@ const (
 
 
 var (
-	Paths = filepaths.LoadFilePaths() // TODO: remove this
 	CompPaths = filepaths.LoadCompanyPaths()
+	StuPaths = filepaths.LoadStudentPaths()
 	OpenPaths = filepaths.LoadOpenPaths()
 )
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// Load all internal configurations
+var (
+	NotifsConfig = internalConfig.LoadNotifsConfig()
+	DiscussConfig = internalConfig.LoadDiscussionConfig()
+	FeedbacksConfig = internalConfig.LoadFeedbacksConfig()
+)
+
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
 
 const (
 	DiscussionPageLimit = 10

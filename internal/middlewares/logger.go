@@ -10,9 +10,6 @@ import (
 	"go.mod/internal/dto"
 )
 
-
-
-
 func Logger(errorsChan chan *dto.ErrorData) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 

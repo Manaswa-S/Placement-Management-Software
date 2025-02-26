@@ -15,7 +15,7 @@ type CompanyPaths struct {
 	CompanyMyJobListingsTemplatePath string
 	CompanyScheduledTemplatePath string
 	CompanyCompletedTemplatePath string
-	CompanyFeedbacksTemplatePath string
+	FeedbacksTemplatePath string
 }
 
 
@@ -32,6 +32,6 @@ func LoadCompanyPaths() CompanyPaths {
 		CompanyMyJobListingsTemplatePath: "./template/company/myjoblistings.html",
 		CompanyScheduledTemplatePath: "./template/company/scheduled.html",
 		CompanyCompletedTemplatePath: "./template/company/completed.html",
-		CompanyFeedbacksTemplatePath: "./template/company/feedbacks.html",
+		FeedbacksTemplatePath: "./template/company/feedbacks.html",
 	}
 }

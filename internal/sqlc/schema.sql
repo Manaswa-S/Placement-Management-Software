@@ -135,7 +135,6 @@ CREATE TABLE testresults(
     CONSTRAINT "testresults_result_id_pkey" PRIMARY KEY (result_id)
 );
 
-
 CREATE TABLE testresponses (
     response_id BIGINT NOT NULL DEFAULT nextval('testresponses_response_id_seq'::regclass),
     result_id BIGINT NOT NULL,
@@ -151,7 +150,6 @@ CREATE TABLE testresponses (
         ON UPDATE CASCADE
         ON DELETE CASCADE
 );
-
 
 CREATE TABLE IF NOT EXISTS temp_correct_answers (
     question_id TEXT PRIMARY KEY,
@@ -173,8 +171,7 @@ CREATE TABLE notifications (
         ON DELETE CASCADE
 );
 
-CREATE TABLE feedbacks
-(
+CREATE TABLE feedbacks (
     feedback_id BIGINT NOT NULL DEFAULT nextval('feedbacks_feedback_id_seq'::regclass),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     application_id BIGINT,
@@ -200,13 +197,20 @@ CREATE TABLE feedbacks
     CONSTRAINT entity_limit CHECK (((application_id IS NOT NULL)::integer + (interview_id IS NOT NULL)::integer) = 1) NOT VALID
 );
 
-CREATE TABLE discussions (
+CREATE TABLE discussions
+(
     post_id BIGINT NOT NULL DEFAULT nextval('discussions_post_id_seq'::regclass),
     user_id BIGINT NOT NULL,
-    role BIGINT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    role BIGINT NOT NULL,
+    thread_id BIGINT,
     content TEXT NOT NULL,
     CONSTRAINT discussions_pkey PRIMARY KEY (post_id),
+    CONSTRAINT thread_id_check FOREIGN KEY (thread_id)
+        REFERENCES public.discussions (post_id) MATCH SIMPLE
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+        NOT VALID,
     CONSTRAINT users_fkey FOREIGN KEY (user_id)
         REFERENCES public.users (user_id) MATCH SIMPLE
         ON UPDATE NO ACTION

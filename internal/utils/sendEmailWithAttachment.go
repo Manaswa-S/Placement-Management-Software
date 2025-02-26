@@ -107,7 +107,6 @@ func SendEmailHTMLWithAttachmentFileHeader(body bytes.Buffer, to_Email []string,
 
 	return SendEmailHTMLWithAttachment(body, to_Email, &fileBytes, fileName)
 }
-
 func SendEmailHTMLWithAttachmentFileBytes(body bytes.Buffer, to_Email []string, fileBytes []byte, fileName string) (error) {
 	return SendEmailHTMLWithAttachment(body, to_Email, &fileBytes, fileName)
 }

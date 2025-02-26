@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgtype"
 	"go.mod/internal/config"
 	errs "go.mod/internal/const"
 	"go.mod/internal/dto"
@@ -22,9 +23,9 @@ func NewOpenService(queriespool *sqlc.Queries) *OpenService {
 }
 
 
-func (s *OpenService) DiscussionsData(ctx *gin.Context, page string) (*[]sqlc.DiscussionsDataRow, int64, int64, error) {
+func (s *OpenService) DiscussionsData(ctx *gin.Context, userID int64, page string) (*[]sqlc.DiscussionsDataRow, int32, int32, error) {
 
-	pageNo, err := strconv.ParseInt(page, 10, 64)	
+	pageNo, err := strconv.ParseInt(page, 10, 32)	
 	if err != nil {
 		return nil, 0, 0, err
 	}
@@ -32,13 +33,13 @@ func (s *OpenService) DiscussionsData(ctx *gin.Context, page string) (*[]sqlc.Di
 		return nil, 0, 0, errors.New("page number must be greater than 0")
 	}
 
-	limit := int64(config.DiscussionPageLimit)
-	
-	offset := (pageNo - 1) * limit
+	limit := int32(config.DiscussionPageLimit)
+	offset := int32(pageNo - 1) * limit
 
 	data, err := s.queries.DiscussionsData(ctx, sqlc.DiscussionsDataParams{
-		Offset: int32(offset),
-		Limit: int32(limit),
+		Offset: offset,
+		Limit: limit,
+		UserID: userID,
 	})
 	if err != nil {
 		fmt.Println(err)
@@ -50,10 +51,14 @@ func (s *OpenService) DiscussionsData(ctx *gin.Context, page string) (*[]sqlc.Di
 
 func (s *OpenService) NewDiscussion(ctx *gin.Context, userID int64, data *dto.NewDiscussion) *errs.Error {
 
-	if len(data.Message) <= 75 {
+	msgLen := len(data.Message)
+
+	if msgLen < config.DiscussConfig.NewPostLowerLimit ||
+		msgLen > config.DiscussConfig.NewPostUpperLimit {
 		return &errs.Error{
 			Type: errs.PreconditionFailed,
-			Message: "The new Discussion Message should atleast be 75 characters long.",
+			Message: fmt.Sprintf("The Discussion message should have length between %d and %d characters.",
+				config.DiscussConfig.NewPostLowerLimit, config.DiscussConfig.NewPostUpperLimit),
 			ToRespondWith: true,
 		}
 	}
@@ -71,6 +76,48 @@ func (s *OpenService) NewDiscussion(ctx *gin.Context, userID int64, data *dto.Ne
 
 	return nil
 }
+
+func (s *OpenService) NewReply(ctx *gin.Context, userID int64, data *dto.NewReply) *errs.Error {
+
+
+
+
+	return nil
+}
+
+func (s *OpenService) GetReplies(ctx *gin.Context, postid string) (*[]sqlc.GetRepliesRow, *errs.Error) {
+
+	postID, err := strconv.ParseInt(postid, 10, 64)
+	if err != nil {
+		return nil, &errs.Error{
+			Type: errs.InvalidFormat,
+			Message: err.Error(),
+			ToRespondWith: true,
+		}
+	}
+
+	data, err := s.queries.GetReplies(ctx, pgtype.Int8{Int64: postID, Valid: true})
+	if err != nil {
+		return nil, &errs.Error{
+			Type: errs.InvalidFormat,
+			Message: err.Error(),
+			ToRespondWith: true,
+		}
+	}
+
+	return &data, nil
+}
+
+
+
+
+
+
+
+
+
+
+
 
 func (s *OpenService) EditDiscussion(ctx *gin.Context, userID int64, data *dto.EditDiscussion) *errs.Error {
 

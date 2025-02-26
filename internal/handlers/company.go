@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 	"os"
 
@@ -10,6 +9,7 @@ import (
 	errs "go.mod/internal/const"
 	"go.mod/internal/dto"
 	"go.mod/internal/services"
+	"go.mod/internal/utils/ctxutils"
 )
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -105,6 +105,7 @@ func (h *CompanyHandler) RegisterRoute(companyRoute *gin.RouterGroup) {
 
 	companyRoute.GET("/feedbacks", h.Feedbacks)
 	companyRoute.GET("/feedbacksdata", h.FeedbacksData)
+	companyRoute.POST("/newfeedback", h.NewFeedback)
 
 
 
@@ -116,6 +117,7 @@ func (h *CompanyHandler) RegisterRoute(companyRoute *gin.RouterGroup) {
 
 
 }
+// TODO: replace with utils
 // extractUserID extracts the user ID and other required parameters from the context with explicit type assertion.
 // any returned error is directly included in the response as returned
 func (h *CompanyHandler) extractUserID(ctx *gin.Context) (int64, *errs.Error) {
@@ -157,7 +159,7 @@ func (h *CompanyHandler) checkFile(ctx *gin.Context, filePath string) *errs.Erro
 		ctx.Set("error", "cannot get file data for path : " + filePath)
 		return &errs.Error{
 			Type: errs.NotFound,
-			Message: "Failed to get metadata/ access file : " + filePath,
+			Message: "Failed to get metadata/access file : " + filePath,
 		}
 	}
 
@@ -169,7 +171,7 @@ func (h *CompanyHandler) checkFile(ctx *gin.Context, filePath string) *errs.Erro
 // CompanyDashboard returns the dashboard template for the company role
 func (h *CompanyHandler) CompanyDashboard(ctx *gin.Context) {
 
-	filePath := config.Paths.CompanyDashboardPath
+	filePath := config.CompPaths.CompanyDashboardPath
 	errf := h.checkFile(ctx, filePath)
 	if errf != nil {
 		ctx.Status(http.StatusInternalServerError)
@@ -198,12 +200,12 @@ func (h *CompanyHandler) DashboardData(ctx *gin.Context) {
 // GetNotifications returns the notifications for user ID, uses start and end as params for limits
 func (h *CompanyHandler) GetNotifications(ctx *gin.Context) {
 
-	start := ctx.Query("start")
-	end := ctx.Query("end")
-	if start == "" || end == "" {
+	page := ctx.Query("page")
+	if page == "" {
 		ctx.JSON(http.StatusBadRequest, errs.Error{
 			Type: errs.InvalidFormat,
 			Message: "Missing start or end parameter in request url.",
+			ToRespondWith: true,
 		})
 		return
 	}
@@ -214,9 +216,13 @@ func (h *CompanyHandler) GetNotifications(ctx *gin.Context) {
 		return
 	}
 
-	notifs, errf := h.CompanyService.Notify.GetNotifications(ctx, userID, start, end)
+	notifs, errf := h.CompanyService.Notify.GetNotifications(ctx, userID, page)
 	if errf != nil {
-		ctx.Set("error", errf.Message)
+		if errf.ToRespondWith {
+			ctx.JSON(http.StatusBadRequest, errf)
+		} else {
+			ctx.Set("error", errf.Message)
+		}
 		return
 	}
 
@@ -228,7 +234,7 @@ func (h *CompanyHandler) NewJob(ctx *gin.Context) {
 	GoogleFormLink := os.Getenv("NewJobFormLink")
 
 	if GoogleFormLink == "" {
-		filePath := config.Paths.NewJobFormTemplatePath
+		filePath := config.CompPaths.NewJobFormTemplatePath
 		errf := h.checkFile(ctx, filePath)
 		if errf != nil {
 			ctx.Status(http.StatusInternalServerError)
@@ -275,7 +281,7 @@ func (h *CompanyHandler) NewJobPost(ctx *gin.Context) {
 }
 // ApplicantsStatic returns the MyApplicants template for company role
 func (h *CompanyHandler) ApplicantsStatic(ctx *gin.Context) {
-	filePath := config.Paths.CompanyMyApplicantsTemplatePath
+	filePath := config.CompPaths.CompanyMyApplicantsTemplatePath
 	errf := h.checkFile(ctx, filePath)
 	if errf != nil {
 		ctx.Status(http.StatusInternalServerError)
@@ -358,7 +364,7 @@ func (h *CompanyHandler) GetResumeOrResultFile(ctx *gin.Context) {
 // JobListingsStatic returns the JobListings page for the company role
 func (h *CompanyHandler) JobListingsStatic(ctx *gin.Context) {
 
-	filePath := config.Paths.CompanyMyJobListingsTemplatePath
+	filePath := config.CompPaths.CompanyMyJobListingsTemplatePath
 	errf := h.checkFile(ctx, filePath)
 	if errf != nil {
 		ctx.Status(http.StatusInternalServerError)
@@ -526,7 +532,6 @@ func (h *CompanyHandler) Reject(ctx *gin.Context) {
 func (h *CompanyHandler) ScheduleInterview(ctx *gin.Context) {
 
 	data :=  new(dto.NewInterview)
-
 	err := ctx.Bind(data)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, errs.Error{
@@ -657,7 +662,7 @@ func (h *CompanyHandler) NewTestStatic(ctx *gin.Context) {
 		return
 	}
 
-	ctx.HTML(http.StatusOK, config.Paths.NewTestFormTemplateName, gin.H{
+	ctx.HTML(http.StatusOK, config.CompPaths.NewTestFormTemplateName, gin.H{
 		"NewTestGoogleFormsCollaboratorEmail": collaboratorEmail,
 		"JobIDToBind": jobidtoBind,
 	})
@@ -700,7 +705,7 @@ func (h *CompanyHandler) NewTestPost(ctx *gin.Context) {
 // ScheduledStatic responds with the 'Scheduled' page for company role
 func (h *CompanyHandler) ScheduledStatic(ctx *gin.Context) {
 
-	filePath := config.Paths.CompanyScheduledTemplatePath
+	filePath := config.CompPaths.CompanyScheduledTemplatePath
 	errf := h.checkFile(ctx, filePath)
 	if errf != nil {
 		ctx.Status(http.StatusInternalServerError)
@@ -777,7 +782,7 @@ func (h *CompanyHandler) UpdateInterview(ctx *gin.Context) {
 // CompletedStatic returns the 'Completed' page for company role
 func (h *CompanyHandler) CompletedStatic(ctx *gin.Context) {
 
-	filePath := config.Paths.CompanyCompletedTemplatePath
+	filePath := config.CompPaths.CompanyCompletedTemplatePath
 	errf := h.checkFile(ctx, filePath)
 	if errf != nil {
 		ctx.Status(http.StatusInternalServerError)
@@ -888,7 +893,7 @@ func (h *CompanyHandler) PublishTestResults(ctx *gin.Context) {
 // GetProfile returns the 'MyProfile' page for company role
 func (h *CompanyHandler) GetProfile(ctx *gin.Context) {
 
-	filePath := config.Paths.CompanyMyProfileTemplatePath
+	filePath := config.CompPaths.CompanyMyProfileTemplatePath
 	errf := h.checkFile(ctx, filePath)
 	if errf != nil {
 		ctx.Status(http.StatusInternalServerError)
@@ -1034,19 +1039,13 @@ func (h *CompanyHandler) UpdateFile(ctx *gin.Context) {
 
 // CLEANUP UNDERWAY >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-
-
-
-
-
-
-
 func (h *CompanyHandler) Feedbacks(ctx *gin.Context) {
-	filePath := config.CompPaths.CompanyFeedbacksTemplatePath
 
-	errf := h.checkFile(ctx, filePath)
+	filePath := config.CompPaths.FeedbacksTemplatePath
+
+	errf := ctxutils.CheckFile(ctx, filePath)
 	if errf != nil {
-		ctx.JSON(http.StatusBadRequest, errf)
+		ctx.JSON(http.StatusInternalServerError, errf)
 		return
 	}
 
@@ -1057,57 +1056,68 @@ func (h *CompanyHandler) FeedbacksData(ctx *gin.Context) {
 	
 	tab := ctx.Query("tab")
 	if tab == "" {
+		ctx.JSON(http.StatusBadRequest, errs.Error{
+			Type: errs.MissingRequiredField,
+			Message: "Missing tab parameter in request url.",
+			ToRespondWith: true, 
+		})
 		return
 	}
 
-	userID, errf := h.extractUserID(ctx)
+	userID, errf := ctxutils.ExtractUserID(ctx)
 	if errf != nil {
-		ctx.JSON(http.StatusBadRequest, errf)
+		ctx.JSON(http.StatusUnprocessableEntity, errf)
 		return
 	}
 
 	data, errf := h.CompanyService.FeedbacksData(ctx, userID, tab)
 	if errf != nil {
-		fmt.Println(errf.Message)
+		if errf.ToRespondWith {
+			ctx.JSON(http.StatusBadRequest, errf)
+		} else {
+			ctx.Set("error", errf.Message)
+			ctx.Status(http.StatusInternalServerError)
+		}
 		return
 	}
 
 	ctx.JSON(http.StatusOK, data)
 }
 
-// func (h *CompanyHandler) Feedback(ctx *gin.Context) {
+func (h *CompanyHandler) NewFeedback(ctx *gin.Context) {
 
-// 	data := new(dto.Feedback)
-// 	err := ctx.Bind(data)
-// 	if err != nil {
-// 		ctx.JSON(http.StatusBadRequest, errs.Error{
-// 			Type: errs.IncompleteForm,
-// 			Message: "New Feedback form is incomplete or invalid.",
-// 			ToRespondWith: true,
-// 		})
-// 		return
-// 	}
+	data := new(dto.CompanyFeedback)
+	err := ctx.Bind(data)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, errs.Error{
+			Type: errs.IncompleteForm,
+			Message: "New Feedback form is incomplete or invalid.",
+			ToRespondWith: true,
+		})
+		return
+	}
 
-// 	userID, errf := h.extractUserID(ctx)
-// 	if errf != nil {
-// 		ctx.JSON(http.StatusBadRequest, errf)
-// 		return
-// 	}
+	userID, errf := ctxutils.ExtractUserID(ctx)
+	if errf != nil {
+		ctx.JSON(http.StatusUnprocessableEntity, errf)
+		return
+	}
 
-// 	errf = h.CompanyService.Feedback(ctx, userID, data)
-// 	if errf != nil {
-// 		if errf.ToRespondWith {
-// 			ctx.JSON(http.StatusBadRequest, errf)
-// 		} else {
-// 			ctx.Set("error", errf.Message)
-// 		}
-// 		return
-// 	}
+	errf = h.CompanyService.NewFeedback(ctx, userID, data)
+	if errf != nil {
+		if errf.ToRespondWith {
+			ctx.JSON(http.StatusBadRequest, errf)
+		} else {
+			ctx.Set("error", errf.Message)
+			ctx.Status(http.StatusInternalServerError)
+		}
+		return
+	}
 
-// 	ctx.JSON(http.StatusOK, gin.H{
-// 		"Status": "New feedback sent successfully.",
-// 	})
-// }
+	ctx.JSON(http.StatusOK, gin.H{
+		"Status": "New feedback sent successfully.",
+	})
+}
 
 
 

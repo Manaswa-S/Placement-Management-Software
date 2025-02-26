@@ -3,7 +3,6 @@ package handlers
 import (
 	"fmt"
 	"net/http"
-	"os"
 
 	"github.com/gin-gonic/gin"
 	errs "go.mod/internal/const"
@@ -36,9 +35,6 @@ func (h *AdminHandler) RegisterRoute(adminRoute *gin.RouterGroup) {
 
 	adminRoute.GET("/verifyst", h.VerifyStudent)
 
-	// generates the test results, returns them, and triggers other funcs
-	adminRoute.GET("/testresult", h.GenerateTestResult)
-
 }
 
 
@@ -58,15 +54,14 @@ func (h *AdminHandler) GetNotifications(ctx *gin.Context) {
 	}
 
 	start := ctx.Query("start")
-	end := ctx.Query("end")
-	if start == "" || end == "" {
+	if start == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{
 			"error": "missing query params start and end",
 		})
 		return
 	}
 
-	notifs, errf := h.AdminService.Notify.GetNotifications(ctx, userid.(int64), start, end)
+	notifs, errf := h.AdminService.Notify.GetNotifications(ctx, userid.(int64), start)
 	if errf != nil {
 		if errf.Type != errs.Internal {
 			ctx.JSON(http.StatusBadRequest, gin.H{
@@ -143,13 +138,3 @@ func (h *AdminHandler) VerifyStudent(ctx *gin.Context) {
 
 }
 
-
-func (h *AdminHandler) GenerateTestResult(ctx *gin.Context) {
-
-	err := h.AdminService.GenerateTestResult(ctx, "10084")
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	ctx.File(os.Getenv("ResultDraftStorage"))
-}
